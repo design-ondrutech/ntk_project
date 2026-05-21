@@ -1,0 +1,89 @@
+import 'package:equatable/equatable.dart';
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
+
+class MemberModel extends Equatable {
+  final int id;
+  final String name;
+  final String? phone;
+  final String? role;
+  final String? approvalStatus;
+  final LocationModel? location;
+  final String? professionName;
+  final String? bloodGroup;
+  final bool isActive;
+  final DateTime? createdAt;
+
+  const MemberModel({
+    required this.id,
+    required this.name,
+    this.phone,
+    this.role,
+    this.approvalStatus,
+    this.location,
+    this.professionName,
+    this.bloodGroup,
+    this.isActive = true,
+    this.createdAt,
+  });
+
+  factory MemberModel.fromJson(Map<String, dynamic> json) {
+    return MemberModel(
+      id: json['id'] != null
+          ? (json['id'] is int
+                ? json['id'] as int
+                : int.parse(json['id'].toString()))
+          : 0,
+      name: json['name'] as String? ?? 'Unknown',
+      phone: json['phone'] as String?,
+      role: json['role'] as String? ?? 'Member',
+      approvalStatus: json['approvalStatus'] as String?,
+      location: json['location'] != null
+          ? LocationModel.fromJson(json['location'])
+          : null,
+      professionName:
+          json['profession'] as String? ?? (json['professionName'] as String?),
+      bloodGroup: json['bloodGroup'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+      createdAt: _parseDate(json['createdAt']),
+    );
+  }
+
+  static DateTime? _parseDate(dynamic dateStr) {
+    if (dateStr == null) return null;
+    final str = dateStr.toString();
+    final asInt = int.tryParse(str);
+    if (asInt != null) {
+      return DateTime.fromMillisecondsSinceEpoch(asInt);
+    }
+    return DateTime.tryParse(str);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'phone': phone,
+      'role': role,
+      'approvalStatus': approvalStatus,
+      'location': location?.toJson(),
+      'professionName': professionName,
+      'bloodGroup': bloodGroup,
+      'isActive': isActive,
+      'createdAt': createdAt?.toIso8601String(),
+    };
+  }
+
+  @override
+  List<Object?> get props => [
+    id,
+    name,
+    phone,
+    role,
+    approvalStatus,
+    location,
+    professionName,
+    bloodGroup,
+    isActive,
+    createdAt,
+  ];
+}
