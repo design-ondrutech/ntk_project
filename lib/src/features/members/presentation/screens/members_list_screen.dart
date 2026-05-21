@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/members/presentation/bloc/member_bloc.dart';
 import 'package:ntk_project/src/features/members/presentation/bloc/member_event.dart';
 import 'package:ntk_project/src/features/members/presentation/bloc/member_state.dart';
@@ -58,35 +59,46 @@ class _MembersListScreenState extends State<MembersListScreen> {
                 spacing: 12,
                 runSpacing: 12,
                 alignment: WrapAlignment.center,
-                children: bloodGroups.map((bg) => 
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _selectedBloodGroup = bg;
-                      });
-                      Navigator.pop(context);
-                      _fetchMembers();
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: _selectedBloodGroup == bg ? theme.colorScheme.primary : theme.dividerColor.withOpacity(0.05),
+                children: bloodGroups
+                    .map(
+                      (bg) => InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedBloodGroup = bg;
+                          });
+                          Navigator.pop(context);
+                          _fetchMembers();
+                        },
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: _selectedBloodGroup == bg ? theme.colorScheme.primary : theme.dividerColor.withOpacity(0.1),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _selectedBloodGroup == bg
+                                ? theme.colorScheme.primary
+                                : theme.dividerColor.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _selectedBloodGroup == bg
+                                  ? theme.colorScheme.primary
+                                  : theme.dividerColor.withOpacity(0.1),
+                            ),
+                          ),
+                          child: Text(
+                            bg,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _selectedBloodGroup == bg
+                                  ? Colors.white
+                                  : theme.textTheme.bodyLarge?.color,
+                            ),
+                          ),
                         ),
                       ),
-                      child: Text(
-                        bg, 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _selectedBloodGroup == bg ? Colors.white : theme.textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                    ),
-                  )
-                ).toList(),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 16),
               TextButton(
@@ -100,8 +112,26 @@ class _MembersListScreenState extends State<MembersListScreen> {
             ],
           ),
         );
-      }
+      },
     );
+  }
+
+  String _getLocationSubtitle(BuildContext context) {
+    final authState = context.read<AuthBloc>().state;
+    final loginLocationName = authState.loginData?.locationName;
+    if (loginLocationName != null && loginLocationName.isNotEmpty) {
+      return loginLocationName;
+    }
+
+    try {
+      final dashboardState = BlocProvider.of<DashboardBloc>(context).state;
+      final dashboardLocationName = dashboardState.stats?.locationName;
+      if (dashboardLocationName != null && dashboardLocationName.isNotEmpty) {
+        return dashboardLocationName;
+      }
+    } catch (_) {}
+
+    return 'Tamil Nadu';
   }
 
   @override
@@ -111,8 +141,7 @@ class _MembersListScreenState extends State<MembersListScreen> {
       backgroundColor: NTKColors.background,
       appBar: NTKAppBar(
         title: 'Members',
-        subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Tamil Nadu',
-
+        subtitle: _getLocationSubtitle(context),
         actions: [
           IconButton(
             icon: const Icon(CupertinoIcons.bell, color: Colors.white),
@@ -176,7 +205,9 @@ class _MembersListScreenState extends State<MembersListScreen> {
                 ),
               ),
               if (state.isLoading)
-                const Expanded(child: Center(child: CircularProgressIndicator())),
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                ),
               if (state.error != null)
                 Expanded(
                   child: Center(
@@ -185,7 +216,11 @@ class _MembersListScreenState extends State<MembersListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(CupertinoIcons.exclamationmark_triangle, color: theme.colorScheme.error, size: 48),
+                          Icon(
+                            CupertinoIcons.exclamationmark_triangle,
+                            color: theme.colorScheme.error,
+                            size: 48,
+                          ),
                           const SizedBox(height: 16),
                           Text(
                             'Failed to load members',
@@ -200,7 +235,9 @@ class _MembersListScreenState extends State<MembersListScreen> {
                           const SizedBox(height: 24),
                           ElevatedButton(
                             onPressed: _fetchMembers,
-                            style: ElevatedButton.styleFrom(minimumSize: const Size(120, 45)),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(120, 45),
+                            ),
                             child: const Text('Retry'),
                           ),
                         ],
@@ -215,7 +252,8 @@ class _MembersListScreenState extends State<MembersListScreen> {
                     child: ListView.separated(
                       padding: const EdgeInsets.all(20),
                       itemCount: state.members.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final member = state.members[index];
                         return _buildMemberCard(member);
@@ -235,7 +273,12 @@ class _MembersListScreenState extends State<MembersListScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, {required bool isSelected, required IconData icon, required VoidCallback onTap}) {
+  Widget _buildFilterChip(
+    String label, {
+    required bool isSelected,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -246,19 +289,21 @@ class _MembersListScreenState extends State<MembersListScreen> {
           border: Border.all(
             color: isSelected ? NTKColors.primary : NTKColors.border,
           ),
-          boxShadow: isSelected ? [
-            BoxShadow(
-              color: NTKColors.primary.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            )
-          ] : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: NTKColors.primary.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
             Icon(
-              icon, 
-              size: 16, 
+              icon,
+              size: 16,
               color: isSelected ? Colors.white : NTKColors.primary,
             ),
             const SizedBox(width: 8),
@@ -279,7 +324,8 @@ class _MembersListScreenState extends State<MembersListScreen> {
   Widget _buildMemberCard(MemberModel member) {
     final theme = Theme.of(context);
     return InkWell(
-      onTap: () => Navigator.pushNamed(context, '/profile', arguments: member),
+      onTap: () =>
+          Navigator.pushNamed(context, '/profile', arguments: member.id),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -333,7 +379,10 @@ class _MembersListScreenState extends State<MembersListScreen> {
             ),
             if (member.bloodGroup != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.error.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -348,7 +397,11 @@ class _MembersListScreenState extends State<MembersListScreen> {
                 ),
               ),
             const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward_ios, size: 14, color: NTKColors.textTertiary),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 14,
+              color: NTKColors.textTertiary,
+            ),
           ],
         ),
       ),

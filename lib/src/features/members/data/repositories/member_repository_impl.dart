@@ -94,6 +94,41 @@ class MemberRepositoryImpl implements MemberRepository {
   }
 
   @override
+  Future<List<MemberModel>> getPendingMembers({int? locationId}) async {
+    const String query = r'''
+      query GetPendingMembers($locationId: Int, $approvalStatus: ApprovalStatus) {
+        getMemberList(locationId: $locationId, approvalStatus: $approvalStatus) {
+          id
+          name
+          phone
+          bloodGroup
+          role
+          isActive
+          approvalStatus
+          createdAt
+          location {
+            id
+            name
+            type
+          }
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: {'locationId': locationId, 'approvalStatus': 'PENDING'},
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to fetch pending members: ${result.exception}');
+    }
+
+    final List data = result.data?['getMemberList'] as List? ?? [];
+    return data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList();
+  }
+
+  @override
   Future<List<MemberModel>> getUserList({int? locationId, String? role}) async {
     const String query = r'''
       query GetUserList($locationId: Int, $role: UserRole) {
@@ -128,28 +163,27 @@ class MemberRepositoryImpl implements MemberRepository {
   @override
   Future<MemberModel> getMemberDetails({required int id}) async {
     const String query = r'''
-      query GetMemberDetails($id: Int!) {
-        getMemberDetails(id: $id) {
+      query GetMemberDetails($getMemberDetailsId: Int!) {
+        getMemberDetails(id: $getMemberDetailsId) {
           id
           name
           phone
-          role
-          approvalStatus
-          isActive
           bloodGroup
+          role
           profession
+          isActive
+          approvalStatus
+          createdAt
           location {
-            id
             name
           }
-          createdAt
         }
       }
     ''';
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'id': id},
+      variables: {'getMemberDetailsId': id},
     );
 
     if (result.hasException) {

@@ -3,8 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:ntk_project/src/features/auth/presentation/bloc/auth_state.dart';
-import 'package:ntk_project/src/features/auth/data/models/admin_login_model.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
@@ -84,7 +82,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
     _loadUsers();
     // Load stats for the specific location to update summary cards
-    final targetLocationId = widget.locationId ?? authState.loginData?.locationId;
+    final targetLocationId =
+        widget.locationId ?? authState.loginData?.locationId;
     if (targetLocationId != null) {
       context.read<DashboardBloc>().add(LoadDashboardStats(targetLocationId));
     }
@@ -105,6 +104,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         streetId: _selectedStreetId,
       ),
     );
+  }
+
+  String? _getDashboardLocationName(BuildContext context) {
+    try {
+      return BlocProvider.of<DashboardBloc>(context).state.stats?.locationName;
+    } catch (_) {
+      return null;
+    }
   }
 
   String _getRoleLabel(String? role) {
@@ -203,10 +210,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: NTKAppBar(
         title: 'Members',
-        subtitle: widget.locationName ?? context.read<AuthBloc>().state.loginData?.locationName ?? 'Tamil Nadu',
+        subtitle:
+            widget.locationName ??
+            context.read<AuthBloc>().state.loginData?.locationName ??
+            _getDashboardLocationName(context) ??
+            'Tamil Nadu',
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Colors.white,
+            ),
             onPressed: () {},
           ),
         ],
@@ -214,7 +228,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       body: SafeArea(
         child: Column(
           children: [
-
             Expanded(
               child: BlocBuilder<UserManagementBloc, UserManagementState>(
                 builder: (context, state) {
@@ -363,7 +376,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               const SizedBox(height: 20),
 
                               // ── Admin/Sub Admin Filters (Street, Blood Group, Profession) ──
-                              if (_userRole == 'SUB_ADMIN' || _userRole == 'ADMIN')
+                              if (_userRole == 'SUB_ADMIN' ||
+                                  _userRole == 'ADMIN')
                                 BlocBuilder<
                                   UserManagementBloc,
                                   UserManagementState
@@ -387,6 +401,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                                 onTap: () => _showStreetPicker(
                                                   context,
                                                   umState.streets,
+                                                  umState.isLoadingStreets,
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
@@ -498,7 +513,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       .where((u) => u.isActive)
                                       .length;
 
-                                  final tabLabel = _tabs[_selectedTab].toUpperCase();
+                                  final tabLabel = _tabs[_selectedTab]
+                                      .toUpperCase();
                                   return Row(
                                     children: [
                                       Expanded(
@@ -943,7 +959,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   // ── Street picker ─────────────────────────────────────
-  void _showStreetPicker(BuildContext context, List streets) {
+  void _showStreetPicker(BuildContext context, List streets, bool isLoading) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -960,7 +976,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            if (streets.isEmpty)
+            if (isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (streets.isEmpty)
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(20),

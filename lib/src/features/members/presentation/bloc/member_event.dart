@@ -21,3 +21,13 @@ class LoadMembers extends MemberEvent {
   @override
   List<Object?> get props => [locationId, search, bloodGroup];
 }
+
+class LoadMemberDetails extends MemberEvent {
+  final int id;
+
+  const LoadMemberDetails({required this.id});
+
+  @override
+  List<Object?> get props => [id];
+}
+

@@ -106,7 +106,44 @@ class AuthRepositoryImpl implements AuthRepository {
       );
     }
 
-    final model = AdminLoginModel.fromJson(userData, token: token);
+    var model = AdminLoginModel.fromJson(userData, token: token);
+
+    if ((model.locationName == null || model.locationName!.isEmpty) &&
+        token != null) {
+      try {
+        const String meQuery = r'''
+          query Me {
+            me {
+              id
+              name
+              role
+              approvalStatus
+              location {
+                id
+                name
+              }
+            }
+          }
+        ''';
+        final meResult = await _graphQLService.performQuery(meQuery);
+        if (!meResult.hasException && meResult.data?['me'] != null) {
+          final meModel = AdminLoginModel.fromJson(
+            meResult.data!['me'] as Map<String, dynamic>,
+            token: token,
+          );
+          model = AdminLoginModel(
+            id: model.id,
+            name: model.name,
+            role: model.role,
+            approvalStatus: model.approvalStatus,
+            locationId: meModel.locationId ?? model.locationId,
+            locationName: meModel.locationName ?? model.locationName,
+            token: model.token,
+          );
+        }
+      } catch (_) {}
+    }
+
     // Keep the role user selected at login (SUB_ADMIN, ADMIN, etc.)
     if (role != null && role.isNotEmpty) {
       return AdminLoginModel(

@@ -471,7 +471,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () {
-                            MainScreen.of(context)?.setSelectedIndex(2);
+                            Navigator.pushNamed(context, '/pending_requests');
                           },
                           child: Container(
                             padding: const EdgeInsets.all(16),
@@ -493,7 +493,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: const Icon(
-                                        Icons.assignment_turned_in_outlined,
+                                        Icons.people_outline,
                                         color: Colors.white,
                                         size: 20,
                                       ),
@@ -518,7 +518,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 const Text(
-                                  'Pending Requests',
+                                  'Pending Members',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.white70,

@@ -155,8 +155,10 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
         _streets = list;
         _loadingStreets = false;
       });
-    } catch (_) {
+    } catch (e) {
       setState(() => _loadingStreets = false);
+      _showSnack('Unable to load streets. Please try again.');
+      debugPrint('CreateMemberScreen _onAreaChanged error: $e');
     }
   }
 

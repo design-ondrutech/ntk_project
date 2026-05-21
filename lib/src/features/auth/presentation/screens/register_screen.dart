@@ -47,7 +47,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   late final LocationRepositoryImpl _locationRepo;
 
   static const List<String> _bloodGroups = [
-    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-',
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
   ];
   static const List<String> _professions = [
     'Farmer',
@@ -158,8 +165,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _streets = list;
         _loadingStreets = false;
       });
-    } catch (_) {
+    } catch (e) {
       setState(() => _loadingStreets = false);
+      _showSnack('Unable to load streets. Please try again.');
+      debugPrint('RegisterScreen _onAreaChanged error: $e');
     }
   }
 
@@ -318,7 +327,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _loadingThoguthis
                           ? _buildLoadingField('Thoguthi (தொகுதி)')
                           : _selectedDistrict == null
-                          ? _buildDisabledField('Thoguthi (தொகுதி)', 'முதலில் மாவட்டம் தேர்ந்தெடுக்கவும்')
+                          ? _buildDisabledField(
+                              'Thoguthi (தொகுதி)',
+                              'முதலில் மாவட்டம் தேர்ந்தெடுக்கவும்',
+                            )
                           : NTKDropdownField<LocationModel>(
                               label: 'Thoguthi (தொகுதி)',
                               items: _thoguthis,
@@ -332,7 +344,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _loadingAreas
                           ? _buildLoadingField('Area (பகுதி)')
                           : _selectedThoguthi == null
-                          ? _buildDisabledField('Area (பகுதி)', 'முதலில் தொகுதி தேர்ந்தெடுக்கவும்')
+                          ? _buildDisabledField(
+                              'Area (பகுதி)',
+                              'முதலில் தொகுதி தேர்ந்தெடுக்கவும்',
+                            )
                           : NTKDropdownField<LocationModel>(
                               label: 'Area (பகுதி)',
                               items: _areas,
@@ -346,13 +361,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       _loadingStreets
                           ? _buildLoadingField('Street (தெரு)')
                           : _selectedArea == null
-                          ? _buildDisabledField('Street (தெரு)', 'முதலில் பகுதி தேர்ந்தெடுக்கவும்')
+                          ? _buildDisabledField(
+                              'Street (தெரு)',
+                              'முதலில் பகுதி தேர்ந்தெடுக்கவும்',
+                            )
                           : NTKDropdownField<LocationModel>(
                               label: 'Street (தெரு)',
                               items: _streets,
                               selectedValue: _selectedStreet,
                               hintText: 'Select Street name',
-                              onChanged: (val) => setState(() => _selectedStreet = val),
+                              onChanged: (val) =>
+                                  setState(() => _selectedStreet = val),
                               itemLabel: (item) => item.name,
                             ),
                       const SizedBox(height: 16),
@@ -401,8 +420,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             size: 20,
                             color: NTKColors.textTertiary,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -421,8 +441,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             size: 20,
                             color: NTKColors.textTertiary,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscureConfirm = !_obscureConfirm),
+                          onPressed: () => setState(
+                            () => _obscureConfirm = !_obscureConfirm,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -529,12 +550,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.lock_outline, size: 16, color: Color(0xFF9CA3AF)),
+              const Icon(
+                Icons.lock_outline,
+                size: 16,
+                color: Color(0xFF9CA3AF),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   message,
-                  style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                  style: const TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],

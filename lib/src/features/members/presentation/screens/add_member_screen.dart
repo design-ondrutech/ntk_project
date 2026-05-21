@@ -26,16 +26,33 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   final _professionController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   String? selectedBloodGroup;
   LocationModel? selectedStreet;
   bool _obscure = true;
   bool _obscureConfirm = true;
 
-  final List<String> bloodGroups = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+  final List<String> bloodGroups = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'O+',
+    'O-',
+    'AB+',
+    'AB-',
+  ];
   static const List<String> _professions = [
-    'Farmer', 'Teacher', 'Doctor', 'Engineer', 'Lawyer', 
-    'Business', 'Government Employee', 'Private Employee', 'Student', 'Other'
+    'Farmer',
+    'Teacher',
+    'Doctor',
+    'Engineer',
+    'Lawyer',
+    'Business',
+    'Government Employee',
+    'Private Employee',
+    'Student',
+    'Other',
   ];
 
   List<LocationModel> streets = [];
@@ -60,8 +77,10 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         streets = list;
         isLoadingStreets = false;
       });
-    } catch (_) {
+    } catch (e) {
       setState(() => isLoadingStreets = false);
+      _showSnack('Unable to load streets. Please try again.');
+      debugPrint('AddMemberScreen _loadStreets error: $e');
     }
   }
 
@@ -107,7 +126,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
     }
 
     final authState = context.read<AuthBloc>().state;
-    
+
     context.read<UserBloc>().add(
       AddMemberRequested(
         name: _nameController.text.trim(),
@@ -154,7 +173,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
             children: [
               BlocBuilder<AuthBloc, AuthState>(
                 builder: (context, authState) {
-                  final areaName = authState.loginData?.locationName ?? 'Community';
+                  final areaName =
+                      authState.loginData?.locationName ?? 'Community';
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -169,7 +189,11 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                       const SizedBox(height: 6),
                       Text(
                         'Registering new member for $areaName',
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF059669), fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF059669),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   );
@@ -197,16 +221,16 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
               const SizedBox(height: 16),
 
               // ── Street ───────────────────────────────────
-              isLoadingStreets 
-                ? _buildLoadingField('Street')
-                : NTKDropdownField<LocationModel>(
-                    label: 'Street',
-                    items: streets,
-                    selectedValue: selectedStreet,
-                    hintText: 'Select Street name',
-                    onChanged: (val) => setState(() => selectedStreet = val),
-                    itemLabel: (item) => item.name,
-                  ),
+              isLoadingStreets
+                  ? _buildLoadingField('Street')
+                  : NTKDropdownField<LocationModel>(
+                      label: 'Street',
+                      items: streets,
+                      selectedValue: selectedStreet,
+                      hintText: 'Select Street name',
+                      onChanged: (val) => setState(() => selectedStreet = val),
+                      itemLabel: (item) => item.name,
+                    ),
               const SizedBox(height: 16),
 
               // ── Blood Group & Profession Row ─────────────
@@ -218,7 +242,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                       items: bloodGroups,
                       selectedValue: selectedBloodGroup,
                       hintText: 'Select',
-                      onChanged: (val) => setState(() => selectedBloodGroup = val),
+                      onChanged: (val) =>
+                          setState(() => selectedBloodGroup = val),
                       itemLabel: (item) => item,
                     ),
                   ),
@@ -227,9 +252,13 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                     child: NTKDropdownField<String>(
                       label: 'Profession',
                       items: _professions,
-                      selectedValue: _professionController.text.isEmpty ? null : _professionController.text,
+                      selectedValue: _professionController.text.isEmpty
+                          ? null
+                          : _professionController.text,
                       hintText: 'Select',
-                      onChanged: (val) => setState(() => _professionController.text = val ?? ''),
+                      onChanged: (val) => setState(
+                        () => _professionController.text = val ?? '',
+                      ),
                       itemLabel: (item) => item,
                     ),
                   ),
@@ -264,11 +293,14 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                 obscureText: _obscureConfirm,
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscureConfirm ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                    _obscureConfirm
+                        ? CupertinoIcons.eye_slash
+                        : CupertinoIcons.eye,
                     size: 20,
                     color: NTKColors.textTertiary,
                   ),
-                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                  onPressed: () =>
+                      setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
               ),
               const SizedBox(height: 36),
@@ -289,7 +321,9 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                         ),
                       ),
                       child: isLoading
-                          ? const CupertinoActivityIndicator(color: Colors.white)
+                          ? const CupertinoActivityIndicator(
+                              color: Colors.white,
+                            )
                           : const Text(
                               'ADD MEMBER',
                               style: TextStyle(

@@ -15,6 +15,8 @@ abstract class MemberRepository {
     String? approvalStatus,
   });
 
+  Future<List<MemberModel>> getPendingMembers({int? locationId});
+
   Future<List<MemberModel>> getUserList({int? locationId, String? role});
 
   Future<MemberModel> getMemberDetails({required int id});

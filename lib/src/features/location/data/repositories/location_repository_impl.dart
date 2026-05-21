@@ -1,3 +1,4 @@
+// ignore_for_file: use_null_aware_elements
 import 'package:ntk_project/src/core/network/graphql_service.dart';
 import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
@@ -80,9 +81,14 @@ class LocationRepositoryImpl implements LocationRepository {
       }
     ''';
 
+    final variables = <String, dynamic>{
+      'type': type,
+      if (parentId != null) 'parentId': parentId,
+    };
+
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'parentId': parentId, 'type': type},
+      variables: variables,
     );
 
     if (result.hasException) {

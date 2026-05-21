@@ -8,6 +8,7 @@ class MemberBloc extends Bloc<MemberEvent, MemberState> {
 
   MemberBloc(this._memberRepository) : super(const MemberState()) {
     on<LoadMembers>(_onLoadMembers);
+    on<LoadMemberDetails>(_onLoadMemberDetails);
   }
 
   Future<void> _onLoadMembers(
@@ -24,6 +25,19 @@ class MemberBloc extends Bloc<MemberEvent, MemberState> {
       emit(state.copyWith(isLoading: false, members: members));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onLoadMemberDetails(
+    LoadMemberDetails event,
+    Emitter<MemberState> emit,
+  ) async {
+    emit(state.copyWith(isLoadingDetails: true, detailsError: null));
+    try {
+      final member = await _memberRepository.getMemberDetails(id: event.id);
+      emit(state.copyWith(isLoadingDetails: false, selectedMember: member));
+    } catch (e) {
+      emit(state.copyWith(isLoadingDetails: false, detailsError: e.toString()));
     }
   }
 }
