@@ -8,6 +8,7 @@ import 'package:ntk_project/src/features/members/presentation/screens/members_li
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/screens/requests_broadcasts_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_feed_screen.dart';
+import 'package:ntk_project/src/features/auth/presentation/screens/me_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -57,7 +58,7 @@ class MainScreenState extends State<MainScreen> {
       },
       {
         'screen': const RequestsBroadcastsScreen(),
-        'label': 'Requests',
+        'label': 'Announcements',
         'icon': Icons.assignment_outlined,
         'activeIcon': Icons.assignment_rounded,
         'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN'],
@@ -70,18 +71,16 @@ class MainScreenState extends State<MainScreen> {
         'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
       },
       {
-        'screen': const EventsOverviewScreen(),
-        'label': 'Events',
-        'icon': Icons.event_note_outlined,
-        'activeIcon': Icons.event_note_rounded,
+        'screen': const MeScreen(),
+        'label': 'Me',
+        'icon': Icons.person_outline_rounded,
+        'activeIcon': Icons.person_rounded,
         'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
       },
     ];
 
-    // Filter tabs based on user role
-    final List<Map<String, dynamic>> filteredTabs = allTabs
-        .where((tab) => (tab['roles'] as List<String>).contains(userRole))
-        .toList();
+    // Temporarily bypassing role check to show all tabs for testing
+    final List<Map<String, dynamic>> filteredTabs = allTabs;
 
     return Scaffold(
       body: IndexedStack(
@@ -90,10 +89,10 @@ class MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF0A3D28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withOpacity(0.1),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -105,9 +104,9 @@ class MainScreenState extends State<MainScreen> {
               : _selectedIndex,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF059669), // NTK Green
-          unselectedItemColor: const Color(0xFF6B7280), // Gray 500
+          backgroundColor: const Color(0xFF0A3D28),
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white70,
           selectedFontSize: 12,
           unselectedFontSize: 12,
           elevation: 0,
@@ -119,7 +118,7 @@ class MainScreenState extends State<MainScreen> {
               icon: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF059669).withOpacity(0.1) : Colors.transparent,
+                  color: isSelected ? Colors.white.withOpacity(0.15) : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Icon(isSelected ? tab['activeIcon'] : tab['icon']),

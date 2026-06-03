@@ -9,6 +9,8 @@ class UserManagementState extends Equatable {
   final String selectedType;
   final List<LocationModel> streets;
   final bool isLoadingStreets;
+  final bool hasReachedMax;
+  final bool isLoadingMore;
 
   const UserManagementState({
     this.isLoading = false,
@@ -17,6 +19,8 @@ class UserManagementState extends Equatable {
     this.selectedType = 'Member',
     this.streets = const [],
     this.isLoadingStreets = false,
+    this.hasReachedMax = false,
+    this.isLoadingMore = false,
   });
 
   UserManagementState copyWith({
@@ -26,6 +30,8 @@ class UserManagementState extends Equatable {
     String? selectedType,
     List<LocationModel>? streets,
     bool? isLoadingStreets,
+    bool? hasReachedMax,
+    bool? isLoadingMore,
   }) {
     return UserManagementState(
       isLoading: isLoading ?? this.isLoading,
@@ -34,6 +40,8 @@ class UserManagementState extends Equatable {
       selectedType: selectedType ?? this.selectedType,
       streets: streets ?? this.streets,
       isLoadingStreets: isLoadingStreets ?? this.isLoadingStreets,
+      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
 
@@ -45,5 +53,7 @@ class UserManagementState extends Equatable {
     selectedType,
     streets,
     isLoadingStreets,
+    hasReachedMax,
+    isLoadingMore,
   ];
 }

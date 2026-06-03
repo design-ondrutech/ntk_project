@@ -67,10 +67,14 @@ class PendingRequestsState extends Equatable {
 }
 
 // Bloc
-class PendingRequestsBloc extends Bloc<PendingRequestsEvent, PendingRequestsState> {
+class PendingRequestsBloc
+    extends Bloc<PendingRequestsEvent, PendingRequestsState> {
   final GraphQLService _graphQLService;
+  int? _currentLocationId;
+  String? _currentRole;
 
-  PendingRequestsBloc(this._graphQLService) : super(const PendingRequestsState()) {
+  PendingRequestsBloc(this._graphQLService)
+    : super(const PendingRequestsState()) {
     on<LoadPendingRequests>(_onLoadRequests);
     on<ApproveRequest>(_onApproveRequest);
     on<RejectRequest>(_onRejectRequest);
@@ -83,13 +87,13 @@ class PendingRequestsBloc extends Bloc<PendingRequestsEvent, PendingRequestsStat
     emit(state.copyWith(isLoading: true, error: null));
     try {
       const String query = r'''
-        query GetPendingRequests($locationId: Int, $role: String) {
-          pendingRequests(locationId: $locationId, role: $role) {
+        query GetMemberList($locationId: Int, $approvalStatus: ApprovalStatus) {
+          getMemberList(locationId: $locationId, approvalStatus: $approvalStatus) {
             id
             name
             phone
             role
-            type
+            approvalStatus
             createdAt
             location {
               id
@@ -99,21 +103,28 @@ class PendingRequestsBloc extends Bloc<PendingRequestsEvent, PendingRequestsStat
         }
       ''';
 
+      _currentLocationId = event.locationId;
+      _currentRole = event.role;
+
+      final variables = <String, dynamic>{'approvalStatus': 'PENDING'};
+      if (event.locationId != null) {
+        variables['locationId'] = event.locationId;
+      }
+
       final result = await _graphQLService.performQuery(
         query,
-        variables: {
-          'locationId': event.locationId,
-          'role': event.role == 'All' ? null : event.role,
-        },
+        variables: variables,
       );
 
       if (result.hasException) {
         throw Exception(result.exception.toString());
       }
 
-      final List data = result.data?['pendingRequests'] as List? ?? [];
-      final requests = data.map((json) => PendingRequestModel.fromJson(json)).toList();
-      
+      final List data = result.data?['getMemberList'] as List? ?? [];
+      final requests = data
+          .map((json) => PendingRequestModel.fromJson(json))
+          .toList();
+
       emit(state.copyWith(isLoading: false, requests: requests));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
@@ -125,33 +136,27 @@ class PendingRequestsBloc extends Bloc<PendingRequestsEvent, PendingRequestsStat
     Emitter<PendingRequestsState> emit,
   ) async {
     try {
-      // For standard members, we use updateMemberStatus
-      // For Users (Admins/Sub Admins), we might need another mutation
-      // However, for simplicity, let's assume updateMemberStatus handles Member table
-      // and we add updateAdminStatus for User table.
-      
       const String mutation = r'''
-        mutation UpdateStatus($id: Int!, $status: ApprovalStatus!, $type: String!) {
-          updateApprovalStatus(id: $id, status: $status, type: $type) {
+        mutation UpdateMemberStatus($id: Int!, $status: ApprovalStatus!) {
+          updateMemberStatus(id: $id, status: $status) {
             id
-            approvalStatus
+            name
+            phone
           }
         }
       ''';
 
       final result = await _graphQLService.performMutation(
         mutation,
-        variables: {
-          'id': event.id,
-          'status': 'APPROVED',
-          'type': event.type,
-        },
+        variables: {'id': event.id, 'status': 'APPROVED'},
       );
 
       if (result.hasException) throw Exception(result.exception.toString());
-      
+
       emit(state.copyWith(message: 'Request approved successfully'));
-      add(LoadPendingRequests(locationId: state.requests.firstOrNull?.location?.id));
+      add(
+        LoadPendingRequests(locationId: _currentLocationId, role: _currentRole),
+      );
     } catch (e) {
       emit(state.copyWith(error: e.toString()));
     }
@@ -163,27 +168,26 @@ class PendingRequestsBloc extends Bloc<PendingRequestsEvent, PendingRequestsStat
   ) async {
     try {
       const String mutation = r'''
-        mutation UpdateStatus($id: Int!, $status: ApprovalStatus!, $type: String!) {
-          updateApprovalStatus(id: $id, status: $status, type: $type) {
+        mutation UpdateMemberStatus($id: Int!, $status: ApprovalStatus!) {
+          updateMemberStatus(id: $id, status: $status) {
             id
-            approvalStatus
+            name
+            phone
           }
         }
       ''';
 
       final result = await _graphQLService.performMutation(
         mutation,
-        variables: {
-          'id': event.id,
-          'status': 'REJECTED',
-          'type': event.type,
-        },
+        variables: {'id': event.id, 'status': 'REJECTED'},
       );
 
       if (result.hasException) throw Exception(result.exception.toString());
-      
+
       emit(state.copyWith(message: 'Request rejected'));
-      add(LoadPendingRequests(locationId: state.requests.firstOrNull?.location?.id));
+      add(
+        LoadPendingRequests(locationId: _currentLocationId, role: _currentRole),
+      );
     } catch (e) {
       emit(state.copyWith(error: e.toString()));
     }

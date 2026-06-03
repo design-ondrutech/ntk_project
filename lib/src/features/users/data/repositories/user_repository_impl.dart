@@ -9,62 +9,45 @@ class UserRepositoryImpl implements UserRepository {
   @override
   Future<Map<String, dynamic>> createUser({
     required String name,
+    String? surname,
     required String phone,
     required String password,
     required String role,
-    int? districtId,
-    int? talukId,
-    int? areaId,
-    int? streetId,
-    String? bloodGroup,
-    String? professionName,
+    int? locationId,
   }) async {
     const String mutation = r'''
       mutation CreateUser(
         $name: String!
+        $surname: String
         $phone: String!
         $password: String!
-        $role: UserRole!
-        $districtId: Int
-        $talukId: Int
-        $areaId: Int
-        $streetId: Int
-        $bloodGroup: String
-        $professionName: String
+        $role: Role!
+        $locationId: Int
       ) {
         createUser(
           name: $name
+          surname: $surname
           phone: $phone
           password: $password
           role: $role
-          districtId: $districtId
-          talukId: $talukId
-          areaId: $areaId
-          streetId: $streetId
-          bloodGroup: $bloodGroup
-          professionName: $professionName
+          locationId: $locationId
         ) {
           id
           name
+          surname
           phone
           role
-          isActive
-          approvalStatus
         }
       }
     ''';
 
     final variables = <String, dynamic>{
       'name': name,
+      'surname': surname,
       'phone': phone,
       'password': password,
       'role': role,
-      if (districtId != null) 'districtId': districtId,
-      if (talukId != null) 'talukId': talukId,
-      if (areaId != null) 'areaId': areaId,
-      if (streetId != null) 'streetId': streetId,
-      if (bloodGroup != null) 'bloodGroup': bloodGroup,
-      if (professionName != null) 'professionName': professionName,
+      if (locationId != null) 'locationId': locationId,
     };
 
     final result = await _graphQLService.performMutation(

@@ -20,6 +20,7 @@ class MembersListScreen extends StatefulWidget {
 class _MembersListScreenState extends State<MembersListScreen> {
   String? _searchQuery;
   String? _selectedBloodGroup;
+  String? _selectedRole;
 
   @override
   void initState() {
@@ -34,6 +35,7 @@ class _MembersListScreenState extends State<MembersListScreen> {
         locationId: authState.loginData?.locationId,
         search: _searchQuery,
         bloodGroup: _selectedBloodGroup,
+        role: _selectedRole,
       ),
     );
   }
@@ -116,10 +118,91 @@ class _MembersListScreenState extends State<MembersListScreen> {
     );
   }
 
+  void _showRolePicker(BuildContext context) {
+    final theme = Theme.of(context);
+    final roles = ['ADMIN', 'SUB_ADMIN', 'MEMBER', 'SUPER_ADMIN'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Select Role', style: theme.textTheme.titleLarge),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: roles
+                    .map(
+                      (role) => InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedRole = role;
+                          });
+                          Navigator.pop(context);
+                          _fetchMembers();
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _selectedRole == role
+                                ? theme.colorScheme.primary
+                                : theme.dividerColor.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _selectedRole == role
+                                  ? theme.colorScheme.primary
+                                  : theme.dividerColor.withOpacity(0.1),
+                            ),
+                          ),
+                          child: Text(
+                            role,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _selectedRole == role
+                                  ? Colors.white
+                                  : theme.textTheme.bodyLarge?.color,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  setState(() => _selectedRole = null);
+                  Navigator.pop(context);
+                  _fetchMembers();
+                },
+                child: const Text('Clear Filter'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   String _getLocationSubtitle(BuildContext context) {
     final authState = context.read<AuthBloc>().state;
     final loginLocationName = authState.loginData?.locationName;
-    if (loginLocationName != null && loginLocationName.isNotEmpty) {
+    if (loginLocationName != null &&
+        loginLocationName.isNotEmpty &&
+        !(authState.loginData?.role == 'SUB_ADMIN' &&
+            loginLocationName == 'Tamil Nadu')) {
       return loginLocationName;
     }
 
@@ -193,10 +276,10 @@ class _MembersListScreenState extends State<MembersListScreen> {
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
-                            'Street',
-                            isSelected: false,
-                            icon: Icons.location_on_outlined,
-                            onTap: () {},
+                            _selectedRole ?? 'Role',
+                            isSelected: _selectedRole != null,
+                            icon: Icons.person_outline,
+                            onTap: () => _showRolePicker(context),
                           ),
                         ],
                       ),

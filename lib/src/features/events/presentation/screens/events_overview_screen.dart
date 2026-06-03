@@ -8,13 +8,21 @@ import 'package:ntk_project/src/features/events/presentation/bloc/event_bloc.dar
 import 'package:ntk_project/src/features/events/presentation/bloc/event_event.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_state.dart';
 import 'package:ntk_project/src/features/events/data/models/event_model.dart';
+import 'package:ntk_project/src/features/events/data/models/emergency_model.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_bloc.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_event.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
 
 class EventsOverviewScreen extends StatefulWidget {
-  const EventsOverviewScreen({super.key});
+  final bool embedded;
+  final int? locationId;
+
+  const EventsOverviewScreen({
+    super.key,
+    this.embedded = false,
+    this.locationId,
+  });
 
   @override
   State<EventsOverviewScreen> createState() => _EventsOverviewScreenState();
@@ -25,8 +33,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
   void initState() {
     super.initState();
     final authState = context.read<AuthBloc>().state;
-    final locationId = authState.loginData?.locationId;
+    final locationId = widget.locationId ?? authState.loginData?.locationId;
     context.read<EventBloc>().add(FetchEvents(locationId: locationId));
+    context.read<EventBloc>().add(FetchEmergencies(locationId: locationId));
   }
 
   void _onRespond(String eventId, String status) {
@@ -78,364 +87,451 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
     }
   }
 
-  void _showCreateEventDialog(BuildContext context) {
-    final theme = Theme.of(context);
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final dateController = TextEditingController();
-
-    // Load locations when dialog opens
-    final authState = context.read<AuthBloc>().state;
-    final userRole = authState.loginData?.role;
-    final userLocationId = authState.loginData?.locationId;
-
-    if (userRole == 'SUB_ADMIN') {
-      context.read<LocationBloc>().add(
-        LoadLocationList(type: 'STREET', parentId: userLocationId),
-      );
-    } else {
-      context.read<LocationBloc>().add(const LoadLocationList(type: 'AREA'));
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (bottomSheetContext) {
-        LocationModel? selectedLocation;
-
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(bottomSheetContext).viewInsets.bottom,
-                left: 24,
-                right: 24,
-                top: 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Create New Event',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.xmark_circle_fill,
-                            color: NTKColors.textTertiary,
-                          ),
-                          onPressed: () => Navigator.pop(bottomSheetContext),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── Event Title ──────────────────────────
-                    TextFormField(
-                      controller: titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Event Title',
-                        hintText: 'Enter event title',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ── Description ──────────────────────────
-                    TextFormField(
-                      controller: descriptionController,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        hintText: 'What is this event about?',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ── Date & Time ──────────────────────────
-                    TextFormField(
-                      controller: dateController,
-                      readOnly: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Date & Time',
-                        hintText: 'Select date and time',
-                        prefixIcon: Icon(CupertinoIcons.calendar, size: 20),
-                      ),
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 365),
-                          ),
-                        );
-                        if (date == null) return;
-
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.now(),
-                        );
-                        if (time == null) return;
-
-                        final dt = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          time.hour,
-                          time.minute,
-                        );
-                        dateController.text = dt.toIso8601String();
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ── Location Dropdown ────────────────────
-                    BlocBuilder<LocationBloc, LocationState>(
-                      bloc: context.read<LocationBloc>(),
-                      builder: (_, locState) {
-                        if (locState.isLoadingLocations) {
-                          return Container(
-                            height: 56,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: const Color(0xFFE5E7EB),
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Row(
-                              children: [
-                                SizedBox(width: 16),
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                                SizedBox(width: 12),
-                                Text(
-                                  'Loading locations...',
-                                  style: TextStyle(color: Color(0xFF9CA3AF)),
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return DropdownButtonFormField<LocationModel>(
-                          value: selectedLocation,
-                          decoration: InputDecoration(
-                            labelText: 'Location',
-                            hintText: 'Select location',
-                            prefixIcon: const Icon(
-                              CupertinoIcons.location,
-                              size: 20,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFE5E7EB),
-                              ),
-                            ),
-                          ),
-                          items: locState.locations
-                              .map(
-                                (loc) => DropdownMenuItem<LocationModel>(
-                                  value: loc,
-                                  child: Text(loc.name),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (val) {
-                            setSheetState(() => selectedLocation = val);
-                          },
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 32),
-
-                    // ── Submit Button ────────────────────────
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: NTKColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: () {
-                          if (titleController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please enter an event title'),
-                              ),
-                            );
-                            return;
-                          }
-
-                          if (dateController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please select a date and time'),
-                              ),
-                            );
-                            return;
-                          }
-
-                          if (selectedLocation == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please select a location'),
-                              ),
-                            );
-                            return;
-                          }
-
-                          context.read<EventBloc>().add(
-                            CreateEvent(
-                              title: titleController.text.trim(),
-                              description: descriptionController.text.trim(),
-                              date: dateController.text.trim(),
-                              locationId: selectedLocation!.id,
-                            ),
-                          );
-                          Navigator.pop(bottomSheetContext);
-                        },
-                        child: const Text(
-                          'CREATE EVENT',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    final body = BlocConsumer<EventBloc, EventState>(
+      listener: (context, state) {
+        if (state.message != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message!),
+              backgroundColor: theme.colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        if (state.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.error!),
+              backgroundColor: theme.colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        if (state.isLoading &&
+            state.events.isEmpty &&
+            state.emergencies.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        return DefaultTabController(
+          length: 2,
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TabBar(
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(25),
+                    color: NTKColors.primary,
+                  ),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: NTKColors.textSecondary,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  tabs: const [
+                    Tab(text: 'Requests'),
+                    Tab(text: 'Events'),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _buildRequestsTab(state, theme),
+                    _buildEventsTab(state, theme),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (widget.embedded) {
+      return Container(
+        color: NTKColors.background,
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Announcements',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: NTKColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: body),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: NTKColors.background,
       appBar: NTKAppBar(
-        title: 'Events',
-        subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Tamil Nadu',
-        actions: [
-          IconButton(
-            icon: const Icon(CupertinoIcons.calendar_badge_plus, color: Colors.white),
-            onPressed: () => _showCreateEventDialog(context),
-          ),
-        ],
+        title: 'Announcements',
+        subtitle:
+            context.read<AuthBloc>().state.loginData?.locationName ??
+            'Tamil Nadu',
       ),
-      body: BlocConsumer<EventBloc, EventState>(
-        listener: (context, state) {
-          if (state.message != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message!),
-                backgroundColor: theme.colorScheme.primary,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-          if (state.error != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.error!),
-                backgroundColor: theme.colorScheme.error,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: body,
+    );
+  }
 
-          if (state.events.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildEventsTab(EventState state, ThemeData theme) {
+    final userRole = context.read<AuthBloc>().state.loginData?.role ?? 'MEMBER';
+    final canCreate = userRole != 'MEMBER';
+
+    if (state.events.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              CupertinoIcons.calendar_today,
+              size: 64,
+              color: theme.dividerColor.withOpacity(0.2),
+            ),
+            const SizedBox(height: 16),
+            Text('No events scheduled', style: theme.textTheme.titleLarge),
+            if (canCreate) ...[
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, '/create_event'),
+                icon: const Icon(CupertinoIcons.plus),
+                label: const Text('Create Event'),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        final authState = context.read<AuthBloc>().state;
+        context.read<EventBloc>().add(
+          FetchEvents(
+            locationId: widget.locationId ?? authState.loginData?.locationId,
+          ),
+        );
+      },
+      child: ListView.separated(
+        padding: const EdgeInsets.all(20),
+        itemCount: state.events.length + 1, // +1 for the header
+        separatorBuilder: (context, index) =>
+            index == 0 ? const SizedBox() : const SizedBox(height: 16),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(
-                    CupertinoIcons.calendar_today,
-                    size: 64,
-                    color: theme.dividerColor.withOpacity(0.2),
+                  const Text(
+                    'Upcoming Events',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No events scheduled',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Check back later for upcoming events.',
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  if (canCreate)
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, '/create_event'),
+                      icon: const Icon(
+                        CupertinoIcons.plus,
+                        size: 16,
+                        color: NTKColors.textPrimary,
+                      ),
+                      label: const Text(
+                        'Create Event',
+                        style: TextStyle(
+                          color: NTKColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE5E7EB)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             );
           }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              final authState = context.read<AuthBloc>().state;
-              context.read<EventBloc>().add(
-                FetchEvents(locationId: authState.loginData?.locationId),
-              );
-            },
-            child: ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: state.events.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                final event = state.events[index];
-                return _buildEventCard(event);
-              },
-            ),
-          );
+          final event = state.events[index - 1];
+          return _buildEventCard(event);
         },
       ),
     );
   }
 
-  Widget _buildEventCard(EventModel event) {
+  Widget _buildRequestsTab(EventState state, ThemeData theme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFDCFCE7)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: const BoxDecoration(
+                    color: NTKColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.campaign,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Broadcast (No Response)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: NTKColors.primary,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Send announcements to your members.\nNo response will be collected.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: NTKColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          _buildFormLabel('Broadcast Title *'),
+          TextField(
+            decoration: InputDecoration(
+              hintText: 'Enter broadcast title',
+              suffixText: '0/100',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          _buildFormLabel('Message *'),
+          TextField(
+            maxLines: 5,
+            decoration: InputDecoration(
+              hintText: 'Type your message here...',
+              suffixText: '0/2000',
+              suffixStyle: const TextStyle(fontSize: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          _buildFormLabel('Send To *'),
+          _buildDropdownTile(
+            Icons.map,
+            Colors.green,
+            'Level 1 - State',
+            'Tamil Nadu (Entire State)',
+          ),
+          const SizedBox(height: 8),
+          _buildDropdownTile(
+            Icons.location_city,
+            Colors.blue,
+            'Level 2 - District',
+            'All Districts',
+          ),
+          const SizedBox(height: 8),
+          _buildDropdownTile(
+            Icons.people,
+            Colors.purple,
+            'Level 3 - Constituency',
+            'All Constituencies',
+          ),
+          const SizedBox(height: 8),
+          _buildDropdownTile(
+            Icons.location_on,
+            Colors.orange,
+            'Level 4 - Area',
+            'All Areas',
+          ),
+          const SizedBox(height: 8),
+          _buildDropdownTile(
+            Icons.edit_road,
+            Colors.cyan,
+            'Level 5 - Street',
+            'All Streets',
+          ),
+
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info, color: Colors.blue, size: 20),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'This is a broadcast message.\nNo response will be collected.',
+                    style: TextStyle(color: Colors.blue, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.send, color: Colors.white),
+              label: const Text(
+                'Send Broadcast',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: NTKColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+      ),
+    );
+  }
+
+  Widget _buildDropdownTile(
+    IconData icon,
+    Color color,
+    String level,
+    String value,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Text(
+            level,
+            style: const TextStyle(
+              color: NTKColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.keyboard_arrow_down,
+            color: NTKColors.textSecondary,
+            size: 20,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmergencyCard(EmergencyModel alert) {
     final theme = Theme.of(context);
     return InkWell(
       onTap: () =>
-          Navigator.pushNamed(context, '/event_details', arguments: event),
+          Navigator.pushNamed(context, '/emergency_details', arguments: alert),
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: NTKColors.surface,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: NTKColors.error.withOpacity(0.3)),
           boxShadow: [
             BoxShadow(
-              color: NTKColors.slate900.withOpacity(0.04),
+              color: NTKColors.error.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -447,58 +543,60 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: NTKColors.emerald50,
-                    borderRadius: BorderRadius.circular(8),
+                    color: NTKColors.error.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
-                  child: const Text(
-                    'UPCOMING',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: NTKColors.primary,
-                      letterSpacing: 0.5,
-                    ),
+                  child: const Icon(
+                    Icons.warning_rounded,
+                    color: NTKColors.error,
+                    size: 20,
                   ),
                 ),
-                const Spacer(),
-                Icon(
-                  CupertinoIcons.time,
-                  size: 14,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDateTime(event.date),
-                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        alert.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: NTKColors.error,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Just now', // Placeholder
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: NTKColors.error,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            Text(event.title, style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
             Text(
-              event.description,
+              alert.description,
               style: theme.textTheme.bodyMedium,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
               children: [
-                Icon(
+                const Icon(
                   CupertinoIcons.location_solid,
                   size: 14,
-                  color: theme.colorScheme.primary,
+                  color: NTKColors.error,
                 ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    event.locationName,
+                    alert.locationName,
                     style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -506,38 +604,172 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _onRespond(event.id, 'NOT_GOING'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: NTKColors.error,
-                      side: const BorderSide(
-                        color: NTKColors.error,
-                        width: 1.2,
-                      ),
-                      minimumSize: const Size(0, 48),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventCard(EventModel event) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: () =>
+          Navigator.pushNamed(context, '/event_details', arguments: event),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: NTKColors.emerald50,
+                      shape: BoxShape.circle,
                     ),
-                    child: const Text('NOT GOING'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _onRespond(event.id, 'GOING'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(0, 48),
+                    child: const Icon(
+                      CupertinoIcons.calendar,
+                      color: NTKColors.primary,
                     ),
-                    child: const Text('I\'M GOING'),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          event.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: NTKColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(
+                              CupertinoIcons.time,
+                              size: 14,
+                              color: NTKColors.textSecondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDateTime(event.date),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: NTKColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              CupertinoIcons.location_solid,
+                              size: 14,
+                              color: NTKColors.textSecondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                event.locationName,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: NTKColors.textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    CupertinoIcons.chevron_right,
+                    color: NTKColors.textTertiary,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFE5E7EB)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildStatColumn(
+                      event.going,
+                      'Attend',
+                      NTKColors.primary,
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 30,
+                    color: const Color(0xFFE5E7EB),
+                  ),
+                  Expanded(
+                    child: _buildStatColumn(
+                      event.maybe,
+                      'Maybe',
+                      Colors.orange,
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 30,
+                    color: const Color(0xFFE5E7EB),
+                  ),
+                  Expanded(
+                    child: _buildStatColumn(
+                      event.notGoing,
+                      'Not Attend',
+                      NTKColors.error,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatColumn(int count, String label, Color color) {
+    return Column(
+      children: [
+        Text(
+          count.toString(),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

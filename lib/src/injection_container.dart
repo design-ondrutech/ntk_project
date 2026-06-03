@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:ntk_project/src/core/network/graphql_service.dart';
+import 'package:ntk_project/src/core/services/fcm_service.dart';
 
 // Auth feature
 import 'package:ntk_project/src/features/auth/data/repositories/auth_repository_impl.dart';
@@ -52,6 +53,7 @@ final sl = GetIt.instance;
 Future<void> init() async {
   // ─── Core / Network ──────────────────────────────────────
   sl.registerLazySingleton<GraphQLService>(() => GraphQLService());
+  sl.registerLazySingleton<FCMService>(() => FCMService());
 
   // ─── Repositories ────────────────────────────────────────
   sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));

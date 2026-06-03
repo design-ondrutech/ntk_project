@@ -37,25 +37,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
-        final role = authState.loginData?.role ?? 'MEMBER';
-
-        // If it's Super Admin, show the Super Admin design
-        if (role == 'SUPER_ADMIN') {
-          return _buildSuperAdminDashboard(authState);
-        }
-
-        // If it's Admin, show the Admin specific design
-        if (role == 'ADMIN') {
-          return _buildAdminDashboard(authState);
-        }
-
-        // If it's Sub Admin, show the Sub Admin specific design from the new images
-        if (role == 'SUB_ADMIN') {
-          return _buildSubAdminDashboard(authState);
-        }
-
-        // Default Dashboard for Members
-        return _buildStandardDashboard(authState);
+        // Temporarily forcing Super Admin Dashboard for testing as requested
+        return _buildSuperAdminDashboard(authState);
       },
     );
   }

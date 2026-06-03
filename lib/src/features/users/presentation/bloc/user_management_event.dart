@@ -13,6 +13,7 @@ class LoadUsers extends UserManagementEvent {
   final String? bloodGroup;
   final String? profession;
   final int? streetId; // filter by street location id
+  final bool isLoadMore;
 
   const LoadUsers({
     this.locationId,
@@ -21,6 +22,7 @@ class LoadUsers extends UserManagementEvent {
     this.bloodGroup,
     this.profession,
     this.streetId,
+    this.isLoadMore = false,
   });
 
   @override
@@ -31,6 +33,7 @@ class LoadUsers extends UserManagementEvent {
     bloodGroup,
     profession,
     streetId,
+    isLoadMore,
   ];
 }
 

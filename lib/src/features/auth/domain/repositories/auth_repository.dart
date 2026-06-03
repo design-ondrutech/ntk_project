@@ -4,11 +4,18 @@ abstract class AuthRepository {
   Future<AdminLoginModel> login({
     required String phone,
     required String password,
-    String? role,
   });
+
+  Future<AdminLoginModel> getMe();
+
+  Future<void> sendOtp(String phone);
+  Future<Map<String, dynamic>> verifyOtp(String phone, String otp);
+  Future<void> updateFcmToken(String token);
+  Future<void> logout();
 
   Future<void> register({
     required String name,
+    String? surname,
     required String phone,
     required String password,
     required int districtId,
@@ -18,4 +25,7 @@ abstract class AuthRepository {
     String? bloodGroup,
     String? professionName,
   });
+
+  Future<AdminLoginModel?> getPersistedSession();
+  Future<void> persistSession(AdminLoginModel model);
 }

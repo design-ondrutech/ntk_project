@@ -6,7 +6,7 @@ class PendingRequestModel {
   final String phone;
   final String role;
   final LocationModel? location;
-  final String createdAt;
+  final String? createdAt;
   final String type; // 'USER' or 'MEMBER'
 
   PendingRequestModel({
@@ -15,20 +15,34 @@ class PendingRequestModel {
     required this.phone,
     required this.role,
     this.location,
-    required this.createdAt,
+    this.createdAt,
     required this.type,
   });
 
   factory PendingRequestModel.fromJson(Map<String, dynamic> json) {
+    // createdAt may come as epoch milliseconds (int) or ISO string
+    String? createdAt;
+    final raw = json['createdAt'];
+    if (raw != null) {
+      final asInt = int.tryParse(raw.toString());
+      if (asInt != null) {
+        createdAt = DateTime.fromMillisecondsSinceEpoch(
+          asInt,
+        ).toIso8601String();
+      } else {
+        createdAt = raw.toString();
+      }
+    }
+
     return PendingRequestModel(
       id: int.parse(json['id'].toString()),
       name: json['name'] ?? '',
       phone: json['phone'] ?? '',
       role: json['role'] ?? 'MEMBER',
-      location: json['location'] != null 
-          ? LocationModel.fromJson(json['location']) 
+      location: json['location'] != null
+          ? LocationModel.fromJson(json['location'])
           : null,
-      createdAt: json['createdAt'] ?? '',
+      createdAt: createdAt,
       type: json['type'] ?? 'MEMBER',
     );
   }

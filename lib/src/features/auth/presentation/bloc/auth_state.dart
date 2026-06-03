@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../data/models/admin_login_model.dart';
+export '../../data/models/admin_login_model.dart';
 
 class AuthState extends Equatable {
   final bool isLoading;
@@ -20,10 +21,11 @@ class AuthState extends Equatable {
     AdminLoginModel? loginData,
     bool? registrationSuccess,
     bool clearRegistrationSuccess = false,
+    bool clearError = false,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
+      error: clearError ? null : (error ?? this.error),
       loginData: loginData ?? this.loginData,
       registrationSuccess: clearRegistrationSuccess
           ? false

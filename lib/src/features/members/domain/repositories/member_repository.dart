@@ -6,6 +6,7 @@ abstract class MemberRepository {
     int? professionId,
     String? bloodGroup,
     String? search,
+    String? role,
     int? limit,
     int? offset,
   });
@@ -13,6 +14,11 @@ abstract class MemberRepository {
   Future<List<MemberModel>> getMemberList({
     int? locationId,
     String? approvalStatus,
+    String? role,
+    String? bloodGroup,
+    String? professionName,
+    int? limit,
+    int? offset,
   });
 
   Future<List<MemberModel>> getPendingMembers({int? locationId});
@@ -24,11 +30,13 @@ abstract class MemberRepository {
   Future<MemberModel> updateMember({
     required int id,
     String? name,
+    String? surname,
     String? phone,
     String? bloodGroup,
     String? role,
     String? professionName,
     int? locationId,
+    String? image,
   });
 
   Future<MemberModel> updateMemberStatus({
@@ -38,6 +46,7 @@ abstract class MemberRepository {
 
   Future<MemberModel> addMember({
     required String name,
+    String? surname,
     required String phone,
     String? password,
     String? bloodGroup,

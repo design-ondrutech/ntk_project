@@ -9,9 +9,11 @@ abstract class UserEvent extends Equatable {
 
 class CreateUserRequested extends UserEvent {
   final String name;
+  final String? surname;
   final String phone;
   final String password;
   final String role;
+  final int? locationId;
   final int? districtId;
   final int? talukId;
   final int? areaId;
@@ -21,9 +23,11 @@ class CreateUserRequested extends UserEvent {
 
   const CreateUserRequested({
     required this.name,
+    this.surname,
     required this.phone,
     required this.password,
     required this.role,
+    this.locationId,
     this.districtId,
     this.talukId,
     this.areaId,
@@ -35,9 +39,11 @@ class CreateUserRequested extends UserEvent {
   @override
   List<Object?> get props => [
     name,
+    surname,
     phone,
     password,
     role,
+    locationId,
     districtId,
     talukId,
     areaId,
@@ -46,8 +52,10 @@ class CreateUserRequested extends UserEvent {
     professionName,
   ];
 }
+
 class AddMemberRequested extends UserEvent {
   final String name;
+  final String? surname;
   final String phone;
   final String? password;
   final int? streetId;
@@ -57,6 +65,7 @@ class AddMemberRequested extends UserEvent {
 
   const AddMemberRequested({
     required this.name,
+    this.surname,
     required this.phone,
     this.password,
     this.streetId,
@@ -66,5 +75,14 @@ class AddMemberRequested extends UserEvent {
   });
 
   @override
-  List<Object?> get props => [name, phone, password, streetId, areaId, bloodGroup, professionName];
+  List<Object?> get props => [
+    name,
+    surname,
+    phone,
+    password,
+    streetId,
+    areaId,
+    bloodGroup,
+    professionName,
+  ];
 }

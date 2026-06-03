@@ -1,5 +1,6 @@
 import 'package:ntk_project/src/core/network/graphql_service.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/data/models/emergency_request_model.dart';
+import 'package:ntk_project/src/features/requests_broadcasts/data/models/broadcast_model.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/domain/repositories/request_repository.dart';
 
 class RequestRepositoryImpl implements RequestRepository {
@@ -135,6 +136,152 @@ class RequestRepositoryImpl implements RequestRepository {
 
     final data = result.data?['updateRequestStatus'];
     if (data == null) throw Exception('Update failed');
+    return EmergencyRequestModel.fromJson(data);
+  }
+
+  @override
+  Future<List<BroadcastModel>> getBroadcasts({int? locationId, String? scope}) async {
+    const String query = r'''
+      query GetBroadcasts($locationId: Int, $scope: BroadcastScope) {
+        getBroadcasts(locationId: $locationId, scope: $scope) {
+          id
+          title
+          message
+          image
+          recipientCount
+          createdAt
+          scope
+          location {
+            id
+            name
+          }
+          createdBy {
+            id
+            name
+            role
+          }
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: {'locationId': locationId, 'scope': scope},
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to fetch broadcasts: ${result.exception}');
+    }
+
+    final List data = result.data?['getBroadcasts'] as List? ?? [];
+    return data.map<BroadcastModel>((json) => BroadcastModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<BroadcastModel> getBroadcastDetails({required int id}) async {
+    const String query = r'''
+      query GetBroadcastDetails($id: Int!) {
+        getBroadcastDetails(id: $id) {
+          id
+          title
+          message
+          image
+          recipientCount
+          createdAt
+          scope
+          location {
+            id
+            name
+          }
+          createdBy {
+            id
+            name
+            role
+          }
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performQuery(query, variables: {'id': id});
+
+    if (result.hasException) {
+      throw Exception('Failed to fetch broadcast details: ${result.exception}');
+    }
+
+    final data = result.data?['getBroadcastDetails'];
+    if (data == null) throw Exception('Broadcast not found');
+    return BroadcastModel.fromJson(data);
+  }
+
+  @override
+  Future<BroadcastModel> createBroadcast({
+    required String title,
+    required String message,
+    String? image,
+    required int locationId,
+    int? streetId,
+  }) async {
+    const String mutation = r'''
+      mutation CreateBroadcast($title: String!, $message: String!, $image: String, $locationId: Int!, $streetId: Int) {
+        createBroadcast(title: $title, message: $message, image: $image, locationId: $locationId, streetId: $streetId) {
+          id
+          title
+          message
+          createdAt
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'title': title,
+        'message': message,
+        'image': image,
+        'locationId': locationId,
+        'streetId': streetId,
+      },
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to create broadcast: ${result.exception}');
+    }
+
+    final data = result.data?['createBroadcast'];
+    if (data == null) throw Exception('Create broadcast failed');
+    return BroadcastModel.fromJson(data);
+  }
+
+  @override
+  Future<EmergencyRequestModel> reviewEmergencyRequest({
+    required int id,
+    required String action,
+    String? rejectReason,
+  }) async {
+    const String mutation = r'''
+      mutation ReviewEmergencyRequest($id: Int!, $action: String!, $rejectReason: String) {
+        reviewEmergencyRequest(id: $id, action: $action, rejectReason: $rejectReason) {
+          id
+          status
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'id': id,
+        'action': action,
+        'rejectReason': rejectReason,
+      },
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to review request: ${result.exception}');
+    }
+
+    final data = result.data?['reviewEmergencyRequest'];
+    if (data == null) throw Exception('Review failed');
     return EmergencyRequestModel.fromJson(data);
   }
 }

@@ -52,7 +52,7 @@ class LocationRepositoryImpl implements LocationRepository {
 
   @override
   Future<List<LocationModel>> getDistricts() async {
-    return _fetchLocations(type: 'DISTRICT');
+    return getLocationList(type: 'DISTRICT');
   }
 
   @override
@@ -77,6 +77,8 @@ class LocationRepositoryImpl implements LocationRepository {
         getLocationList(parentId: $parentId, type: $type) {
           id
           name
+          type
+          parentId
         }
       }
     ''';
@@ -98,6 +100,40 @@ class LocationRepositoryImpl implements LocationRepository {
     }
 
     final List data = result.data?['getLocationList'] as List? ?? [];
+    return data
+        .map<LocationModel>((json) => LocationModel.fromJson(json))
+        .toList();
+  }
+
+  @override
+  Future<List<LocationModel>> getTargetableLocations({int? districtId}) async {
+    const String query = r'''
+      query GetTargetableLocations($districtId: Int) {
+        getTargetableLocations(districtId: $districtId) {
+          id
+          name
+          type
+          parentId
+        }
+      }
+    ''';
+
+    final variables = <String, dynamic>{
+      if (districtId != null) 'districtId': districtId,
+    };
+
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: variables,
+    );
+
+    if (result.hasException) {
+      throw Exception(
+        'Failed to fetch targetable locations: ${result.exception.toString()}',
+      );
+    }
+
+    final List data = result.data?['getTargetableLocations'] as List? ?? [];
     return data
         .map<LocationModel>((json) => LocationModel.fromJson(json))
         .toList();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
@@ -10,22 +11,43 @@ import 'package:ntk_project/src/features/users/presentation/bloc/user_management
 import 'package:ntk_project/src/features/users/presentation/bloc/user_management_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_management_state.dart';
 import 'package:ntk_project/src/features/members/data/models/member_model.dart';
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
+import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
+import 'package:ntk_project/src/injection_container.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UserManagementScreen extends StatefulWidget {
   final int? locationId;
   final String? locationName;
+  final String? initialTab;
 
-  const UserManagementScreen({super.key, this.locationId, this.locationName});
+  const UserManagementScreen({
+    super.key,
+    this.locationId,
+    this.locationName,
+    this.initialTab,
+  });
   @override
   State<UserManagementScreen> createState() => _UserManagementScreenState();
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
+  final ScrollController _scrollController = ScrollController();
   int _selectedTab = 0; // 0=All, 1=Admin, 2=Sub Admin, 3=Member, 4=Pending
   final List<String> _tabs = ['All', 'Admin', 'Sub Admin', 'Member', 'Pending'];
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String _userRole = 'SUPER_ADMIN';
+  String _userRole = 'MEMBER';
+  // Hierarchical locations
+  List<LocationModel> _districts = [];
+  List<LocationModel> _constituencies = [];
+  List<LocationModel> _areas = [];
+  List<LocationModel> _streets = [];
+
+  LocationModel? _selectedDistrict;
+  LocationModel? _selectedConstituency;
+  LocationModel? _selectedArea;
+  LocationModel? _selectedStreet;
 
   // Sub Admin filters
   String? _selectedBloodGroup;
@@ -65,8 +87,29 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     final authState = context.read<AuthBloc>().state;
-    _userRole = authState.loginData?.role ?? 'SUPER_ADMIN';
+    _userRole = authState.loginData?.role ?? 'MEMBER';
+    if (widget.initialTab != null && _tabs.contains(widget.initialTab)) {
+      _selectedTab = _tabs.indexOf(widget.initialTab!);
+    }
+    
+    // Sync initially with Dashboard's globalLocation if any
+    final dashState = context.read<DashboardBloc>().state;
+    final globalLocation = dashState.globalLocation;
+    if (globalLocation != null) {
+      final type = globalLocation.type?.toUpperCase();
+      if (type == 'DISTRICT') {
+        _selectedDistrict = globalLocation;
+      } else if (type == 'TALUK') {
+        _selectedConstituency = globalLocation;
+      } else if (type == 'AREA') {
+        _selectedArea = globalLocation;
+      } else if (type == 'STREET') {
+        _selectedStreet = globalLocation;
+      }
+    }
+
     // Sub Admin defaults to Member tab
     if (_userRole == 'SUB_ADMIN' || _userRole == 'ADMIN') {
       if (_userRole == 'SUB_ADMIN') {
@@ -80,6 +123,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         );
       }
     }
+    _loadInitialLocationOptions();
+
+    // If we have selected location, pre-load child options
+    if (globalLocation != null) {
+      final type = globalLocation.type?.toUpperCase();
+      if (type == 'DISTRICT') {
+        _loadConstituencies(globalLocation.id);
+      } else if (type == 'TALUK') {
+        _loadAreas(globalLocation.id);
+      } else if (type == 'AREA') {
+        _loadStreets(globalLocation.id);
+      }
+    }
+
     _loadUsers();
     // Load stats for the specific location to update summary cards
     final targetLocationId =
@@ -89,22 +146,245 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
+  Future<void> _loadInitialLocationOptions() async {
+    try {
+      final authState = context.read<AuthBloc>().state;
+      final authLocationId = authState.loginData?.locationId;
+      final role = authState.loginData?.role;
+      final dashState = context.read<DashboardBloc>().state;
+      final globalLocation = dashState.globalLocation;
+      final statsLocationName = dashState.stats?.locationName;
+
+      if (role == 'SUPER_ADMIN') {
+        final districts = await sl<LocationRepository>().getDistricts();
+        if (!mounted) return;
+        setState(() => _districts = districts);
+
+        // 1) Match by globalLocation ID
+        if (globalLocation != null) {
+          final type = globalLocation.type?.toUpperCase();
+          if (type == 'DISTRICT' && _selectedDistrict == null) {
+            final match = districts.where((d) => d.id == globalLocation.id).firstOrNull;
+            if (match != null) {
+              setState(() => _selectedDistrict = match);
+              await _loadConstituencies(match.id, clearSelection: false);
+              _loadUsers();
+              return;
+            }
+          }
+        }
+        // 2) Fall back: match by stats locationName
+        if (_selectedDistrict == null && statsLocationName != null && statsLocationName != 'Tamil Nadu') {
+          final match = districts.where((d) => d.name.toLowerCase() == statsLocationName.toLowerCase()).firstOrNull;
+          if (match != null && mounted) {
+            setState(() => _selectedDistrict = match);
+            await _loadConstituencies(match.id, clearSelection: false);
+            _loadUsers();
+          }
+        }
+
+      } else if (role == 'ADMIN' && authLocationId != null) {
+        final taluks = await sl<LocationRepository>().getLocationList(
+          parentId: authLocationId,
+          type: 'TALUK',
+        );
+        if (!mounted) return;
+        setState(() => _constituencies = taluks);
+
+        // 1) Match by globalLocation ID
+        if (globalLocation != null) {
+          final type = globalLocation.type?.toUpperCase();
+          if (type == 'TALUK' && _selectedConstituency == null) {
+            final match = taluks.where((t) => t.id == globalLocation.id).firstOrNull;
+            if (match != null) {
+              setState(() => _selectedConstituency = match);
+              await _loadAreas(match.id, clearSelection: false);
+              _loadUsers();
+              return;
+            }
+          }
+        }
+        // 2) Fall back: match by stats locationName
+        if (_selectedConstituency == null && statsLocationName != null && statsLocationName != 'Tamil Nadu') {
+          final match = taluks.where((t) => t.name.toLowerCase() == statsLocationName.toLowerCase()).firstOrNull;
+          if (match != null && mounted) {
+            setState(() => _selectedConstituency = match);
+            await _loadAreas(match.id, clearSelection: false);
+            _loadUsers();
+          }
+        }
+
+      } else if (role == 'SUB_ADMIN' && authLocationId != null) {
+        // authLocationId for SUB_ADMIN is their AREA id. Load streets directly.
+        final streets = await sl<LocationRepository>().getLocationList(
+          parentId: authLocationId,
+          type: 'STREET',
+        );
+        if (!mounted) return;
+        setState(() => _streets = streets);
+
+        // Auto-select street if matching globalLocation
+        if (globalLocation != null) {
+          final type = globalLocation.type?.toUpperCase();
+          if (type == 'STREET' && _selectedStreet == null) {
+            final match = streets.where((s) => s.id == globalLocation.id).firstOrNull;
+            if (match != null) {
+              setState(() => _selectedStreet = match);
+              _loadUsers();
+              return;
+            }
+          }
+        }
+
+      } else {
+        final districts = await sl<LocationRepository>().getDistricts();
+        if (!mounted) return;
+        setState(() => _districts = districts);
+
+        if (_selectedDistrict == null && statsLocationName != null && statsLocationName != 'Tamil Nadu') {
+          final match = districts.where((d) => d.name.toLowerCase() == statsLocationName.toLowerCase()).firstOrNull;
+          if (match != null && mounted) {
+            setState(() => _selectedDistrict = match);
+            await _loadConstituencies(match.id, clearSelection: false);
+            _loadUsers();
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadConstituencies(int districtId, {bool clearSelection = true}) async {
+    try {
+      final taluks = await sl<LocationRepository>().getLocationList(
+        parentId: districtId,
+        type: 'TALUK',
+      );
+      if (mounted) {
+        setState(() {
+          _constituencies = taluks;
+          if (clearSelection) {
+            _selectedConstituency = null;
+            _areas = [];
+            _selectedArea = null;
+            _streets = [];
+            _selectedStreet = null;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadAreas(int constituencyId, {bool clearSelection = true}) async {
+    try {
+      final areas = await sl<LocationRepository>().getLocationList(
+        parentId: constituencyId,
+        type: 'AREA',
+      );
+      if (mounted) {
+        setState(() {
+          _areas = areas;
+          if (clearSelection) {
+            _selectedArea = null;
+            _streets = [];
+            _selectedStreet = null;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadStreets(int areaId, {bool clearSelection = true}) async {
+    try {
+      final streets = await sl<LocationRepository>().getLocationList(
+        parentId: areaId,
+        type: 'STREET',
+      );
+      if (mounted) {
+        setState(() {
+          _streets = streets;
+          if (clearSelection) _selectedStreet = null;
+        });
+      }
+    } catch (_) {}
+  }
+
+  String _getLocationSubtitle(BuildContext context) {
+    if (_selectedStreet != null) return _selectedStreet!.name;
+    if (_selectedArea != null) return _selectedArea!.name;
+    if (_selectedConstituency != null) return _selectedConstituency!.name;
+    if (_selectedDistrict != null) return _selectedDistrict!.name;
+
+    if (widget.locationName != null && widget.locationName!.isNotEmpty) {
+      return widget.locationName!;
+    }
+    
+    final authState = context.read<AuthBloc>().state;
+    final loginLocationName = authState.loginData?.locationName;
+    return loginLocationName ?? 'Tamil Nadu';
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _loadUsers() {
-    final authState = context.read<AuthBloc>().state;
-    context.read<UserManagementBloc>().add(
+  void _onScroll() {
+    if (_isBottom) {
+      _loadMoreUsers();
+    }
+  }
+
+  bool get _isBottom {
+    if (!_scrollController.hasClients) return false;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.offset;
+    if (currentScroll < 0) return false; // Prevent negative scroll trigger (e.g. pull-to-refresh)
+    return currentScroll >= (maxScroll - 200);
+  }
+
+  int? _getLowestLocationId() {
+    if (_selectedStreet != null) return _selectedStreet!.id;
+    if (_selectedArea != null) return _selectedArea!.id;
+    if (_selectedConstituency != null) return _selectedConstituency!.id;
+    if (_selectedDistrict != null) return _selectedDistrict!.id;
+    return context.read<AuthBloc>().state.loginData?.locationId;
+  }
+
+  void _loadMoreUsers() {
+    final bloc = context.read<UserManagementBloc>();
+    if (bloc.state.isLoadingMore || bloc.state.hasReachedMax) return;
+
+    bloc.add(
       LoadUsers(
-        locationId: widget.locationId ?? authState.loginData?.locationId,
+        locationId: widget.locationId ?? _getLowestLocationId(),
         type: _tabs[_selectedTab],
-        streetId: _selectedStreetId,
+        streetId: _selectedStreet?.id,
+        bloodGroup: _selectedBloodGroup,
+        profession: _selectedProfession,
+        isLoadMore: true,
       ),
     );
   }
+
+  void _loadUsers() {
+    final locationId = widget.locationId ?? _getLowestLocationId();
+    context.read<UserManagementBloc>().add(
+      LoadUsers(
+        locationId: locationId,
+        type: _tabs[_selectedTab],
+        streetId: _selectedStreet?.id,
+        bloodGroup: _selectedBloodGroup,
+        profession: _selectedProfession,
+      ),
+    );
+    if (locationId != null) {
+      context.read<DashboardBloc>().add(LoadDashboardStats(locationId));
+    }
+  }
+
 
   String? _getDashboardLocationName(BuildContext context) {
     try {
@@ -175,7 +455,27 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   List<MemberModel> _filteredUsers(List<MemberModel> users) {
-    var result = users;
+    var result = List<MemberModel>.from(users);
+
+    // Filter by role based on the selected tab/type
+    final currentTabType = _tabs[_selectedTab];
+    if (currentTabType == 'Member') {
+      result = result
+          .where(
+            (u) =>
+                u.role == null ||
+                u.role!.isEmpty ||
+                u.role!.toUpperCase() == 'MEMBER',
+          )
+          .toList();
+    } else if (currentTabType == 'Admin') {
+      result = result.where((u) => u.role?.toUpperCase() == 'ADMIN').toList();
+    } else if (currentTabType == 'Sub Admin') {
+      result = result
+          .where((u) => u.role?.toUpperCase() == 'SUB_ADMIN')
+          .toList();
+    }
+
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       result = result
@@ -201,20 +501,87 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           )
           .toList();
     }
+
     return result;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<DashboardBloc, DashboardState>(
+          listenWhen: (previous, current) => previous.globalLocation != current.globalLocation,
+          listener: (context, state) {
+            final globalLocation = state.globalLocation;
+            if (globalLocation != null) {
+              final type = globalLocation.type?.toUpperCase();
+              if (type == 'DISTRICT' && globalLocation != _selectedDistrict) {
+                setState(() {
+                  _selectedDistrict = globalLocation;
+                  _constituencies = [];
+                  _selectedConstituency = null;
+                  _areas = [];
+                  _selectedArea = null;
+                  _streets = [];
+                  _selectedStreet = null;
+                });
+                _loadConstituencies(globalLocation.id);
+                _loadUsers();
+              } else if (type == 'TALUK' && globalLocation != _selectedConstituency) {
+                setState(() {
+                  _selectedConstituency = globalLocation;
+                  _areas = [];
+                  _selectedArea = null;
+                  _streets = [];
+                  _selectedStreet = null;
+                });
+                _loadAreas(globalLocation.id);
+                _loadUsers();
+              } else if (type == 'AREA' && globalLocation != _selectedArea) {
+                setState(() {
+                  _selectedArea = globalLocation;
+                  _streets = [];
+                  _selectedStreet = null;
+                });
+                _loadStreets(globalLocation.id);
+                _loadUsers();
+              } else if (type == 'STREET' && globalLocation != _selectedStreet) {
+                setState(() {
+                  _selectedStreet = globalLocation;
+                });
+                _loadUsers();
+              }
+            } else {
+              setState(() {
+                _selectedDistrict = null;
+                _constituencies = [];
+                _selectedConstituency = null;
+                _areas = [];
+                _selectedArea = null;
+                _streets = [];
+                _selectedStreet = null;
+              });
+              _loadUsers();
+            }
+          },
+        ),
+        BlocListener<UserManagementBloc, UserManagementState>(
+          listenWhen: (previous, current) => previous.error != current.error && current.error != null,
+          listener: (context, state) {
+            if (state.users.isNotEmpty) {
+              NTKSnackbar.showError(
+                context,
+                message: state.error!,
+              );
+            }
+          },
+        ),
+      ],
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF0F4F8),
       appBar: NTKAppBar(
         title: 'Members',
-        subtitle:
-            widget.locationName ??
-            context.read<AuthBloc>().state.loginData?.locationName ??
-            _getDashboardLocationName(context) ??
-            'Tamil Nadu',
+        subtitle: _getLocationSubtitle(context),
         actions: [
           IconButton(
             icon: const Icon(
@@ -231,8 +598,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             Expanded(
               child: BlocBuilder<UserManagementBloc, UserManagementState>(
                 builder: (context, state) {
-                  return CustomScrollView(
-                    slivers: [
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      _loadUsers();
+                    },
+                    child: CustomScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
@@ -279,266 +652,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               ),
                               const SizedBox(height: 16),
 
-                              // ── Filter Chips ─────────────────────────
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: List.generate(_visibleTabs.length, (
-                                    i,
-                                  ) {
-                                    final tabName = _visibleTabs[i];
-                                    final tabIndex = _tabs.indexOf(tabName);
-                                    final isSelected = _selectedTab == tabIndex;
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 10),
-                                      child: GestureDetector(
-                                        onTap: () {
-                                          setState(
-                                            () => _selectedTab = tabIndex,
-                                          );
-                                          _loadUsers();
-                                        },
-                                        child: AnimatedContainer(
-                                          duration: const Duration(
-                                            milliseconds: 200,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 18,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isSelected
-                                                ? NTKColors.primary
-                                                : Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              30,
-                                            ),
-                                            boxShadow: isSelected
-                                                ? [
-                                                    BoxShadow(
-                                                      color: NTKColors.primary
-                                                          .withValues(
-                                                            alpha: 0.3,
-                                                          ),
-                                                      blurRadius: 8,
-                                                      offset: const Offset(
-                                                        0,
-                                                        3,
-                                                      ),
-                                                    ),
-                                                  ]
-                                                : [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withValues(
-                                                            alpha: 0.05,
-                                                          ),
-                                                      blurRadius: 4,
-                                                      offset: const Offset(
-                                                        0,
-                                                        1,
-                                                      ),
-                                                    ),
-                                                  ],
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              if (tabIndex == 0 &&
-                                                  isSelected) ...[
-                                                const Icon(
-                                                  Icons.tune,
-                                                  color: Colors.white,
-                                                  size: 14,
-                                                ),
-                                                const SizedBox(width: 4),
-                                              ],
-                                              Text(
-                                                tabName,
-                                                style: TextStyle(
-                                                  color: isSelected
-                                                      ? Colors.white
-                                                      : const Color(0xFF6B7280),
-                                                  fontWeight: isSelected
-                                                      ? FontWeight.bold
-                                                      : FontWeight.w500,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }),
-                                ),
-                              ),
+                              // ── New Filter Grid ─────────────────────────
+                              _buildFilterGrid(),
+                              const SizedBox(height: 12),
+                              
+                              // ── Breadcrumbs ─────────────────────────────
+                              _buildBreadcrumbs(),
+                              const SizedBox(height: 16),
+
+                              // ── Horizontal Stats Row ────────────────────
+                              _buildHorizontalStats(),
                               const SizedBox(height: 20),
-
-                              // ── Admin/Sub Admin Filters (Street, Blood Group, Profession) ──
-                              if (_userRole == 'SUB_ADMIN' ||
-                                  _userRole == 'ADMIN')
-                                BlocBuilder<
-                                  UserManagementBloc,
-                                  UserManagementState
-                                >(
-                                  builder: (context, umState) {
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: Row(
-                                            children: [
-                                              // Street filter
-                                              _buildFilterChip(
-                                                label:
-                                                    _selectedStreetName ??
-                                                    'Street',
-                                                isActive:
-                                                    _selectedStreetId != null,
-                                                onTap: () => _showStreetPicker(
-                                                  context,
-                                                  umState.streets,
-                                                  umState.isLoadingStreets,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              // Blood Group filter
-                                              _buildFilterChip(
-                                                label:
-                                                    _selectedBloodGroup ??
-                                                    'Blood Group',
-                                                isActive:
-                                                    _selectedBloodGroup != null,
-                                                onTap: () =>
-                                                    _showBloodGroupPicker(
-                                                      context,
-                                                    ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              // Profession filter
-                                              _buildFilterChip(
-                                                label:
-                                                    _selectedProfession ??
-                                                    'Profession',
-                                                isActive:
-                                                    _selectedProfession != null,
-                                                onTap: () =>
-                                                    _showProfessionPicker(
-                                                      context,
-                                                    ),
-                                              ),
-                                              if (_selectedStreetId != null ||
-                                                  _selectedBloodGroup != null ||
-                                                  _selectedProfession !=
-                                                      null) ...[
-                                                const SizedBox(width: 8),
-                                                GestureDetector(
-                                                  onTap: () {
-                                                    setState(() {
-                                                      _selectedStreetId = null;
-                                                      _selectedStreetName =
-                                                          null;
-                                                      _selectedBloodGroup =
-                                                          null;
-                                                      _selectedProfession =
-                                                          null;
-                                                    });
-                                                    _loadUsers();
-                                                  },
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 8,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color: const Color(
-                                                        0xFFFFE4E6,
-                                                      ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            20,
-                                                          ),
-                                                    ),
-                                                    child: const Row(
-                                                      children: [
-                                                        Icon(
-                                                          Icons.close,
-                                                          size: 14,
-                                                          color: Color(
-                                                            0xFFBE123C,
-                                                          ),
-                                                        ),
-                                                        SizedBox(width: 4),
-                                                        Text(
-                                                          'Clear',
-                                                          style: TextStyle(
-                                                            fontSize: 12,
-                                                            color: Color(
-                                                              0xFFBE123C,
-                                                            ),
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 16),
-                                      ],
-                                    );
-                                  },
-                                ),
-
-                              // ── Stats Cards ──────────────────────────
-                              BlocBuilder<DashboardBloc, DashboardState>(
-                                builder: (context, dashState) {
-                                  final stats = dashState.stats;
-                                  final totalCount = _selectedTab == 1
-                                      ? (stats?.totalAdmins ?? 0)
-                                      : _selectedTab == 2
-                                      ? (stats?.totalSubAdmins ?? 0)
-                                      : _selectedTab == 4
-                                      ? (stats?.pendingApprovals ?? 0)
-                                      : (stats?.totalMembers ?? 0);
-                                  final activeCount = state.users
-                                      .where((u) => u.isActive)
-                                      .length;
-
-                                  final tabLabel = _tabs[_selectedTab]
-                                      .toUpperCase();
-                                  return Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildStatCard(
-                                          'TOTAL\n$tabLabel',
-                                          _formatNumber(totalCount),
-                                          const Color(0xFF1F2937),
-                                          isHighlight: false,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: _buildStatCard(
-                                          'ACTIVE TODAY',
-                                          activeCount.toString(),
-                                          NTKColors.primary,
-                                          isHighlight: true,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 20),
+                              
+                              // ── List Header ─────────────────────────────
+                              _buildListHeader(state),
+                              const SizedBox(height: 12),
                             ],
                           ),
                         ),
@@ -549,7 +677,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         const SliverFillRemaining(
                           child: Center(child: CircularProgressIndicator()),
                         )
-                      else if (state.error != null)
+                      else if (state.error != null && state.users.isEmpty)
                         SliverFillRemaining(
                           child: Center(
                             child: Padding(
@@ -611,23 +739,30 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               : SliverList(
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
-                                      final user = _filteredUsers(
+                                      final filteredList = _filteredUsers(
                                         state.users,
-                                      )[index];
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 12,
-                                        ),
-                                        child: _buildMemberCard(user),
                                       );
+                                      if (index >= filteredList.length) {
+                                        return const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                            vertical: 16,
+                                          ),
+                                          child: Center(
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        );
+                                      }
+                                      final user = filteredList[index];
+                                      return _buildMemberCard(user);
                                     },
-                                    childCount: _filteredUsers(
-                                      state.users,
-                                    ).length,
+                                    childCount:
+                                        _filteredUsers(state.users).length +
+                                        (state.isLoadingMore ? 1 : 0),
                                   ),
                                 ),
                         ),
-                    ],
+                      ],
+                    ),
                   );
                 },
               ),
@@ -635,19 +770,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ],
         ),
       ),
-
-      // ── FAB ─────────────────────────────────────────────
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          if (_userRole == 'SUB_ADMIN') {
-            Navigator.pushNamed(context, '/create_member');
-          } else {
-            _showAddUserSheet(context);
-          }
-        },
-        backgroundColor: NTKColors.primary,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
     );
   }
@@ -711,184 +833,144 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         : '?';
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Avatar ──────────────────────────────────────
-          Stack(
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: user.isActive
-                        ? NTKColors.primary
-                        : Colors.grey[300]!,
-                    width: 2.5,
-                  ),
-                  color: const Color(0xFFE8F5E9),
-                ),
-                child: Center(
-                  child: Text(
-                    initials,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: NTKColors.primary,
-                    ),
-                  ),
-                ),
-              ),
-              if (user.isActive)
-                Positioned(
-                  right: 1,
-                  bottom: 1,
-                  child: Container(
-                    width: 13,
-                    height: 13,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF22C55E),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-
-          // ── Info ─────────────────────────────────────────
-          Expanded(
-            child: Column(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => Navigator.pushNamed(context, '/profile', arguments: user.id),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Name + Role badge
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        user.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1F2937),
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                // ── Avatar ──────────────────────────────────────
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFFE8F5E9),
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: Center(
+                    child: Text(
+                      initials,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: NTKColors.primary,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getRoleBgColor(user.role),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        _getRoleLabel(user.role),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _getRoleTextColor(user.role),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-
-                // Location
-                if (user.location != null)
-                  Text(
-                    user.location!.name,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF6B7280),
                     ),
                   ),
-                const SizedBox(height: 8),
+                ),
+                const SizedBox(width: 12),
 
-                // Blood group + Status badge
-                Row(
-                  children: [
-                    if (user.bloodGroup != null) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFE4E6),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          user.bloodGroup!,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFBE123C),
+                // ── Info ─────────────────────────────────────────
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              user.name,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF111827),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getRoleBgColor(user.role),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _getRoleLabel(user.role),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: _getRoleTextColor(user.role),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user.location?.name ?? 'Unknown Location',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF6B7280),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user.phone ?? 'No Phone',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF6B7280),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(width: 8),
                     ],
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusBgColor(user),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _getStatusLabel(user),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _getStatusTextColor(user),
-                        ),
-                      ),
+                  ),
+                ),
+                // ── Action Buttons ────────────────────────────────
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.phone, color: Color(0xFF166534), size: 18),
+                      onPressed: () async {
+                        final phone = user.phone;
+                        if (phone == null || phone.isEmpty) return;
+                        final uri = Uri(scheme: 'tel', path: phone);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        }
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      icon: const Icon(Icons.wechat_rounded, color: Color(0xFF166534), size: 18),
+                      onPressed: () async {
+                        final phone = user.phone;
+                        if (phone == null || phone.isEmpty) return;
+                        // Remove leading 0 or + and add country code +91
+                        final cleaned = phone.replaceAll(RegExp(r'[^0-9]'), '');
+                        final number = cleaned.startsWith('91')
+                            ? cleaned
+                            : '91$cleaned';
+                        final uri = Uri.parse('https://wa.me/$number');
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
               ],
             ),
           ),
-
-          // ── Action Icons ─────────────────────────────────
-          Column(
-            children: [
-              _actionIcon(
-                Icons.phone_outlined,
-                NTKColors.primary,
-                onTap: () {},
-              ),
-              const SizedBox(height: 10),
-              _actionIcon(
-                Icons.chat_bubble_outline_rounded,
-                NTKColors.primary,
-                onTap: () {},
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1281,4 +1363,571 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       ),
     );
   }
+
+  // ── New UI Helpers ────────────────────────────────────────────────────────
+
+  Widget _buildFilterGrid() {
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role.toUpperCase() ?? '';
+
+    List<Widget> filters = [];
+
+    if (role != 'ADMIN' && role != 'SUB_ADMIN') {
+      filters.add(
+        _buildGridDropdown(
+          'District',
+          'All Districts',
+          _districts,
+          _selectedDistrict,
+          (val) {
+            setState(() => _selectedDistrict = val);
+            if (val != null) {
+              _loadConstituencies(val.id);
+            } else {
+              setState(() {
+                _constituencies = [];
+                _selectedConstituency = null;
+                _areas = [];
+                _selectedArea = null;
+                _streets = [];
+                _selectedStreet = null;
+              });
+            }
+            _loadUsers();
+          },
+        ),
+      );
+    }
+
+    if (role != 'SUB_ADMIN') {
+      filters.add(
+        _buildGridDropdown(
+          'Thoguthi',
+          'All Thoguthis',
+          _constituencies,
+          _selectedConstituency,
+          (val) {
+            setState(() => _selectedConstituency = val);
+            if (val != null) {
+              _loadAreas(val.id);
+            } else {
+              setState(() {
+                _areas = [];
+                _selectedArea = null;
+                _streets = [];
+                _selectedStreet = null;
+              });
+            }
+            _loadUsers();
+          },
+        ),
+      );
+    }
+
+    if (role != 'SUB_ADMIN') {
+      filters.add(
+        _buildGridDropdown(
+          'Area',
+          'All Areas',
+          _areas,
+          _selectedArea,
+          (val) {
+            setState(() => _selectedArea = val);
+            if (val != null) {
+              _loadStreets(val.id);
+            } else {
+              setState(() {
+                _streets = [];
+                _selectedStreet = null;
+              });
+            }
+            _loadUsers();
+          },
+        ),
+      );
+    }
+
+    filters.add(
+      _buildGridDropdown(
+        'Street',
+        'All Streets',
+        _streets,
+        _selectedStreet,
+        (val) {
+          setState(() => _selectedStreet = val);
+          _loadUsers();
+        },
+      ),
+    );
+
+    filters.add(
+      _buildRoleDropdown(),
+    );
+
+    filters.add(
+      GestureDetector(
+        onTap: _showMoreFiltersSheet,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'More Filters',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              const Icon(Icons.tune_rounded, size: 16, color: Colors.black54),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    List<Widget> rows = [];
+    for (int i = 0; i < filters.length; i += 2) {
+      rows.add(
+        Row(
+          children: [
+            Expanded(child: filters[i]),
+            const SizedBox(width: 8),
+            if (i + 1 < filters.length) Expanded(child: filters[i + 1]) else const Expanded(child: SizedBox()),
+          ],
+        ),
+      );
+      if (i + 2 < filters.length) {
+        rows.add(const SizedBox(height: 8));
+      }
+    }
+
+    return Column(children: rows);
+  }
+  Widget _buildGridDropdown(
+    String label,
+    String hint,
+    List<LocationModel> items,
+    LocationModel? selectedItem,
+    ValueChanged<LocationModel?> onChanged,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<LocationModel?>(
+              value: selectedItem != null && items.any((item) => item.id == selectedItem.id)
+                  ? items.firstWhere((item) => item.id == selectedItem.id)
+                  : null,
+              isExpanded: true,
+              isDense: true,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.black54),
+              hint: Text(
+                hint,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              selectedItemBuilder: (_) {
+                return [
+                  Text(
+                    hint,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111827),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  ...items.map(
+                    (item) => Text(
+                      item.name,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ];
+              },
+              items: [
+                DropdownMenuItem<LocationModel?>(
+                  value: null,
+                  child: Text(
+                    hint,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                ...items.map(
+                  (item) => DropdownMenuItem<LocationModel?>(
+                    value: item,
+                    child: Text(
+                      item.name,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: onChanged,
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStaticGridDropdown(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.black54),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRoleDropdown() {
+    final currentTab = _tabs[_selectedTab];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 4),
+          const Text(
+            'Role',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: currentTab,
+              isExpanded: true,
+              isDense: true,
+              icon: const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.black54),
+              selectedItemBuilder: (_) => _visibleTabs.map(
+                (tab) => Text(
+                  tab,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ).toList(),
+              items: _visibleTabs.map(
+                (tab) => DropdownMenuItem<String>(
+                  value: tab,
+                  child: Text(tab, style: const TextStyle(fontSize: 12)),
+                ),
+              ).toList(),
+              onChanged: (val) {
+                if (val == null) return;
+                setState(() {
+                  _selectedTab = _tabs.indexOf(val);
+                });
+                _loadUsers();
+              },
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBreadcrumbs() {
+    final parts = <String>['Tamil Nadu'];
+    if (_selectedDistrict != null) parts.add(_selectedDistrict!.name);
+    if (_selectedConstituency != null) parts.add(_selectedConstituency!.name);
+    if (_selectedArea != null) parts.add(_selectedArea!.name);
+    if (_selectedStreet != null) parts.add(_selectedStreet!.name);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F5E9),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        parts.join(' > '),
+        style: const TextStyle(
+          color: Color(0xFF166534),
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHorizontalStats() {
+    return BlocBuilder<DashboardBloc, DashboardState>(
+      builder: (context, dashState) {
+        final stats = dashState.stats;
+        final total = (stats?.totalAdmins ?? 0) + (stats?.totalSubAdmins ?? 0) + (stats?.totalMembers ?? 0);
+        return Row(
+          children: [
+            Expanded(child: _buildSmallStatCard('Admins', stats?.totalAdmins ?? 0, const Color(0xFF166534))),
+            const SizedBox(width: 8),
+            Expanded(child: _buildSmallStatCard('Sub Admins', stats?.totalSubAdmins ?? 0, const Color(0xFF1E40AF))),
+            const SizedBox(width: 8),
+            Expanded(child: _buildSmallStatCard('Members', stats?.totalMembers ?? 0, const Color(0xFF065F46))),
+            const SizedBox(width: 8),
+            Expanded(child: _buildSmallStatCard('Total', total, const Color(0xFFB45309))),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSmallStatCard(String label, int value, Color valueColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280),
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _formatNumber(value),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: valueColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListHeader(UserManagementState state) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'Member List',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF111827),
+          ),
+        ),
+        Row(
+          children: [
+            const Text(
+              'Sort',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.sort, size: 16, color: Colors.grey[600]),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _showMoreFiltersSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'More Filters',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Blood Group', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _selectedBloodGroup,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(value: null, child: Text('All')),
+                      ..._bloodGroups.map((bg) => DropdownMenuItem(value: bg, child: Text(bg))),
+                    ],
+                    onChanged: (val) => setSheetState(() => _selectedBloodGroup = val),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Profession', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: _selectedProfession,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String>(value: null, child: Text('All')),
+                      ..._professions.map((p) => DropdownMenuItem(value: p, child: Text(p))),
+                    ],
+                    onChanged: (val) => setSheetState(() => _selectedProfession = val),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setSheetState(() {
+                              _selectedBloodGroup = null;
+                              _selectedProfession = null;
+                            });
+                            setState(() {
+                              _selectedBloodGroup = null;
+                              _selectedProfession = null;
+                            });
+                            _loadUsers();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Clear Filters'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {}); // to rebuild the calling widget if needed
+                            _loadUsers();
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F5A29),
+                          ),
+                          child: const Text('Apply'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 }
+

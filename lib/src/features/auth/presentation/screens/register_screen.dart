@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
@@ -20,6 +21,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
+  final _surnameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -79,6 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _surnameController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -219,6 +222,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     context.read<AuthBloc>().add(
       RegisterRequested(
         name: _nameController.text.trim(),
+        surname: _surnameController.text.trim().isEmpty
+            ? null
+            : _surnameController.text.trim(),
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
         districtId: _selectedDistrict!.id,
@@ -235,39 +241,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
-      body: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state.error != null) {
-            _showSnack(state.error!);
-          } else if (state.registrationSuccess) {
-            Navigator.pushReplacementNamed(context, '/verification');
-          }
-        },
-        child: SafeArea(
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: NTKColors.primary,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+        child: BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state.error != null) {
+              _showSnack(state.error!);
+            } else if (state.registrationSuccess) {
+              Navigator.pushReplacementNamed(context, '/verification');
+            }
+          },
           child: Column(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 color: NTKColors.primary,
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Member Registration',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Member Registration',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    const Icon(Icons.how_to_reg_outlined, color: Colors.white),
-                    const SizedBox(width: 12),
-                  ],
+                      const Icon(
+                        Icons.how_to_reg_outlined,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                  ),
                 ),
               ),
               Expanded(
@@ -300,6 +322,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         hintText: 'Enter full name',
                         controller: _nameController,
                         icon: CupertinoIcons.person,
+                      ),
+                      const SizedBox(height: 16),
+
+                      NTKTextField(
+                        label: 'Surname',
+                        hintText: 'Enter family name',
+                        controller: _surnameController,
+                        icon: CupertinoIcons.person_crop_circle,
                       ),
                       const SizedBox(height: 16),
 

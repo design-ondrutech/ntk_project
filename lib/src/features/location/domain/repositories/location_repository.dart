@@ -4,5 +4,9 @@ abstract class LocationRepository {
   Future<List<LocationModel>> getDistricts();
   Future<List<LocationModel>> getConstituencies({required int districtId});
   Future<List<LocationModel>> getTowns({required int constituencyId});
-  Future<List<LocationModel>> getLocationList({int? parentId, required String type});
+  Future<List<LocationModel>> getLocationList({
+    int? parentId,
+    required String type,
+  });
+  Future<List<LocationModel>> getTargetableLocations({int? districtId});
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
+import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/widgets/ntk_text_field.dart';
 import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
@@ -12,6 +13,7 @@ import 'package:ntk_project/src/injection_container.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_bloc.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
+import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 
 class AddMemberScreen extends StatefulWidget {
   const AddMemberScreen({super.key});
@@ -22,6 +24,7 @@ class AddMemberScreen extends StatefulWidget {
 
 class _AddMemberScreenState extends State<AddMemberScreen> {
   final _nameController = TextEditingController();
+  final _surnameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _professionController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -87,6 +90,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _surnameController.dispose();
     _phoneController.dispose();
     _professionController.dispose();
     _passwordController.dispose();
@@ -95,12 +99,11 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   }
 
   void _showSnack(String msg, {bool isError = true}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? NTKColors.error : NTKColors.primary,
-      ),
-    );
+    if (isError) {
+      NTKSnackbar.showError(context, message: msg);
+    } else {
+      NTKSnackbar.showSuccess(context, message: msg);
+    }
   }
 
   void _onAddMember() {
@@ -130,6 +133,9 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
     context.read<UserBloc>().add(
       AddMemberRequested(
         name: _nameController.text.trim(),
+        surname: _surnameController.text.trim().isEmpty
+            ? null
+            : _surnameController.text.trim(),
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
         streetId: selectedStreet!.id,
@@ -153,18 +159,10 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F4F8),
-        appBar: AppBar(
-          backgroundColor: NTKColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          title: const Text(
-            'Add Member',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
+        appBar: NTKAppBar(
+          title: 'Add Member',
+          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
+          showNotification: false,
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -206,6 +204,13 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                 label: 'Full Name',
                 hintText: 'Enter full name',
                 controller: _nameController,
+                icon: CupertinoIcons.person,
+              ),
+              const SizedBox(height: 16),
+              NTKTextField(
+                label: 'Surname',
+                hintText: 'Enter surname',
+                controller: _surnameController,
                 icon: CupertinoIcons.person,
               ),
               const SizedBox(height: 16),

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "740571437381",
+    "project_id": "naam-tamilar-katchi-7966e",
+    "storage_bucket": "naam-tamilar-katchi-7966e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:740571437381:android:83aa9006cda1ac8e19c62c",
+        "android_client_info": {
+          "package_name": "com.naamtamilerkatchi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQkmu_tdkvGZRxL1Qt0RiKWEe4uu4NbwM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -4,24 +4,28 @@ import 'package:ntk_project/src/features/location/data/models/location_model.dar
 class MemberModel extends Equatable {
   final int id;
   final String name;
+  final String? surname;
   final String? phone;
   final String? role;
   final String? approvalStatus;
   final LocationModel? location;
   final String? professionName;
   final String? bloodGroup;
+  final String? addedBy;
   final bool isActive;
   final DateTime? createdAt;
 
   const MemberModel({
     required this.id,
     required this.name,
+    this.surname,
     this.phone,
     this.role,
     this.approvalStatus,
     this.location,
     this.professionName,
     this.bloodGroup,
+    this.addedBy,
     this.isActive = true,
     this.createdAt,
   });
@@ -34,6 +38,7 @@ class MemberModel extends Equatable {
                 : int.parse(json['id'].toString()))
           : 0,
       name: json['name'] as String? ?? 'Unknown',
+      surname: json['surname'] as String?,
       phone: json['phone'] as String?,
       role: json['role'] as String? ?? 'Member',
       approvalStatus: json['approvalStatus'] as String?,
@@ -43,6 +48,8 @@ class MemberModel extends Equatable {
       professionName:
           json['profession'] as String? ?? (json['professionName'] as String?),
       bloodGroup: json['bloodGroup'] as String?,
+      addedBy:
+          json['addedBy'] as String? ?? (json['createdBy']?['name'] as String?),
       isActive: json['isActive'] as bool? ?? true,
       createdAt: _parseDate(json['createdAt']),
     );
@@ -62,12 +69,14 @@ class MemberModel extends Equatable {
     return {
       'id': id,
       'name': name,
+      'surname': surname,
       'phone': phone,
       'role': role,
       'approvalStatus': approvalStatus,
       'location': location?.toJson(),
       'professionName': professionName,
       'bloodGroup': bloodGroup,
+      'addedBy': addedBy,
       'isActive': isActive,
       'createdAt': createdAt?.toIso8601String(),
     };
@@ -77,12 +86,14 @@ class MemberModel extends Equatable {
   List<Object?> get props => [
     id,
     name,
+    surname,
     phone,
     role,
     approvalStatus,
     location,
     professionName,
     bloodGroup,
+    addedBy,
     isActive,
     createdAt,
   ];

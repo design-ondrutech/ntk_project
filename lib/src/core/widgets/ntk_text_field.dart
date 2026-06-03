@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 
@@ -37,6 +38,12 @@ class NTKTextField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          inputFormatters: keyboardType == TextInputType.phone
+              ? [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ]
+              : null,
           decoration: InputDecoration(
             hintText: hintText,
             prefixIcon: Icon(icon, size: 20),

@@ -14,21 +14,25 @@ class LocationModel extends Equatable {
   });
 
   factory LocationModel.fromJson(Map<String, dynamic> json) {
+    final idValue = json['id'];
+    final id = idValue is int
+        ? idValue
+        : int.tryParse(idValue?.toString() ?? '') ?? 0;
+    final parentIdValue = json['parentId'];
+    final parentId = parentIdValue is int
+        ? parentIdValue
+        : int.tryParse(parentIdValue?.toString() ?? '');
+
     return LocationModel(
-      id: json['id'] as int,
-      name: json['name'] as String,
+      id: id,
+      name: json['name'] as String? ?? 'Unknown',
       type: json['type'] as String?,
-      parentId: json['parentId'] as int?,
+      parentId: parentId,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'type': type,
-      'parentId': parentId,
-    };
+    return {'id': id, 'name': name, 'type': type, 'parentId': parentId};
   }
 
   @override

@@ -8,7 +8,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
   final UserRepository _userRepository;
   final MemberRepository _memberRepository;
 
-  UserBloc(this._userRepository, this._memberRepository) : super(UserInitial()) {
+  UserBloc(this._userRepository, this._memberRepository)
+    : super(UserInitial()) {
     on<CreateUserRequested>(_onCreateUserRequested);
     on<AddMemberRequested>(_onAddMemberRequested);
   }
@@ -21,15 +22,12 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     try {
       final user = await _userRepository.createUser(
         name: event.name,
+        surname: event.surname,
         phone: event.phone,
         password: event.password,
         role: event.role,
-        districtId: event.districtId,
-        talukId: event.talukId,
-        areaId: event.areaId,
-        streetId: event.streetId,
-        bloodGroup: event.bloodGroup,
-        professionName: event.professionName,
+        locationId:
+            event.locationId ?? event.streetId ?? event.areaId ?? event.talukId,
       );
       emit(UserCreatedSuccess(user));
     } catch (e) {
@@ -45,6 +43,7 @@ class UserBloc extends Bloc<UserEvent, UserState> {
     try {
       final member = await _memberRepository.addMember(
         name: event.name,
+        surname: event.surname,
         phone: event.phone,
         password: event.password,
         streetId: event.streetId,

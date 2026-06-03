@@ -36,60 +36,109 @@ class UserManagementBloc
     LoadUsers event,
     Emitter<UserManagementState> emit,
   ) async {
-    emit(
-      state.copyWith(isLoading: true, selectedType: event.type, error: null),
-    );
-    try {
-      List<MemberModel> users = [];
+    // If it's load more and we already reached the max or are already loading, do nothing
+    if (event.isLoadMore && (state.hasReachedMax || state.isLoadingMore)) {
+      return;
+    }
 
-      // Use streetId as locationId filter if provided
-      final effectiveLocationId = event.streetId ?? event.locationId;
+    final effectiveLocationId = event.streetId ?? event.locationId;
+    const int pageSize = 10;
 
-      switch (event.type) {
-        case 'Admin':
-          users = await _memberRepository.getUserList(
-            locationId: event.locationId,
-            role: 'ADMIN',
-          );
-          break;
-        case 'Sub Admin':
-          users = await _memberRepository.getUserList(
-            locationId: event.locationId,
-            role: 'SUB_ADMIN',
-          );
-          break;
-        case 'Member':
-          users = await _memberRepository.getMemberList(
-            locationId: effectiveLocationId,
-            approvalStatus: 'APPROVED',
-          );
-          break;
-        case 'Pending':
-          users = await _memberRepository.getMemberList(
-            locationId: effectiveLocationId,
-            approvalStatus: 'PENDING',
-          );
-          break;
-        case 'All':
-          final admins = await _memberRepository.getUserList(
-            locationId: event.locationId,
-            role: 'ADMIN',
-          );
-          final subAdmins = await _memberRepository.getUserList(
-            locationId: event.locationId,
-            role: 'SUB_ADMIN',
-          );
-          final members = await _memberRepository.getMemberList(
-            locationId: effectiveLocationId,
-            approvalStatus: 'APPROVED',
-          );
-          users = [...admins, ...subAdmins, ...members];
-          break;
+    if (event.isLoadMore) {
+      emit(state.copyWith(isLoadingMore: true, error: null));
+      try {
+        List<MemberModel> newUsers = [];
+        bool reachedMax = false;
+        final currentOffset = state.users.length;
+
+        String? apiRole;
+        String? apiApprovalStatus = 'APPROVED';
+
+        if (event.type == 'Admin') {
+          apiRole = 'ADMIN';
+        } else if (event.type == 'Sub Admin') {
+          apiRole = 'SUB_ADMIN';
+        } else if (event.type == 'Member') {
+          apiRole = 'MEMBER';
+        } else if (event.type == 'Pending') {
+          apiApprovalStatus = 'PENDING';
+        }
+
+        newUsers = await _memberRepository.getMemberList(
+          locationId: effectiveLocationId,
+          approvalStatus: apiApprovalStatus,
+          role: apiRole,
+          bloodGroup: event.bloodGroup,
+          professionName: event.profession,
+          limit: pageSize,
+          offset: currentOffset,
+        );
+        reachedMax = newUsers.length < pageSize;
+
+        final uniqueUsersMap = <int, MemberModel>{};
+        for (var u in [...state.users, ...newUsers]) {
+          uniqueUsersMap[u.id] = u;
+        }
+
+        emit(state.copyWith(
+          isLoadingMore: false,
+          users: uniqueUsersMap.values.toList(),
+          hasReachedMax: reachedMax,
+        ));
+      } catch (e) {
+        emit(state.copyWith(isLoadingMore: false, error: e.toString()));
       }
+    } else {
+      emit(
+        state.copyWith(
+          isLoading: true,
+          selectedType: event.type,
+          error: null,
+          hasReachedMax: false,
+          users: const [],
+        ),
+      );
+      try {
+        List<MemberModel> users = [];
+        bool reachedMax = false;
 
-      emit(state.copyWith(isLoading: false, users: users));
-    } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+        String? apiRole;
+        String? apiApprovalStatus = 'APPROVED';
+
+        if (event.type == 'Admin') {
+          apiRole = 'ADMIN';
+        } else if (event.type == 'Sub Admin') {
+          apiRole = 'SUB_ADMIN';
+        } else if (event.type == 'Member') {
+          apiRole = 'MEMBER';
+        } else if (event.type == 'Pending') {
+          apiApprovalStatus = 'PENDING';
+        }
+
+        users = await _memberRepository.getMemberList(
+          locationId: effectiveLocationId,
+          approvalStatus: apiApprovalStatus,
+          role: apiRole,
+          bloodGroup: event.bloodGroup,
+          professionName: event.profession,
+          limit: pageSize,
+          offset: 0,
+        );
+        reachedMax = users.length < pageSize;
+
+        final uniqueUsersMap = <int, MemberModel>{};
+        for (var u in users) {
+          uniqueUsersMap[u.id] = u;
+        }
+
+        emit(state.copyWith(
+          isLoading: false,
+          users: uniqueUsersMap.values.toList(),
+          hasReachedMax: reachedMax,
+        ));
+      } catch (e) {
+        emit(state.copyWith(isLoading: false, error: e.toString()));
+      }
     }
   }
 }

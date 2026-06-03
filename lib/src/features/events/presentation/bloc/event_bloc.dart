@@ -3,6 +3,7 @@ import 'package:ntk_project/src/features/events/domain/repositories/event_reposi
 import 'event_event.dart';
 import 'event_state.dart';
 import 'package:ntk_project/src/features/events/data/models/event_model.dart';
+import 'package:ntk_project/src/features/events/data/models/emergency_model.dart';
 
 class EventBloc extends Bloc<EventEvent, EventState> {
   final EventRepository _eventRepository;
@@ -11,6 +12,11 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     on<FetchEvents>(_onFetchEvents);
     on<RespondToEvent>(_onRespondToEvent);
     on<CreateEvent>(_onCreateEvent);
+    on<FetchEmergencies>(_onFetchEmergencies);
+    on<FetchEventResponses>(_onFetchEventResponses);
+    on<FetchEmergencyResponses>(_onFetchEmergencyResponses);
+    on<CreateEmergency>(_onCreateEmergency);
+    on<RespondToEmergency>(_onRespondToEmergency);
   }
 
   Future<void> _onFetchEvents(
@@ -29,6 +35,91 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     }
   }
 
+  Future<void> _onFetchEmergencies(
+    FetchEmergencies event,
+    Emitter<EventState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final emergencies = await _eventRepository.getEmergencyList(
+        locationId: event.locationId,
+      );
+      emit(state.copyWith(isLoading: false, emergencies: emergencies));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onFetchEventResponses(
+    FetchEventResponses event,
+    Emitter<EventState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final responses = await _eventRepository.getEventResponses(
+        eventId: event.eventId,
+      );
+      emit(state.copyWith(isLoading: false, eventResponses: responses));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onFetchEmergencyResponses(
+    FetchEmergencyResponses event,
+    Emitter<EventState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final responses = await _eventRepository.getEmergencyResponses(
+        emergencyRequestId: event.emergencyRequestId,
+      );
+      emit(state.copyWith(isLoading: false, emergencyResponses: responses));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onCreateEmergency(
+    CreateEmergency event,
+    Emitter<EventState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      await _eventRepository.createEmergency(
+        title: event.title,
+        description: event.description,
+        type: event.type,
+        locationId: event.locationId,
+        contactName: event.contactName,
+        contactPhone: event.contactPhone,
+        expiryDate: event.expiryDate,
+        collectResponse: event.collectResponse,
+      );
+
+      final refreshed = await _eventRepository.getEmergencyList(
+        locationId: event.locationId,
+      );
+
+      emit(
+        state.copyWith(
+          isLoading: false,
+          emergencies: refreshed,
+          message: 'Emergency Alert created successfully',
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Failed to create alert: ${e.toString()}',
+          clearMessage: true,
+        ),
+      );
+    }
+  }
+
   Future<void> _onRespondToEvent(
     RespondToEvent event,
     Emitter<EventState> emit,
@@ -39,11 +130,6 @@ class EventBloc extends Bloc<EventEvent, EventState> {
         memberId: event.memberId,
         status: event.status,
       );
-
-      // Update the local list optimistically or refetch
-      // For simplicity, we can just refetch all events if locationId is available,
-      // but we don't have locationId directly here unless we save it.
-      // Alternatively, we can just update the specific event's stats optimistically.
 
       final updatedEvents = state.events.map((e) {
         if (e.id == event.eventId) {
@@ -90,6 +176,66 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     }
   }
 
+  Future<void> _onRespondToEmergency(
+    RespondToEmergency event,
+    Emitter<EventState> emit,
+  ) async {
+    try {
+      await _eventRepository.respondToEmergency(
+        emergencyRequestId: event.emergencyRequestId,
+        status: event.status,
+        note: event.note,
+      );
+
+      final updatedEmergencies = state.emergencies.map((e) {
+        if (e.id == event.emergencyRequestId) {
+          int newGoing = e.going;
+          int newMaybe = e.maybe;
+          int newNotGoing = e.notGoing;
+
+          if (event.status == 'COMING' || event.status == 'GOING') {
+            newGoing++;
+          } else if (event.status == 'MAYBE') {
+            newMaybe++;
+          } else if (event.status == 'UNABLE' || event.status == 'NOT_GOING') {
+            newNotGoing++;
+          }
+
+          return EmergencyModel(
+            id: e.id,
+            title: e.title,
+            description: e.description,
+            type: e.type,
+            contactName: e.contactName,
+            contactPhone: e.contactPhone,
+            expiryDate: e.expiryDate,
+            collectResponse: e.collectResponse,
+            locationName: e.locationName,
+            going: newGoing,
+            maybe: newMaybe,
+            notGoing: newNotGoing,
+          );
+        }
+        return e;
+      }).toList();
+
+      emit(
+        state.copyWith(
+          emergencies: updatedEmergencies,
+          message: 'Successfully responded to emergency',
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          error: 'Failed to respond: ${e.toString()}',
+          clearMessage: true,
+        ),
+      );
+    }
+  }
+
   Future<void> _onCreateEvent(
     CreateEvent event,
     Emitter<EventState> emit,
@@ -101,9 +247,9 @@ class EventBloc extends Bloc<EventEvent, EventState> {
         description: event.description,
         date: event.date,
         locationId: event.locationId,
+        professionNames: event.professionNames,
       );
 
-      // Refresh the full list so the new event appears with correct data
       final refreshed = await _eventRepository.getRecentEvents(
         locationId: event.locationId,
         limit: 10,

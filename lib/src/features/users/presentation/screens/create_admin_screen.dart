@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
+import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/core/widgets/ntk_text_field.dart';
 import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
@@ -9,6 +11,7 @@ import 'package:ntk_project/src/features/location/data/repositories/location_rep
 import 'package:ntk_project/src/features/users/presentation/bloc/user_bloc.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
+import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/injection_container.dart';
 
 class CreateAdminScreen extends StatefulWidget {
@@ -19,6 +22,7 @@ class CreateAdminScreen extends StatefulWidget {
 
 class _CreateAdminScreenState extends State<CreateAdminScreen> {
   final _nameController = TextEditingController();
+  final _surnameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -106,6 +110,7 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _surnameController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -113,12 +118,11 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
   }
 
   void _showSnack(String msg, {bool isError = true}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? NTKColors.error : NTKColors.primary,
-      ),
-    );
+    if (isError) {
+      NTKSnackbar.showError(context, message: msg);
+    } else {
+      NTKSnackbar.showSuccess(context, message: msg);
+    }
   }
 
   void _onCreateAdmin() {
@@ -150,13 +154,13 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
     context.read<UserBloc>().add(
       CreateUserRequested(
         name: _nameController.text.trim(),
+        surname: _surnameController.text.trim().isEmpty
+            ? null
+            : _surnameController.text.trim(),
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
         role: 'ADMIN',
-        districtId: _selectedDistrict!.id,
-        talukId: _selectedTaluk!.id,
-        bloodGroup: _selectedBloodGroup,
-        professionName: _selectedProfession,
+        locationId: _selectedTaluk!.id,
       ),
     );
   }
@@ -174,18 +178,10 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F4F8),
-        appBar: AppBar(
-          backgroundColor: NTKColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          title: const Text(
-            'Create Admin',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
+        appBar: NTKAppBar(
+          title: 'Create Admin',
+          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
+          showNotification: false,
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -217,6 +213,14 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
               const SizedBox(height: 16),
 
               // ── Mobile Number ────────────────────────────
+              NTKTextField(
+                label: 'Surname',
+                hintText: 'Enter family name',
+                controller: _surnameController,
+                icon: CupertinoIcons.person_crop_circle,
+              ),
+              const SizedBox(height: 16),
+
               NTKTextField(
                 label: 'Mobile Number',
                 hintText: 'Enter mobile number',

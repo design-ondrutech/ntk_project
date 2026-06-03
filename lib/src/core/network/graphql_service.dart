@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:http/http.dart' as http;
 
@@ -11,16 +10,7 @@ class GraphQLService {
   late String _endpoint;
 
   GraphQLService() {
-    String host = '127.0.0.1';
-    try {
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        // 10.0.2.2 = Android emulator only
-        // Change to your PC's local IP when using a real device on the same WiFi
-        host = '10.0.2.2'; // Android emulator → maps to host PC localhost
-      }
-    } catch (_) {}
-
-    _endpoint = 'http://$host:4000/graphql';
+    _endpoint = 'https://naam-tamilar-katchi.onrender.com/graphql';
     _updateClient();
   }
 
@@ -113,13 +103,29 @@ class GraphQLService {
         if (variables.isNotEmpty) 'variables': variables,
       });
 
-      final response = await http
-          .post(Uri.parse(_endpoint), headers: headers, body: body)
-          .timeout(const Duration(seconds: 30));
+      final requestFuture = http.post(Uri.parse(_endpoint), headers: headers, body: body);
+      // Catch and ignore late errors from the original future to prevent unhandled exceptions after timeout
+      requestFuture.ignore();
+      
+      final response = await requestFuture.timeout(const Duration(seconds: 30));
 
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      Map<String, dynamic> json;
+      try {
+        json = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (e) {
+        final snippet = response.body.length > 100 ? response.body.substring(0, 100) : response.body;
+        return QueryResult(
+          options: options,
+          source: QueryResultSource.network,
+          exception: OperationException(
+            graphqlErrors: [
+              GraphQLError(message: 'Server Error (HTTP ${response.statusCode}). Backend returned HTML instead of JSON: $snippet...'),
+            ],
+          ),
+        );
+      }
+
       final errors = json['errors'] as List?;
-
       if (errors != null && errors.isNotEmpty) {
         return QueryResult(
           options: options,

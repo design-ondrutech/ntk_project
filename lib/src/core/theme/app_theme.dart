@@ -23,7 +23,7 @@ class NTKColors {
   static const red500 = Color(0xFFEF4444);
 
   // Semantic mappings
-  static const primary = emerald600;
+  static const primary = Color(0xFF0A3D28);
   static const primaryDark = emerald700;
   static const secondary = slate600;
   static const background = slate50;
@@ -89,16 +89,16 @@ class AppTheme {
 
       // AppBar Theme
       appBarTheme: const AppBarTheme(
-        backgroundColor: NTKColors.surface,
-        foregroundColor: NTKColors.textPrimary,
+        backgroundColor: NTKColors.primary,
+        foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: NTKColors.textPrimary,
+          color: Colors.white,
         ),
-        iconTheme: IconThemeData(color: NTKColors.textPrimary),
+        iconTheme: IconThemeData(color: Colors.white),
       ),
 
       // Button Theme

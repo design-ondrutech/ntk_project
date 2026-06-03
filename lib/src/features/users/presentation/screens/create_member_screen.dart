@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
+import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/core/widgets/ntk_text_field.dart';
 import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
@@ -9,6 +11,7 @@ import 'package:ntk_project/src/features/location/data/repositories/location_rep
 import 'package:ntk_project/src/features/users/presentation/bloc/user_bloc.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
+import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/injection_container.dart';
 
 class CreateMemberScreen extends StatefulWidget {
@@ -72,7 +75,62 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   void initState() {
     super.initState();
     _locationRepo = LocationRepositoryImpl(sl());
-    _loadDistricts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initLocationForRole();
+    });
+  }
+
+  Future<void> _initLocationForRole() async {
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role;
+    final locationId = authState.loginData?.locationId;
+
+    if (role == 'SUB_ADMIN' && locationId != null) {
+      final assignedArea = LocationModel(
+        id: locationId,
+        name: authState.loginData?.locationName ?? 'Assigned Area',
+      );
+      setState(() {
+        _selectedArea = assignedArea;
+        _areas = [assignedArea];
+      });
+      await _onAreaChanged(assignedArea);
+
+      // Fetch parent district/taluk in background for form submission
+      try {
+        final districts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        bool found = false;
+        for (final district in districts) {
+          final taluks = await _locationRepo.getLocationList(
+            parentId: district.id,
+            type: 'TALUK',
+          );
+          for (final taluk in taluks) {
+            final areas = await _locationRepo.getLocationList(
+              parentId: taluk.id,
+              type: 'AREA',
+            );
+            if (areas.any((a) => a.id == locationId)) {
+              if (mounted) {
+                setState(() {
+                  _selectedDistrict = district;
+                  _districts = [district];
+                  _selectedTaluk = taluk;
+                  _taluks = [taluk];
+                });
+              }
+              found = true;
+              break;
+            }
+          }
+          if (found) break;
+        }
+      } catch (e) {
+        debugPrint('Error finding parent district/taluk: $e');
+      }
+    } else {
+      _loadDistricts();
+    }
   }
 
   Future<void> _loadDistricts() async {
@@ -172,12 +230,11 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   }
 
   void _showSnack(String msg, {bool isError = true}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? NTKColors.error : NTKColors.primary,
-      ),
-    );
+    if (isError) {
+      NTKSnackbar.showError(context, message: msg);
+    } else {
+      NTKSnackbar.showSuccess(context, message: msg);
+    }
   }
 
   void _onCreateMember() {
@@ -232,6 +289,9 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userRole = context.watch<AuthBloc>().state.loginData?.role;
+    final isSubAdmin = userRole == 'SUB_ADMIN';
+
     return BlocListener<UserBloc, UserState>(
       listener: (context, state) {
         if (state is UserCreatedSuccess) {
@@ -243,18 +303,10 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F4F8),
-        appBar: AppBar(
-          backgroundColor: NTKColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          title: const Text(
-            'Create Member',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
+        appBar: NTKAppBar(
+          title: 'Create Member',
+          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
+          showNotification: false,
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -296,47 +348,49 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
               const SizedBox(height: 16),
 
               // ── District ─────────────────────────────────
-              _loadingDistricts
-                  ? _buildLoadingField('District')
-                  : NTKDropdownField<LocationModel>(
-                      label: 'District',
-                      items: _districts,
-                      selectedValue: _selectedDistrict,
-                      hintText: 'Select District',
-                      onChanged: _onDistrictChanged,
-                      itemLabel: (item) => item.name,
-                    ),
-              const SizedBox(height: 16),
+              if (!isSubAdmin) ...[
+                _loadingDistricts
+                    ? _buildLoadingField('District')
+                    : NTKDropdownField<LocationModel>(
+                        label: 'District',
+                        items: _districts,
+                        selectedValue: _selectedDistrict,
+                        hintText: 'Select District',
+                        onChanged: _onDistrictChanged,
+                        itemLabel: (item) => item.name,
+                      ),
+                const SizedBox(height: 16),
 
-              // ── Taluk ─────────────────────────────────────
-              _loadingTaluks
-                  ? _buildLoadingField('Taluk')
-                  : _selectedDistrict == null
-                  ? _buildDisabledField('Taluk', 'Select District first')
-                  : NTKDropdownField<LocationModel>(
-                      label: 'Taluk',
-                      items: _taluks,
-                      selectedValue: _selectedTaluk,
-                      hintText: 'Select Taluk',
-                      onChanged: _onTalukChanged,
-                      itemLabel: (item) => item.name,
-                    ),
-              const SizedBox(height: 16),
+                // ── Taluk ─────────────────────────────────────
+                _loadingTaluks
+                    ? _buildLoadingField('Taluk')
+                    : _selectedDistrict == null
+                    ? _buildDisabledField('Taluk', 'Select District first')
+                    : NTKDropdownField<LocationModel>(
+                        label: 'Taluk',
+                        items: _taluks,
+                        selectedValue: _selectedTaluk,
+                        hintText: 'Select Taluk',
+                        onChanged: _onTalukChanged,
+                        itemLabel: (item) => item.name,
+                      ),
+                const SizedBox(height: 16),
 
-              // ── Area ──────────────────────────────────────
-              _loadingAreas
-                  ? _buildLoadingField('Area')
-                  : _selectedTaluk == null
-                  ? _buildDisabledField('Area', 'Select Taluk first')
-                  : NTKDropdownField<LocationModel>(
-                      label: 'Area',
-                      items: _areas,
-                      selectedValue: _selectedArea,
-                      hintText: 'Select Area',
-                      onChanged: _onAreaChanged,
-                      itemLabel: (item) => item.name,
-                    ),
-              const SizedBox(height: 16),
+                // ── Area ──────────────────────────────────────
+                _loadingAreas
+                    ? _buildLoadingField('Area')
+                    : _selectedTaluk == null
+                    ? _buildDisabledField('Area', 'Select Taluk first')
+                    : NTKDropdownField<LocationModel>(
+                        label: 'Area',
+                        items: _areas,
+                        selectedValue: _selectedArea,
+                        hintText: 'Select Area',
+                        onChanged: _onAreaChanged,
+                        itemLabel: (item) => item.name,
+                      ),
+                const SizedBox(height: 16),
+              ],
 
               // ── Street ────────────────────────────────────
               _loadingStreets

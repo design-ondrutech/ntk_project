@@ -1,5 +1,6 @@
 import 'package:ntk_project/src/core/network/graphql_service.dart';
 import 'package:ntk_project/src/features/dashboard/data/models/dashboard_stats_model.dart';
+import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
 import 'package:ntk_project/src/features/dashboard/domain/repositories/dashboard_repository.dart';
 
 class DashboardRepositoryImpl implements DashboardRepository {
@@ -20,6 +21,9 @@ class DashboardRepositoryImpl implements DashboardRepository {
           totalSubAdmins
           pendingApprovals
           locationName
+          newMembersToday
+          approvedToday
+          activeBroadcasts
         }
       }
     ''';
@@ -44,21 +48,48 @@ class DashboardRepositoryImpl implements DashboardRepository {
   }
 
   @override
-  Future<List<dynamic>> getRecentActivity({int? locationId, int? limit}) async {
+  Future<List<RecentActivityModel>> getRecentActivity({
+    int? locationId,
+    int? limit,
+    int? offset,
+    String? search,
+    String? type,
+    String? fromDate,
+    String? toDate,
+  }) async {
     const String query = r'''
-      query GetRecentActivity($locationId: Int, $limit: Int) {
-        recentActivity(locationId: $locationId, limit: $limit) {
-          ... on Event {
+      query RecentActivity(
+        $locationId: Int
+        $limit: Int
+        $offset: Int
+        $search: String
+        $type: ActivityType
+        $fromDate: String
+        $toDate: String
+      ) {
+        recentActivity(
+          locationId: $locationId
+          limit: $limit
+          offset: $offset
+          search: $search
+          type: $type
+          fromDate: $fromDate
+          toDate: $toDate
+        ) {
+          id
+          activityType
+          title
+          description
+          createdAt
+          member {
             id
-            title
-            date
-            eventStatus: status
+            name
+            phone
+            role
           }
-          ... on EmergencyRequest {
+          location {
             id
-            title
-            type
-            requestStatus: status
+            name
           }
         }
       }
@@ -66,7 +97,15 @@ class DashboardRepositoryImpl implements DashboardRepository {
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'locationId': locationId, 'limit': limit},
+      variables: {
+        'locationId': locationId,
+        'limit': limit,
+        'offset': offset,
+        'search': search,
+        'type': type,
+        'fromDate': fromDate,
+        'toDate': toDate,
+      },
     );
 
     // Backend recentActivity resolver has a known issue with member.findMany().
@@ -75,6 +114,11 @@ class DashboardRepositoryImpl implements DashboardRepository {
       return [];
     }
 
-    return result.data?['recentActivity'] as List? ?? [];
+    final List data = result.data?['recentActivity'] as List? ?? [];
+    return data
+        .map<RecentActivityModel>(
+          (json) => RecentActivityModel.fromJson(json as Map<String, dynamic>),
+        )
+        .toList();
   }
 }

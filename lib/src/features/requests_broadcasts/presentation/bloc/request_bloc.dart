@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:ntk_project/src/features/requests_broadcasts/data/models/broadcast_model.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/data/models/emergency_request_model.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/domain/repositories/request_repository.dart';
 
@@ -13,9 +14,27 @@ abstract class RequestEvent extends Equatable {
 class LoadRequests extends RequestEvent {
   final int? locationId;
   final String? status;
-  const LoadRequests({this.locationId, this.status});
+  final String? scope;
+  const LoadRequests({this.locationId, this.status, this.scope});
   @override
-  List<Object?> get props => [locationId, status];
+  List<Object?> get props => [locationId, status, scope];
+}
+
+class CreateBroadcastMessage extends RequestEvent {
+  final String title;
+  final String message;
+  final int locationId;
+  final int? streetId;
+
+  const CreateBroadcastMessage({
+    required this.title,
+    required this.message,
+    required this.locationId,
+    this.streetId,
+  });
+
+  @override
+  List<Object?> get props => [title, message, locationId, streetId];
 }
 
 class CreateRequest extends RequestEvent {
@@ -46,6 +65,7 @@ class UpdateRequestStatus extends RequestEvent {
 // State
 class RequestState extends Equatable {
   final bool isLoading;
+  final List<BroadcastModel> broadcasts;
   final List<EmergencyRequestModel> requests;
   final String? error;
   final bool isSubmitting;
@@ -53,6 +73,7 @@ class RequestState extends Equatable {
 
   const RequestState({
     this.isLoading = false,
+    this.broadcasts = const [],
     this.requests = const [],
     this.error,
     this.isSubmitting = false,
@@ -61,6 +82,7 @@ class RequestState extends Equatable {
 
   RequestState copyWith({
     bool? isLoading,
+    List<BroadcastModel>? broadcasts,
     List<EmergencyRequestModel>? requests,
     String? error,
     bool? isSubmitting,
@@ -68,6 +90,7 @@ class RequestState extends Equatable {
   }) {
     return RequestState(
       isLoading: isLoading ?? this.isLoading,
+      broadcasts: broadcasts ?? this.broadcasts,
       requests: requests ?? this.requests,
       error: error ?? this.error,
       isSubmitting: isSubmitting ?? this.isSubmitting,
@@ -78,6 +101,7 @@ class RequestState extends Equatable {
   @override
   List<Object?> get props => [
     isLoading,
+    broadcasts,
     requests,
     error,
     isSubmitting,
@@ -91,6 +115,7 @@ class RequestBloc extends Bloc<RequestEvent, RequestState> {
 
   RequestBloc(this._repository) : super(const RequestState()) {
     on<LoadRequests>(_onLoadRequests);
+    on<CreateBroadcastMessage>(_onCreateBroadcastMessage);
     on<CreateRequest>(_onCreateRequest);
     on<UpdateRequestStatus>(_onUpdateStatus);
   }
@@ -101,13 +126,51 @@ class RequestBloc extends Bloc<RequestEvent, RequestState> {
   ) async {
     emit(state.copyWith(isLoading: true, error: null));
     try {
+      final broadcasts = await _repository.getBroadcasts(
+        locationId: event.locationId,
+        scope: event.scope ?? 'AREA',
+      );
       final requests = await _repository.getEmergencyRequestList(
         locationId: event.locationId,
         status: event.status,
       );
-      emit(state.copyWith(isLoading: false, requests: requests));
+      emit(
+        state.copyWith(
+          isLoading: false,
+          broadcasts: broadcasts,
+          requests: requests,
+        ),
+      );
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onCreateBroadcastMessage(
+    CreateBroadcastMessage event,
+    Emitter<RequestState> emit,
+  ) async {
+    emit(state.copyWith(isSubmitting: true, error: null, submitSuccess: false));
+    try {
+      await _repository.createBroadcast(
+        title: event.title,
+        message: event.message,
+        locationId: event.locationId,
+        streetId: event.streetId,
+      );
+      final broadcasts = await _repository.getBroadcasts(
+        locationId: event.locationId,
+        scope: 'AREA',
+      );
+      emit(
+        state.copyWith(
+          isSubmitting: false,
+          submitSuccess: true,
+          broadcasts: broadcasts,
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(isSubmitting: false, error: e.toString()));
     }
   }
 
@@ -124,7 +187,16 @@ class RequestBloc extends Bloc<RequestEvent, RequestState> {
         locationId: event.locationId,
         audience: event.audience,
       );
-      emit(state.copyWith(isSubmitting: false, submitSuccess: true));
+      final requests = await _repository.getEmergencyRequestList(
+        locationId: event.locationId,
+      );
+      emit(
+        state.copyWith(
+          isSubmitting: false,
+          submitSuccess: true,
+          requests: requests,
+        ),
+      );
     } catch (e) {
       emit(state.copyWith(isSubmitting: false, error: e.toString()));
     }
@@ -136,9 +208,15 @@ class RequestBloc extends Bloc<RequestEvent, RequestState> {
   ) async {
     emit(state.copyWith(isSubmitting: true, error: null));
     try {
-      final updated = await _repository.updateRequestStatus(
+      final action = switch (event.status.toUpperCase()) {
+        'APPROVED' || 'ACCEPTED' || 'ACCEPT' => 'ACCEPT',
+        'REJECTED' || 'REJECT' => 'REJECT',
+        'FORWARDED' || 'FORWARD' => 'FORWARD',
+        _ => event.status,
+      };
+      final updated = await _repository.reviewEmergencyRequest(
         id: event.id,
-        status: event.status,
+        action: action,
       );
       final updatedList = state.requests
           .map((r) => r.id == updated.id ? updated : r)

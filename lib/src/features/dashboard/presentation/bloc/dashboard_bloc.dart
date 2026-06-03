@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
 import 'package:ntk_project/src/features/dashboard/domain/repositories/dashboard_repository.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
@@ -8,6 +9,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
   DashboardBloc(this._dashboardRepository) : super(const DashboardState()) {
     on<LoadDashboardStats>(_onLoadDashboardStats);
+    on<UpdateGlobalLocation>(_onUpdateGlobalLocation);
   }
 
   Future<void> _onLoadDashboardStats(
@@ -20,7 +22,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         event.locationId,
       );
       // recentActivity failure must NOT crash the dashboard
-      List<dynamic> activity = [];
+      List<RecentActivityModel> activity = [];
       try {
         activity = await _dashboardRepository.getRecentActivity(
           locationId: event.locationId,
@@ -39,6 +41,17 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       );
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  void _onUpdateGlobalLocation(
+    UpdateGlobalLocation event,
+    Emitter<DashboardState> emit,
+  ) {
+    if (event.location == null) {
+      emit(state.copyWith(clearGlobalLocation: true));
+    } else {
+      emit(state.copyWith(globalLocation: event.location));
     }
   }
 }

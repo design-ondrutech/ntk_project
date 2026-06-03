@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
@@ -37,7 +38,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
       LoginRequested(
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
-        role: 'MEMBER',
       ),
     );
   }
@@ -141,6 +141,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 TextField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
                   decoration: const InputDecoration(
                     labelText: 'Mobile Number',
                     hintText: 'பதிவு செய்த எண்',

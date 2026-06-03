@@ -35,3 +35,42 @@ class EventModel {
     );
   }
 }
+
+class EventMemberModel {
+  final String id;
+  final String name;
+  final String phone;
+  final String? role;
+
+  EventMemberModel({
+    required this.id,
+    required this.name,
+    required this.phone,
+    this.role,
+  });
+
+  factory EventMemberModel.fromJson(Map<String, dynamic> json) {
+    return EventMemberModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] ?? 'Unknown',
+      phone: json['phone'] ?? '',
+      role: json['role'] as String?,
+    );
+  }
+}
+
+class EventResponseModel {
+  final String status;
+  final EventMemberModel member;
+
+  EventResponseModel({required this.status, required this.member});
+
+  factory EventResponseModel.fromJson(Map<String, dynamic> json) {
+    return EventResponseModel(
+      status: json['status'] ?? 'UNKNOWN',
+      member: EventMemberModel.fromJson(
+        json['member'] as Map<String, dynamic>? ?? {},
+      ),
+    );
+  }
+}

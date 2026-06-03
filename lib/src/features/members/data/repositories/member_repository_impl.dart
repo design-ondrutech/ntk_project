@@ -13,25 +13,22 @@ class MemberRepositoryImpl implements MemberRepository {
     int? professionId,
     String? bloodGroup,
     String? search,
+    String? role,
     int? limit,
     int? offset,
   }) async {
     const String query = r'''
-      query GetMemberList($locationId: Int, $bloodGroup: String, $search: String, $limit: Int, $offset: Int, $approvalStatus: ApprovalStatus) {
-        getMemberList(locationId: $locationId, bloodGroup: $bloodGroup, search: $search, limit: $limit, offset: $offset, approvalStatus: $approvalStatus) {
+      query GetMemberList($locationId: Int, $bloodGroup: String, $search: String, $role: String, $approvalStatus: ApprovalStatus, $limit: Int, $offset: Int) {
+        getMemberList(locationId: $locationId, bloodGroup: $bloodGroup, search: $search, role: $role, approvalStatus: $approvalStatus, limit: $limit, offset: $offset) {
           id
           name
           phone
           role
-          approvalStatus
-          isActive
-          bloodGroup
-          profession
+          addedBy
           location {
             id
             name
           }
-          createdAt
         }
       }
     ''';
@@ -42,6 +39,8 @@ class MemberRepositoryImpl implements MemberRepository {
         'locationId': locationId,
         'bloodGroup': bloodGroup,
         'search': search,
+        'role': role,
+        'approvalStatus': 'APPROVED',
         'limit': limit,
         'offset': offset,
       },
@@ -52,17 +51,24 @@ class MemberRepositoryImpl implements MemberRepository {
     }
 
     final List data = result.data?['getMemberList'] as List? ?? [];
-    return data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList();
+    return _sortByRoleOrder(
+      data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList(),
+    );
   }
 
   @override
   Future<List<MemberModel>> getMemberList({
     int? locationId,
     String? approvalStatus,
+    String? role,
+    String? bloodGroup,
+    String? professionName,
+    int? limit,
+    int? offset,
   }) async {
     const String query = r'''
-      query GetMemberList($locationId: Int, $approvalStatus: ApprovalStatus) {
-        getMemberList(locationId: $locationId, approvalStatus: $approvalStatus) {
+      query GetMemberList($locationId: Int, $approvalStatus: ApprovalStatus, $role: String, $bloodGroup: String, $professionName: String, $limit: Int, $offset: Int) {
+        getMemberList(locationId: $locationId, approvalStatus: $approvalStatus, role: $role, bloodGroup: $bloodGroup, professionName: $professionName, limit: $limit, offset: $offset) {
           id
           name
           phone
@@ -71,18 +77,26 @@ class MemberRepositoryImpl implements MemberRepository {
           isActive
           bloodGroup
           profession
+          addedBy
           location {
             id
             name
           }
-          createdAt
         }
       }
     ''';
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'locationId': locationId, 'approvalStatus': approvalStatus},
+      variables: {
+        'locationId': locationId,
+        'approvalStatus': approvalStatus,
+        'role': role,
+        'bloodGroup': bloodGroup,
+        'professionName': professionName,
+        'limit': limit,
+        'offset': offset,
+      },
     );
 
     if (result.hasException) {
@@ -90,7 +104,9 @@ class MemberRepositoryImpl implements MemberRepository {
     }
 
     final List data = result.data?['getMemberList'] as List? ?? [];
-    return data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList();
+    return _sortByRoleOrder(
+      data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList(),
+    );
   }
 
   @override
@@ -101,15 +117,11 @@ class MemberRepositoryImpl implements MemberRepository {
           id
           name
           phone
-          bloodGroup
           role
-          isActive
-          approvalStatus
-          createdAt
+          addedBy
           location {
             id
             name
-            type
           }
         }
       }
@@ -125,20 +137,65 @@ class MemberRepositoryImpl implements MemberRepository {
     }
 
     final List data = result.data?['getMemberList'] as List? ?? [];
-    return data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList();
+    return _sortByRoleOrder(
+      data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList(),
+    );
   }
 
   @override
   Future<List<MemberModel>> getUserList({int? locationId, String? role}) async {
     const String query = r'''
-      query GetUserList($locationId: Int, $role: UserRole) {
-        getUserList(locationId: $locationId, role: $role) {
+      query GetMemberList($locationId: Int, $role: String, $approvalStatus: ApprovalStatus) {
+        getMemberList(locationId: $locationId, role: $role, approvalStatus: $approvalStatus) {
           id
           name
           phone
           role
           approvalStatus
           isActive
+          addedBy
+          location {
+            id
+            name
+          }
+        }
+      }
+    ''';
+
+    final variables = <String, dynamic>{'approvalStatus': 'APPROVED'};
+    if (locationId != null) variables['locationId'] = locationId;
+    if (role != null) variables['role'] = role;
+
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: variables,
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to fetch user list: ${result.exception}');
+    }
+
+    final List data = result.data?['getMemberList'] as List? ?? [];
+    return _sortByRoleOrder(
+      data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList(),
+    );
+  }
+
+  @override
+  Future<MemberModel> getMemberDetails({required int id}) async {
+    const String query = r'''
+      query GetMemberDetails($id: Int!) {
+        getMemberDetails(id: $id) {
+          id
+          name
+          surname
+          phone
+          role
+          approvalStatus
+          profession
+          bloodGroup
+          addedBy
+          createdAt
           location {
             id
             name
@@ -149,49 +206,16 @@ class MemberRepositoryImpl implements MemberRepository {
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'locationId': locationId, 'role': role},
-    );
-
-    if (result.hasException) {
-      throw Exception('Failed to fetch user list: ${result.exception}');
-    }
-
-    final List data = result.data?['getUserList'] as List? ?? [];
-    return data.map<MemberModel>((json) => MemberModel.fromJson(json)).toList();
-  }
-
-  @override
-  Future<MemberModel> getMemberDetails({required int id}) async {
-    const String query = r'''
-      query GetMemberDetails($getMemberDetailsId: Int!) {
-        getMemberDetails(id: $getMemberDetailsId) {
-          id
-          name
-          phone
-          bloodGroup
-          role
-          profession
-          isActive
-          approvalStatus
-          createdAt
-          location {
-            name
-          }
-        }
-      }
-    ''';
-
-    final result = await _graphQLService.performQuery(
-      query,
-      variables: {'getMemberDetailsId': id},
+      variables: {'id': id},
     );
 
     if (result.hasException) {
       throw Exception('Failed to fetch member details: ${result.exception}');
     }
 
-    final data = result.data?['getMemberDetails'];
+    final data = result.data?['getMemberDetails'] as Map<String, dynamic>?;
     if (data == null) throw Exception('Member not found');
+
     return MemberModel.fromJson(data);
   }
 
@@ -199,23 +223,27 @@ class MemberRepositoryImpl implements MemberRepository {
   Future<MemberModel> updateMember({
     required int id,
     String? name,
+    String? surname,
     String? phone,
     String? bloodGroup,
     String? role,
     String? professionName,
     int? locationId,
+    String? image,
   }) async {
     const String mutation = r'''
-      mutation UpdateMember($id: Int!, $name: String, $phone: String, $bloodGroup: String, $role: String, $professionName: String, $locationId: Int) {
-        updateMember(id: $id, name: $name, phone: $phone, bloodGroup: $bloodGroup, role: $role, professionName: $professionName, locationId: $locationId) {
+      mutation UpdateMember($id: Int!, $name: String, $surname: String, $phone: String, $bloodGroup: String, $role: String, $professionName: String, $locationId: Int) {
+        updateMember(id: $id, name: $name, surname: $surname, phone: $phone, bloodGroup: $bloodGroup, role: $role, professionName: $professionName, locationId: $locationId) {
           id
           name
+          surname
           phone
           role
           approvalStatus
-          isActive
-          bloodGroup
           profession
+          bloodGroup
+          addedBy
+          createdAt
           location {
             id
             name
@@ -229,6 +257,7 @@ class MemberRepositoryImpl implements MemberRepository {
       variables: {
         'id': id,
         'name': name,
+        'surname': surname,
         'phone': phone,
         'bloodGroup': bloodGroup,
         'role': role,
@@ -241,9 +270,10 @@ class MemberRepositoryImpl implements MemberRepository {
       throw Exception('Failed to update member: ${result.exception}');
     }
 
-    final data = result.data?['updateMember'];
-    if (data == null) throw Exception('Update failed');
-    return MemberModel.fromJson(data);
+    final raw = result.data?['updateMember'] as Map<String, dynamic>?;
+    if (raw == null) throw Exception('Update failed');
+
+    return MemberModel.fromJson(raw);
   }
 
   @override
@@ -285,6 +315,7 @@ class MemberRepositoryImpl implements MemberRepository {
   @override
   Future<MemberModel> addMember({
     required String name,
+    String? surname,
     required String phone,
     String? password,
     String? bloodGroup,
@@ -295,18 +326,12 @@ class MemberRepositoryImpl implements MemberRepository {
     int? districtId,
   }) async {
     const String mutation = r'''
-      mutation AddMember($name: String!, $phone: String!, $password: String, $bloodGroup: String, $professionName: String, $streetId: Int, $areaId: Int, $talukId: Int, $districtId: Int) {
-        addMember(name: $name, phone: $phone, password: $password, bloodGroup: $bloodGroup, professionName: $professionName, streetId: $streetId, areaId: $areaId, talukId: $talukId, districtId: $districtId) {
+      mutation AddMember($name: String!, $surname: String, $phone: String!, $password: String!, $bloodGroup: String, $professionName: String, $streetId: Int) {
+        addMember(name: $name, surname: $surname, phone: $phone, password: $password, bloodGroup: $bloodGroup, professionName: $professionName, streetId: $streetId) {
           id
           name
+          surname
           phone
-          role
-          approvalStatus
-          isActive
-          location {
-            id
-            name
-          }
         }
       }
     ''';
@@ -315,14 +340,12 @@ class MemberRepositoryImpl implements MemberRepository {
       mutation,
       variables: {
         'name': name,
+        'surname': surname,
         'phone': phone,
         'password': password,
         'bloodGroup': bloodGroup,
         'professionName': professionName,
         'streetId': streetId,
-        'areaId': areaId,
-        'talukId': talukId,
-        'districtId': districtId,
       },
     );
 
@@ -354,5 +377,28 @@ class MemberRepositoryImpl implements MemberRepository {
 
     final List data = result.data?['professions'] as List? ?? [];
     return data.map<String>((p) => p['name'] as String).toList();
+  }
+
+  List<MemberModel> _sortByRoleOrder(List<MemberModel> members) {
+    final sortedMembers = List<MemberModel>.from(members);
+    sortedMembers.sort((a, b) {
+      final roleCompare = _roleRank(a.role).compareTo(_roleRank(b.role));
+      if (roleCompare != 0) return roleCompare;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return sortedMembers;
+  }
+
+  int _roleRank(String? role) {
+    switch (role?.trim().toUpperCase()) {
+      case 'ADMIN':
+        return 0;
+      case 'SUB_ADMIN':
+        return 1;
+      case 'MEMBER':
+        return 2;
+      default:
+        return 3;
+    }
   }
 }
