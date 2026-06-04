@@ -21,6 +21,7 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
     on<EditPost>(_onEditPost);
     on<DeletePost>(_onDeletePost);
     on<CreateCommunity>(_onCreateCommunity);
+    on<JoinCommunity>(_onJoinCommunity);
     on<ReactToMessage>(_onReactToMessage);
     on<MarkMessagesRead>(_onMarkMessagesRead);
     on<EditMessage>(_onEditMessage);
@@ -329,6 +330,34 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
         state.copyWith(
           isLoading: false,
           error: 'Community creation failed: $e',
+          clearMessage: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onJoinCommunity(
+    JoinCommunity event,
+    Emitter<CommunityState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      await _repository.joinCommunity(
+        communityId: event.communityId,
+        memberId: event.memberId,
+      );
+      emit(
+        state.copyWith(
+          isLoading: false,
+          message: 'Successfully joined community',
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Failed to join community: $e',
           clearMessage: true,
         ),
       );

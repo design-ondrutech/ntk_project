@@ -132,3 +132,12 @@ class RespondToEmergency extends EventEvent {
   @override
   List<Object?> get props => [emergencyRequestId, status, note];
 }
+
+class RecallEvent extends EventEvent {
+  final String id;
+
+  const RecallEvent({required this.id});
+
+  @override
+  List<Object?> get props => [id];
+}

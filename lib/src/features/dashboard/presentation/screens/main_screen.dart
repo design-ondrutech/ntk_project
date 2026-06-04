@@ -50,18 +50,18 @@ class MainScreenState extends State<MainScreen> {
         'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
       },
       {
-        'screen': const UserManagementScreen(),
+        'screen': UserManagementScreen(key: UserManagementScreen.userManagementKey),
         'label': 'Users',
         'icon': Icons.people_outline_rounded,
         'activeIcon': Icons.people_rounded,
         'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN'],
       },
       {
-        'screen': const RequestsBroadcastsScreen(),
-        'label': 'Announcements',
+        'screen': const EventsOverviewScreen(),
+        'label': userRole == 'MEMBER' ? 'Announcements' : 'Announcem...',
         'icon': Icons.assignment_outlined,
         'activeIcon': Icons.assignment_rounded,
-        'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN'],
+        'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
       },
       {
         'screen': const CommunityFeedScreen(),
@@ -79,8 +79,11 @@ class MainScreenState extends State<MainScreen> {
       },
     ];
 
-    // Temporarily bypassing role check to show all tabs for testing
-    final List<Map<String, dynamic>> filteredTabs = allTabs;
+    // Filter tabs based on user role
+    final List<Map<String, dynamic>> filteredTabs = allTabs.where((tab) {
+      final roles = tab['roles'] as List<String>;
+      return roles.contains(userRole);
+    }).toList();
 
     return Scaffold(
       body: IndexedStack(
@@ -89,7 +92,7 @@ class MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF0A3D28),
+          color: const Color(0xFF004D2A),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -104,7 +107,7 @@ class MainScreenState extends State<MainScreen> {
               : _selectedIndex,
           onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFF0A3D28),
+          backgroundColor: const Color(0xFF004D2A),
           selectedItemColor: Colors.white,
           unselectedItemColor: Colors.white70,
           selectedFontSize: 12,

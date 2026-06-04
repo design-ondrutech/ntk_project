@@ -9,6 +9,10 @@ import 'package:ntk_project/src/features/members/presentation/bloc/member_bloc.d
 import 'package:ntk_project/src/features/members/presentation/bloc/member_event.dart';
 import 'package:ntk_project/src/features/members/presentation/bloc/member_state.dart';
 import 'package:ntk_project/src/features/members/data/models/member_model.dart';
+import 'package:ntk_project/src/features/location/presentation/bloc/location_bloc.dart';
+import 'package:ntk_project/src/features/location/presentation/bloc/location_event.dart';
+import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_event.dart';
 
 class MembersListScreen extends StatefulWidget {
   const MembersListScreen({super.key});
@@ -196,8 +200,7 @@ class _MembersListScreenState extends State<MembersListScreen> {
     );
   }
 
-  String _getLocationSubtitle(BuildContext context) {
-    final authState = context.read<AuthBloc>().state;
+  String _getLocationSubtitle(AuthState authState) {
     final loginLocationName = authState.loginData?.locationName;
     if (loginLocationName != null &&
         loginLocationName.isNotEmpty &&
@@ -220,11 +223,15 @@ class _MembersListScreenState extends State<MembersListScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authState = context.watch<AuthBloc>().state;
+    final locationName = authState.loginData?.locationName ?? 'Tamil Nadu';
+    final districtFilterValue = (locationName == 'Tamil Nadu') ? 'All Districts' : locationName;
+
     return Scaffold(
       backgroundColor: NTKColors.background,
       appBar: NTKAppBar(
         title: 'Members',
-        subtitle: _getLocationSubtitle(context),
+        subtitle: _getLocationSubtitle(authState),
         actions: [
           IconButton(
             icon: const Icon(CupertinoIcons.bell, color: Colors.white),
@@ -252,37 +259,46 @@ class _MembersListScreenState extends State<MembersListScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterChip(
-                            'All',
-                            isSelected: _selectedBloodGroup == null,
-                            icon: Icons.tune,
-                            onTap: () {
-                              if (_selectedBloodGroup != null) {
-                                setState(() => _selectedBloodGroup = null);
-                                _fetchMembers();
-                              }
-                            },
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 2.5,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      children: [
+                        BlocBuilder<LocationBloc, LocationState>(
+                          builder: (context, locationState) {
+                            return _buildDropdownFilter(
+                              title: 'District',
+                              value: districtFilterValue,
+                              onTap: () => _showDistrictPicker(context, locationState),
+                            );
+                          },
+                        ),
+                        _buildDropdownFilter(title: 'Thoguthi', value: 'All Thoguthis', onTap: () {}),
+                        _buildDropdownFilter(title: 'Area', value: 'All Areas', onTap: () {}),
+                        _buildDropdownFilter(title: 'Street', value: 'All Streets', onTap: () {}),
+                        _buildDropdownFilter(title: 'Role', value: _selectedRole ?? 'All', onTap: () => _showRolePicker(context)),
+                        GestureDetector(
+                          onTap: () {},
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: const [
+                                Text('More Filters', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                                Icon(Icons.tune, color: Colors.grey, size: 20),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          _buildFilterChip(
-                            _selectedBloodGroup ?? 'Blood Group',
-                            isSelected: _selectedBloodGroup != null,
-                            icon: Icons.bloodtype_outlined,
-                            onTap: () => _showBloodGroupPicker(context),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildFilterChip(
-                            _selectedRole ?? 'Role',
-                            isSelected: _selectedRole != null,
-                            icon: Icons.person_outline,
-                            onTap: () => _showRolePicker(context),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -356,51 +372,91 @@ class _MembersListScreenState extends State<MembersListScreen> {
     );
   }
 
-  Widget _buildFilterChip(
-    String label, {
-    required bool isSelected,
-    required IconData icon,
+  Widget _buildDropdownFilter({
+    required String title,
+    required String value,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? NTKColors.primary : NTKColors.surface,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? NTKColors.primary : NTKColors.border,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: NTKColors.primary.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
+          border: Border.all(color: Colors.grey.withOpacity(0.2)),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? Colors.white : NTKColors.primary,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : NTKColors.textPrimary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 13,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)), overflow: TextOverflow.ellipsis),
+                ],
               ),
             ),
+            const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 18),
           ],
         ),
       ),
+    );
+  }
+
+  void _showDistrictPicker(BuildContext context, LocationState locationState) {
+    if (locationState.districts.isEmpty) {
+      context.read<LocationBloc>().add(const FetchDistricts());
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) {
+        return BlocBuilder<LocationBloc, LocationState>(
+          builder: (context, state) {
+            if (state.isLoadingDistricts) {
+              return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+            }
+            return Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Select District', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        ListTile(
+                          title: const Text('All Districts', style: TextStyle(fontWeight: FontWeight.bold)),
+                          onTap: () {
+                            context.read<AuthBloc>().add(const ChangeLocationRequested(locationId: 1, locationName: 'Tamil Nadu'));
+                            Navigator.pop(context);
+                            _fetchMembers();
+                          },
+                        ),
+                        ...state.districts.map((d) => ListTile(
+                          title: Text(d.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          onTap: () {
+                            context.read<AuthBloc>().add(ChangeLocationRequested(locationId: d.id, locationName: d.name));
+                            Navigator.pop(context);
+                            _fetchMembers();
+                          },
+                        )),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

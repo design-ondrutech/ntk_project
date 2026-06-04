@@ -187,6 +187,7 @@ class _JoinButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: () {},
         style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 36),
           foregroundColor: _primary,
           side: const BorderSide(color: Color(0xFFB8C9C1)),
           padding: const EdgeInsets.symmetric(horizontal: 16),

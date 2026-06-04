@@ -490,4 +490,24 @@ class EventRepositoryImpl implements EventRepository {
         .map((r) => EmergencyResponseModel.fromJson(r as Map<String, dynamic>))
         .toList();
   }
+
+  @override
+  Future<bool> recallEvent({required String id}) async {
+    const String mutation = r'''
+      mutation RecallEvent($id: Int!) {
+        recallEvent(id: $id)
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {'id': int.parse(id)},
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to recall event: ${result.exception.toString()}');
+    }
+
+    return result.data?['recallEvent'] as bool? ?? false;
+  }
 }

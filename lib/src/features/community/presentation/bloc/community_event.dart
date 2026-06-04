@@ -152,6 +152,16 @@ class CreateCommunity extends CommunityEvent {
   List<Object?> get props => [name, description, image, allowMemberMessages];
 }
 
+class JoinCommunity extends CommunityEvent {
+  final int communityId;
+  final int memberId;
+
+  const JoinCommunity({required this.communityId, required this.memberId});
+
+  @override
+  List<Object?> get props => [communityId, memberId];
+}
+
 // ─── Chat Interactions ────────────────────────────────────────────────────────
 
 class ReactToMessage extends CommunityEvent {

@@ -6,6 +6,7 @@ import 'package:ntk_project/src/core/services/fcm_service.dart';
 import 'package:ntk_project/src/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:ntk_project/src/features/auth/domain/repositories/auth_repository.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/features/auth/data/models/admin_login_model.dart';
 
 // Location feature
 import 'package:ntk_project/src/features/location/data/repositories/location_repository_impl.dart';
@@ -43,10 +44,18 @@ import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/r
 import 'package:ntk_project/src/features/community/data/repositories/community_repository_impl.dart';
 import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/community_list_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/community_chat_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/community_polls_bloc.dart';
+import 'package:ntk_project/src/features/community/data/community_socket_service.dart';
 
 // Notifications feature
 import 'package:ntk_project/src/features/notifications/data/repositories/notification_repository_impl.dart';
 import 'package:ntk_project/src/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_bloc.dart';
+import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_settings_bloc.dart';
+import 'package:ntk_project/src/features/notifications/data/notification_socket_service.dart';
 
 final sl = GetIt.instance;
 
@@ -54,6 +63,8 @@ Future<void> init() async {
   // ─── Core / Network ──────────────────────────────────────
   sl.registerLazySingleton<GraphQLService>(() => GraphQLService());
   sl.registerLazySingleton<FCMService>(() => FCMService());
+  sl.registerLazySingleton<CommunitySocketService>(() => CommunitySocketService());
+  sl.registerLazySingleton<NotificationSocketService>(() => NotificationSocketService());
 
   // ─── Repositories ────────────────────────────────────────
   sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
@@ -77,7 +88,9 @@ Future<void> init() async {
   );
 
   // ─── BLoCs ───────────────────────────────────────────────
-  sl.registerFactory<AuthBloc>(() => AuthBloc(sl()));
+  sl.registerFactoryParam<AuthBloc, AdminLoginModel?, void>(
+    (initialSession, _) => AuthBloc(sl(), initialSession: initialSession),
+  );
   sl.registerFactory<LocationBloc>(() => LocationBloc(sl()));
   sl.registerFactory<DashboardBloc>(() => DashboardBloc(sl()));
   sl.registerFactory<MemberBloc>(() => MemberBloc(sl()));
@@ -87,4 +100,10 @@ Future<void> init() async {
   sl.registerFactory<PendingRequestsBloc>(() => PendingRequestsBloc(sl()));
   sl.registerFactory<RequestBloc>(() => RequestBloc(sl()));
   sl.registerFactory<CommunityBloc>(() => CommunityBloc(sl()));
+  sl.registerFactory<CommunityListBloc>(() => CommunityListBloc(sl()));
+  sl.registerFactory<CommunityChatBloc>(() => CommunityChatBloc(sl(), sl()));
+  sl.registerFactory<CommunityPostsBloc>(() => CommunityPostsBloc(sl()));
+  sl.registerFactory<CommunityPollsBloc>(() => CommunityPollsBloc(sl()));
+  sl.registerFactory<NotificationBloc>(() => NotificationBloc(sl(), sl()));
+  sl.registerFactory<NotificationSettingsBloc>(() => NotificationSettingsBloc(sl()));
 }

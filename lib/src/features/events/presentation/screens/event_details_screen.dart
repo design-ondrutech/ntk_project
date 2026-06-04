@@ -98,7 +98,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFFF9FAFB),
           appBar: AppBar(
-            backgroundColor: const Color(0xFF0A7E3E),
+            backgroundColor: const Color(0xFF004D2A),
             foregroundColor: Colors.white,
             title: const Text(
               'Event Details',
@@ -106,6 +106,34 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
             ),
             centerTitle: true,
             actions: [
+              if (isAdmin)
+                IconButton(
+                  icon: const Icon(CupertinoIcons.trash, color: Colors.white),
+                  onPressed: () {
+                    showCupertinoDialog(
+                      context: context,
+                      builder: (context) => CupertinoAlertDialog(
+                        title: const Text('Recall Event'),
+                        content: const Text('Are you sure you want to recall this event? This will remove all RSVPs and notifications.'),
+                        actions: [
+                          CupertinoDialogAction(
+                            child: const Text('Cancel'),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          CupertinoDialogAction(
+                            isDestructiveAction: true,
+                            child: const Text('Recall'),
+                            onPressed: () {
+                              context.read<EventBloc>().add(RecallEvent(id: _event!.id));
+                              Navigator.pop(context); // close dialog
+                              Navigator.pop(context); // go back
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               IconButton(
                 icon: const Icon(CupertinoIcons.share, color: Colors.white),
                 onPressed: () {},
@@ -122,7 +150,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                   height: 160,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFF0A7E3E), Color(0xFF059669)],
+                      colors: [Color(0xFF004D2A), Color(0xFF059669)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -242,7 +270,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                   child: _buildRsvppill(
                                     count: updatedEvent.going,
                                     label: 'Attend',
-                                    color: const Color(0xFF0A7E3E),
+                                    color: const Color(0xFF004D2A),
                                     bgColor: const Color(0xFFE8F5E9),
                                   ),
                                 ),
@@ -332,7 +360,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                                       'Attend',
                                       updatedEvent.going,
                                       totalResponses,
-                                      const Color(0xFF0A7E3E),
+                                      const Color(0xFF004D2A),
                                     ),
                                     const SizedBox(height: 8),
                                     _buildLegendItem(
@@ -382,7 +410,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         height: 54,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0A7E3E),
+                            backgroundColor: const Color(0xFF004D2A),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -535,7 +563,7 @@ class DoughnutPainter extends CustomPainter {
       startAngle += sweepAngle;
     }
 
-    drawSegment(going, const Color(0xFF0A7E3E));
+    drawSegment(going, const Color(0xFF004D2A));
     drawSegment(maybe, Colors.orange);
     drawSegment(notGoing, const Color(0xFFEF4444));
   }

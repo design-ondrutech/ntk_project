@@ -21,6 +21,9 @@ import 'package:ntk_project/src/features/community/presentation/bloc/community_p
 import 'package:ntk_project/src/features/community/presentation/bloc/community_state.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_chat_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
+import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
+import 'package:ntk_project/src/injection_container.dart';
 
 const _primary = Color(0xFF0A3D28);
 const _secondary = Color(0xFF0F8A4B);
@@ -259,11 +262,6 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
           return ListView(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
             children: [
-              _QuickFilters(
-                active: _activeFilter,
-                onChanged: (value) => setState(() => _activeFilter = value),
-              ),
-              const SizedBox(height: 14),
               _CreatePostCard(
                 onPhoto: () => _openCreatePost('Information'),
                 onVideo: () => _openCreatePost('Information'),
@@ -338,6 +336,14 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                     community: community,
                     joined: false,
                     onTap: () => _openChat(community),
+                    onJoin: () {
+                      final user = context.read<AuthBloc>().state.loginData;
+                      if (user != null) {
+                        context.read<CommunityBloc>().add(
+                          JoinCommunity(communityId: community.id, memberId: user.id),
+                        );
+                      }
+                    },
                   ),
                 ),
               ],
@@ -351,29 +357,56 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
   Widget _buildPollsTab() {
     return BlocBuilder<CommunityPollsBloc, CommunityPollsState>(
       builder: (context, state) {
-        final polls = state.polls.isEmpty ? _samplePolls : state.polls;
         return RefreshIndicator(
           color: _primary,
           onRefresh: () async => _fetchPolls(),
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
             children: [
               _CreatePollPrompt(onTap: _openCreatePoll),
               const SizedBox(height: 14),
               if (state.isLoading)
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
+                  padding: EdgeInsets.symmetric(vertical: 40),
                   child: Center(child: CupertinoActivityIndicator()),
-                ),
-              ...polls.map(
-                (poll) => _PollCard(
-                  poll: poll,
-                  onTap: () => _openPollDetails(poll),
-                  onVote: (optionId) => context.read<CommunityPollsBloc>().add(
-                    VoteInPollEvent(pollId: poll.id, optionId: optionId),
+                )
+              else if (state.polls.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 60),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.poll_outlined, size: 56, color: Color(0xFFCBD5E1)),
+                        SizedBox(height: 12),
+                        Text(
+                          'No polls yet',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Be the first to create a poll for your community',
+                          style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...state.polls.map(
+                  (poll) => _PollCard(
+                    poll: poll,
+                    onTap: () => _openPollDetails(poll),
+                    onVote: (optionId) => context.read<CommunityPollsBloc>().add(
+                      VoteInPollEvent(pollId: poll.id, optionId: optionId),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         );
@@ -417,10 +450,147 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
   final _picker = ImagePicker();
   final List<File> _images = [];
 
+  late LocationRepository _locationRepo;
+
+  final List<String> _states = ['Tamil Nadu'];
+  String? _selectedState = 'Tamil Nadu';
+
+  List<LocationModel> _districts = [];
+  LocationModel? _selectedDistrict;
+  bool _loadingDistricts = false;
+
+  List<LocationModel> _constituencies = [];
+  LocationModel? _selectedConstituency;
+  bool _loadingConstituencies = false;
+
+  List<LocationModel> _areas = [];
+  LocationModel? _selectedArea;
+  bool _loadingAreas = false;
+
+  List<LocationModel> _streets = [];
+  LocationModel? _selectedStreet;
+  bool _loadingStreets = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationRepo = sl<LocationRepository>();
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role ?? '';
+    final locationId = authState.loginData?.locationId;
+
+    if (role == 'SUB_ADMIN' && locationId != null) {
+      _loadStreetsForSubAdmin(locationId);
+    } else {
+      _loadDistricts();
+    }
+  }
+
   @override
   void dispose() {
     _content.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadDistricts() async {
+    setState(() => _loadingDistricts = true);
+    try {
+      final list = await _locationRepo.getLocationList(type: 'DISTRICT');
+      setState(() {
+        _districts = list;
+        _loadingDistricts = false;
+      });
+    } catch (_) {
+      setState(() => _loadingDistricts = false);
+    }
+  }
+
+  Future<void> _loadStreetsForSubAdmin(int areaId) async {
+    setState(() => _loadingStreets = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'STREET',
+        parentId: areaId,
+      );
+      setState(() {
+        _streets = list;
+        _loadingStreets = false;
+      });
+    } catch (_) {
+      setState(() => _loadingStreets = false);
+    }
+  }
+
+  Future<void> _onDistrictChanged(LocationModel? district) async {
+    setState(() {
+      _selectedDistrict = district;
+      _selectedConstituency = null;
+      _selectedArea = null;
+      _selectedStreet = null;
+      _constituencies = [];
+      _areas = [];
+      _streets = [];
+    });
+    if (district == null) return;
+    setState(() => _loadingConstituencies = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'TALUK',
+        parentId: district.id,
+      );
+      setState(() {
+        _constituencies = list;
+        _loadingConstituencies = false;
+      });
+    } catch (_) {
+      setState(() => _loadingConstituencies = false);
+    }
+  }
+
+  Future<void> _onConstituencyChanged(LocationModel? taluk) async {
+    setState(() {
+      _selectedConstituency = taluk;
+      _selectedArea = null;
+      _selectedStreet = null;
+      _areas = [];
+      _streets = [];
+    });
+    if (taluk == null) return;
+    setState(() => _loadingAreas = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'AREA',
+        parentId: taluk.id,
+      );
+      setState(() {
+        _areas = list;
+        _loadingAreas = false;
+      });
+    } catch (_) {
+      setState(() => _loadingAreas = false);
+    }
+  }
+
+  Future<void> _onAreaChanged(LocationModel? area) async {
+    setState(() {
+      _selectedArea = area;
+      _selectedStreet = null;
+      _streets = [];
+    });
+    if (area == null) return;
+    setState(() => _loadingStreets = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'STREET',
+        parentId: area.id,
+      );
+      setState(() {
+        _streets = list;
+        _loadingStreets = false;
+      });
+    } catch (_) {
+      setState(() => _loadingStreets = false);
+    }
   }
 
   Future<void> _pickImages() async {
@@ -441,7 +611,30 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
       NTKSnackbar.showError(context, message: 'Please enter post content');
       return;
     }
-    final auth = context.read<AuthBloc>().state.loginData;
+
+    final authState = context.read<AuthBloc>().state;
+    final userRole = authState.loginData?.role ?? '';
+
+    int eventLocationId;
+    if (userRole == 'SUB_ADMIN') {
+      eventLocationId = _selectedStreet?.id ?? widget.locationId;
+    } else {
+      final finalLocation =
+          _selectedStreet ??
+          _selectedArea ??
+          _selectedConstituency ??
+          _selectedDistrict;
+      if (finalLocation == null) {
+        NTKSnackbar.showError(
+          context,
+          message: 'Please select a target location',
+        );
+        return;
+      }
+      eventLocationId = finalLocation.id;
+    }
+
+    final auth = authState.loginData;
     final images = <String>[];
     for (final image in _images) {
       images.add(base64Encode(await image.readAsBytes()));
@@ -454,10 +647,108 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
         images: images,
         authorName: auth?.name ?? 'Community Member',
         authorRole: auth?.role ?? 'MEMBER',
-        locationId: widget.locationId,
+        locationId: eventLocationId,
       ),
     );
     Navigator.pop(context);
+  }
+
+  Widget _buildDropdownField<T>({
+    required List<T> items,
+    required T? value,
+    required ValueChanged<T?> onChanged,
+    required String Function(T) itemLabel,
+    required String hintText,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isExpanded: true,
+          icon: const Icon(
+            CupertinoIcons.chevron_down,
+            size: 16,
+            color: Color(0xFF6B7280),
+          ),
+          hint: Text(
+            hintText,
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+          items: items
+              .map(
+                (item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(
+                    itemLabel(item),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingField(String label) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation(Color(0xFF004D2A)),
+            ),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Loading...',
+            style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisabledField(String message) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.lock, size: 14, color: Color(0xFF9CA3AF)),
+          const SizedBox(width: 10),
+          Text(
+            message,
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -465,10 +756,22 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
     final remaining = 500 - _content.text.length;
     return Scaffold(
       backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF004D2A), // Dark Green
+        elevation: 0,
+        leading: const BackButton(color: Colors.white),
+        title: const Text(
+          'Create Post',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _PageHeader(title: 'Create Post'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(18),
@@ -513,7 +816,113 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                   const SizedBox(height: 20),
                   const _FormLabel('Location'),
                   const SizedBox(height: 10),
-                  _LocationTile(location: widget.locationName),
+                  Builder(
+                    builder: (context) {
+                      final authState = context.read<AuthBloc>().state;
+                      final userRole = authState.loginData?.role ?? '';
+                      final isSubAdmin = userRole == 'SUB_ADMIN';
+
+                      if (isSubAdmin) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _FormLabel('Street'),
+                            const SizedBox(height: 6),
+                            _loadingStreets
+                                ? _buildLoadingField('Street')
+                                : _buildDropdownField<LocationModel>(
+                                    items: _streets,
+                                    value: _selectedStreet,
+                                    onChanged: (val) =>
+                                        setState(() => _selectedStreet = val),
+                                    itemLabel: (item) => item.name,
+                                    hintText: 'Select Street (Optional)',
+                                  ),
+                          ],
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. State
+                          const _FormLabel('State'),
+                          const SizedBox(height: 6),
+                          _buildDropdownField<String>(
+                            items: _states,
+                            value: _selectedState,
+                            onChanged: (val) =>
+                                setState(() => _selectedState = val),
+                            itemLabel: (item) => item,
+                            hintText: 'Select State',
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 2. District
+                          const _FormLabel('District *'),
+                          const SizedBox(height: 6),
+                          _loadingDistricts
+                              ? _buildLoadingField('District')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _districts,
+                                  value: _selectedDistrict,
+                                  onChanged: _onDistrictChanged,
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select District',
+                                ),
+                          const SizedBox(height: 16),
+
+                          // 3. Constituency (Taluk)
+                          const _FormLabel('Constituency (Taluk)'),
+                          const SizedBox(height: 6),
+                          _loadingConstituencies
+                              ? _buildLoadingField('Constituency')
+                              : _selectedDistrict == null
+                              ? _buildDisabledField('Select District first')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _constituencies,
+                                  value: _selectedConstituency,
+                                  onChanged: _onConstituencyChanged,
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Constituency',
+                                ),
+                          const SizedBox(height: 16),
+
+                          // 4. Area (Town)
+                          const _FormLabel('Area (Town)'),
+                          const SizedBox(height: 6),
+                          _loadingAreas
+                              ? _buildLoadingField('Area')
+                              : _selectedConstituency == null
+                              ? _buildDisabledField('Select Constituency first')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _areas,
+                                  value: _selectedArea,
+                                  onChanged: _onAreaChanged,
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Area',
+                                ),
+                          const SizedBox(height: 16),
+
+                          // 5. Street
+                          const _FormLabel('Street'),
+                          const SizedBox(height: 6),
+                          _loadingStreets
+                              ? _buildLoadingField('Street')
+                              : _selectedArea == null
+                              ? _buildDisabledField('Select Area first')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _streets,
+                                  value: _selectedStreet,
+                                  onChanged: (val) =>
+                                      setState(() => _selectedStreet = val),
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Street',
+                                ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -548,6 +957,42 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
   ];
   int _duration = 1;
 
+  late LocationRepository _locationRepo;
+
+  final List<String> _states = ['Tamil Nadu'];
+  String? _selectedState = 'Tamil Nadu';
+
+  List<LocationModel> _districts = [];
+  LocationModel? _selectedDistrict;
+  bool _loadingDistricts = false;
+
+  List<LocationModel> _constituencies = [];
+  LocationModel? _selectedConstituency;
+  bool _loadingConstituencies = false;
+
+  List<LocationModel> _areas = [];
+  LocationModel? _selectedArea;
+  bool _loadingAreas = false;
+
+  List<LocationModel> _streets = [];
+  LocationModel? _selectedStreet;
+  bool _loadingStreets = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _locationRepo = sl<LocationRepository>();
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role ?? '';
+    final locationId = authState.loginData?.locationId;
+
+    if (role == 'SUB_ADMIN' && locationId != null) {
+      _loadStreetsForSubAdmin(locationId);
+    } else {
+      _loadDistricts();
+    }
+  }
+
   @override
   void dispose() {
     _question.dispose();
@@ -557,6 +1002,107 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
     super.dispose();
   }
 
+  Future<void> _loadDistricts() async {
+    setState(() => _loadingDistricts = true);
+    try {
+      final list = await _locationRepo.getLocationList(type: 'DISTRICT');
+      setState(() {
+        _districts = list;
+        _loadingDistricts = false;
+      });
+    } catch (_) {
+      setState(() => _loadingDistricts = false);
+    }
+  }
+
+  Future<void> _loadStreetsForSubAdmin(int areaId) async {
+    setState(() => _loadingStreets = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'STREET',
+        parentId: areaId,
+      );
+      setState(() {
+        _streets = list;
+        _loadingStreets = false;
+      });
+    } catch (_) {
+      setState(() => _loadingStreets = false);
+    }
+  }
+
+  Future<void> _onDistrictChanged(LocationModel? district) async {
+    setState(() {
+      _selectedDistrict = district;
+      _selectedConstituency = null;
+      _selectedArea = null;
+      _selectedStreet = null;
+      _constituencies = [];
+      _areas = [];
+      _streets = [];
+    });
+    if (district == null) return;
+    setState(() => _loadingConstituencies = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'TALUK',
+        parentId: district.id,
+      );
+      setState(() {
+        _constituencies = list;
+        _loadingConstituencies = false;
+      });
+    } catch (_) {
+      setState(() => _loadingConstituencies = false);
+    }
+  }
+
+  Future<void> _onConstituencyChanged(LocationModel? taluk) async {
+    setState(() {
+      _selectedConstituency = taluk;
+      _selectedArea = null;
+      _selectedStreet = null;
+      _areas = [];
+      _streets = [];
+    });
+    if (taluk == null) return;
+    setState(() => _loadingAreas = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'AREA',
+        parentId: taluk.id,
+      );
+      setState(() {
+        _areas = list;
+        _loadingAreas = false;
+      });
+    } catch (_) {
+      setState(() => _loadingAreas = false);
+    }
+  }
+
+  Future<void> _onAreaChanged(LocationModel? area) async {
+    setState(() {
+      _selectedArea = area;
+      _selectedStreet = null;
+      _streets = [];
+    });
+    if (area == null) return;
+    setState(() => _loadingStreets = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'STREET',
+        parentId: area.id,
+      );
+      setState(() {
+        _streets = list;
+        _loadingStreets = false;
+      });
+    } catch (_) {
+      setState(() => _loadingStreets = false);
+    }
+  }
+
   void _createPoll() {
     final question = _question.text.trim();
     final options = _options.map((x) => x.text.trim()).where((x) => x.isNotEmpty).toList();
@@ -564,26 +1110,159 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
       NTKSnackbar.showError(context, message: 'Add a question and at least two options');
       return;
     }
+
+    final authState = context.read<AuthBloc>().state;
+    final userRole = authState.loginData?.role ?? '';
+
+    int eventLocationId;
+    if (userRole == 'SUB_ADMIN') {
+      eventLocationId = _selectedStreet?.id ?? widget.locationId;
+    } else {
+      final finalLocation =
+          _selectedStreet ??
+          _selectedArea ??
+          _selectedConstituency ??
+          _selectedDistrict;
+      if (finalLocation == null) {
+        NTKSnackbar.showError(
+          context,
+          message: 'Please select a target location',
+        );
+        return;
+      }
+      eventLocationId = finalLocation.id;
+    }
+
     context.read<CommunityPollsBloc>().add(
       CreatePollEvent(
         question: question,
         options: options,
         durationDays: _duration,
-        locationId: widget.locationId,
+        locationId: eventLocationId,
         communityId: widget.selectedCommunity?.id,
       ),
     );
     Navigator.pop(context);
   }
 
+  Widget _buildDropdownField<T>({
+    required List<T> items,
+    required T? value,
+    required ValueChanged<T?> onChanged,
+    required String Function(T) itemLabel,
+    required String hintText,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isExpanded: true,
+          icon: const Icon(
+            CupertinoIcons.chevron_down,
+            size: 16,
+            color: Color(0xFF6B7280),
+          ),
+          hint: Text(
+            hintText,
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+          items: items
+              .map(
+                (item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(
+                    itemLabel(item),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingField(String label) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: const Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation(Color(0xFF004D2A)),
+            ),
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Loading...',
+            style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDisabledField(String message) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.lock, size: 14, color: Color(0xFF9CA3AF)),
+          const SizedBox(width: 10),
+          Text(
+            message,
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF004D2A), // Dark Green
+        elevation: 0,
+        leading: const BackButton(color: Colors.white),
+        title: const Text(
+          'Create Poll',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _PageHeader(title: 'Create Poll'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(18),
@@ -635,9 +1314,115 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                   const SizedBox(height: 8),
                   _DurationRadios(value: _duration, onChanged: (value) => setState(() => _duration = value)),
                   const SizedBox(height: 18),
-                  const _FormLabel('Community Selector'),
+                  const _FormLabel('Target Location'),
                   const SizedBox(height: 10),
-                  _LocationTile(location: widget.selectedCommunity?.name ?? widget.locationName),
+                  Builder(
+                    builder: (context) {
+                      final authState = context.read<AuthBloc>().state;
+                      final userRole = authState.loginData?.role ?? '';
+                      final isSubAdmin = userRole == 'SUB_ADMIN';
+
+                      if (isSubAdmin) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const _FormLabel('Street'),
+                            const SizedBox(height: 6),
+                            _loadingStreets
+                                ? _buildLoadingField('Street')
+                                : _buildDropdownField<LocationModel>(
+                                    items: _streets,
+                                    value: _selectedStreet,
+                                    onChanged: (val) =>
+                                        setState(() => _selectedStreet = val),
+                                    itemLabel: (item) => item.name,
+                                    hintText: 'Select Street (Optional)',
+                                  ),
+                          ],
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. State
+                          const _FormLabel('State'),
+                          const SizedBox(height: 6),
+                          _buildDropdownField<String>(
+                            items: _states,
+                            value: _selectedState,
+                            onChanged: (val) =>
+                                setState(() => _selectedState = val),
+                            itemLabel: (item) => item,
+                            hintText: 'Select State',
+                          ),
+                          const SizedBox(height: 16),
+
+                          // 2. District
+                          const _FormLabel('District *'),
+                          const SizedBox(height: 6),
+                          _loadingDistricts
+                              ? _buildLoadingField('District')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _districts,
+                                  value: _selectedDistrict,
+                                  onChanged: _onDistrictChanged,
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select District',
+                                ),
+                          const SizedBox(height: 16),
+
+                          // 3. Constituency (Taluk)
+                          const _FormLabel('Constituency (Taluk)'),
+                          const SizedBox(height: 6),
+                          _loadingConstituencies
+                              ? _buildLoadingField('Constituency')
+                              : _selectedDistrict == null
+                              ? _buildDisabledField('Select District first')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _constituencies,
+                                  value: _selectedConstituency,
+                                  onChanged: _onConstituencyChanged,
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Constituency',
+                                ),
+                          const SizedBox(height: 16),
+
+                          // 4. Area (Town)
+                          const _FormLabel('Area (Town)'),
+                          const SizedBox(height: 6),
+                          _loadingAreas
+                              ? _buildLoadingField('Area')
+                              : _selectedConstituency == null
+                              ? _buildDisabledField('Select Constituency first')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _areas,
+                                  value: _selectedArea,
+                                  onChanged: _onAreaChanged,
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Area',
+                                ),
+                          const SizedBox(height: 16),
+
+                          // 5. Street
+                          const _FormLabel('Street'),
+                          const SizedBox(height: 6),
+                          _loadingStreets
+                              ? _buildLoadingField('Street')
+                              : _selectedArea == null
+                              ? _buildDisabledField('Select Area first')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _streets,
+                                  value: _selectedStreet,
+                                  onChanged: (val) =>
+                                      setState(() => _selectedStreet = val),
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Street',
+                                ),
+                        ],
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -661,11 +1446,19 @@ class _PollDetailsScreen extends StatelessWidget {
         : poll.votesCount;
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const _PageHeader(title: 'Poll Details'),
-            Expanded(
+      body: Column(
+        children: [
+          Container(
+            color: _primary,
+            child: const SafeArea(
+              bottom: false,
+              child: SizedBox.shrink(),
+            ),
+          ),
+          const _PageHeader(title: 'Poll Details'),
+          Expanded(
+            child: SafeArea(
+              top: false,
               child: ListView(
                 padding: const EdgeInsets.all(18),
                 children: [
@@ -697,8 +1490,8 @@ class _PollDetailsScreen extends StatelessWidget {
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -742,10 +1535,23 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
     final comments = widget.post.comments.isEmpty ? _sampleComments : widget.post.comments;
     return Scaffold(
       backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF004D2A),
+        elevation: 0,
+        leading: const BackButton(color: Colors.white),
+        title: const Text(
+          'Post Details',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+      ),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
-            const _PageHeader(title: 'Post Details'),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(14),
@@ -929,7 +1735,6 @@ class _PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final category = post.category ?? _categoryFromContent(post.content);
     return InkWell(
       onTap: onOpen,
       borderRadius: BorderRadius.circular(16),
@@ -938,9 +1743,11 @@ class _PostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _AuthorLine(name: post.authorName, location: _postLocation(post), time: _timeAgo(post.createdAt), category: category),
-            const SizedBox(height: 12),
-            _CategoryBadge(category: category),
+            _AuthorLine(name: post.authorName, location: _postLocation(post), time: _timeAgo(post.createdAt)),
+            if (post.category != null && post.category!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _CategoryBadge(category: post.category!),
+            ],
             const SizedBox(height: 10),
             Text(
               _cleanContent(post.content),
@@ -1242,11 +2049,12 @@ class _SampleImage extends StatelessWidget {
 }
 
 class _GroupRow extends StatelessWidget {
-  const _GroupRow({required this.community, required this.joined, required this.onTap});
+  const _GroupRow({required this.community, required this.joined, required this.onTap, this.onJoin});
 
   final CommunityModel community;
   final bool joined;
   final VoidCallback onTap;
+  final VoidCallback? onJoin;
 
   @override
   Widget build(BuildContext context) {
@@ -1277,7 +2085,7 @@ class _GroupRow extends StatelessWidget {
                 ],
               ),
             ),
-            joined ? const _TinyBadge(label: 'Joined') : _JoinButton(onTap: onTap),
+            joined ? const _TinyBadge(label: 'Joined') : _JoinButton(onTap: onJoin ?? onTap),
           ],
         ),
       ),
@@ -1725,6 +2533,7 @@ class _JoinButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 36),
           foregroundColor: _primary,
           side: const BorderSide(color: Color(0xFFB8C9C1)),
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1808,20 +2617,34 @@ String _categoryFromContent(String content) {
   return 'Information';
 }
 
+DateTime _parseDateTime(String value) {
+  final parsedInt = int.tryParse(value);
+  if (parsedInt != null) {
+    return DateTime.fromMillisecondsSinceEpoch(
+      parsedInt > 9999999999 ? parsedInt : parsedInt * 1000,
+    ).toLocal();
+  }
+  String normalized = value;
+  if (!normalized.endsWith('Z') && !normalized.contains('+') && !normalized.contains(RegExp(r'-\d{2}:?\d{2}$'))) {
+    normalized = normalized.replaceAll(' ', 'T');
+    if (!normalized.endsWith('Z')) {
+      normalized = '${normalized}Z';
+    }
+  }
+  return DateTime.parse(normalized).toLocal();
+}
+
 String _timeAgo(String? value) {
-  if (value == null || value.isEmpty) return '20m ago';
+  if (value == null || value.isEmpty) return 'Just now';
   try {
-    final parsedInt = int.tryParse(value);
-    final date = parsedInt == null
-        ? DateTime.parse(value)
-        : DateTime.fromMillisecondsSinceEpoch(parsedInt > 9999999999 ? parsedInt : parsedInt * 1000);
+    final date = _parseDateTime(value);
     final diff = DateTime.now().difference(date);
     if (diff.inDays > 0) return '${diff.inDays}d ago';
     if (diff.inHours > 0) return '${diff.inHours}h ago';
     if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
     return 'Just now';
   } catch (_) {
-    return value;
+    return 'Just now';
   }
 }
 
@@ -1878,23 +2701,7 @@ final _samplePosts = [
   ),
 ];
 
-final _samplePolls = [
-  PollModel(
-    id: -1,
-    question: 'Where should we organise the next community meeting?',
-    votesCount: 80,
-    createdAt: DateTime.now().subtract(const Duration(hours: 2)).toIso8601String(),
-    expiresAt: DateTime.now().add(const Duration(days: 2)).toIso8601String(),
-    createdBy: const {'name': 'Kumar M'},
-    location: const {'name': 'Pushpavanam Street'},
-    options: const [
-      PollOptionModel(id: 1, text: 'Pushpavanam', votesCount: 36),
-      PollOptionModel(id: 2, text: 'Vedaranyam', votesCount: 24),
-      PollOptionModel(id: 3, text: 'Kodiyakkarai', votesCount: 12),
-      PollOptionModel(id: 4, text: 'Nagapattinam Town', votesCount: 8),
-    ],
-  ),
-];
+
 
 final _sampleComments = [
   CommentModel(id: -1, content: "Yes, it is not working. I also noticed.", authorName: 'Ravi S', authorRole: 'Member', createdAt: DateTime.now().subtract(const Duration(minutes: 15)).toIso8601String()),

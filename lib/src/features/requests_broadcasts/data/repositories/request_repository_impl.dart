@@ -142,23 +142,27 @@ class RequestRepositoryImpl implements RequestRepository {
   @override
   Future<List<BroadcastModel>> getBroadcasts({int? locationId, String? scope}) async {
     const String query = r'''
-      query GetBroadcasts($locationId: Int, $scope: BroadcastScope) {
-        getBroadcasts(locationId: $locationId, scope: $scope) {
+      query GetBroadcastList($locationId: Int, $isActive: Boolean) {
+        getBroadcastList(locationId: $locationId, isActive: $isActive) {
           id
           title
           message
           image
+          scope
+          isActive
           recipientCount
           createdAt
-          scope
+          updatedAt
           location {
             id
             name
+            type
           }
           createdBy {
             id
             name
             role
+            phone
           }
         }
       }
@@ -166,14 +170,14 @@ class RequestRepositoryImpl implements RequestRepository {
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'locationId': locationId, 'scope': scope},
+      variables: {'locationId': locationId, 'isActive': true},
     );
 
     if (result.hasException) {
       throw Exception('Failed to fetch broadcasts: ${result.exception}');
     }
 
-    final List data = result.data?['getBroadcasts'] as List? ?? [];
+    final List data = result.data?['getBroadcastList'] as List? ?? [];
     return data.map<BroadcastModel>((json) => BroadcastModel.fromJson(json)).toList();
   }
 
@@ -184,19 +188,22 @@ class RequestRepositoryImpl implements RequestRepository {
         getBroadcastDetails(id: $id) {
           id
           title
-          message
-          image
-          recipientCount
-          createdAt
           scope
+          message
+          updatedAt
+          isActive
+          createdAt
+          recipientCount
           location {
             id
             name
+            type
           }
           createdBy {
             id
             name
             role
+            phone
           }
         }
       }
@@ -283,5 +290,25 @@ class RequestRepositoryImpl implements RequestRepository {
     final data = result.data?['reviewEmergencyRequest'];
     if (data == null) throw Exception('Review failed');
     return EmergencyRequestModel.fromJson(data);
+  }
+
+  @override
+  Future<bool> recallBroadcast({required int id}) async {
+    const String mutation = r'''
+      mutation RecallBroadcast($id: Int!) {
+        recallBroadcast(id: $id)
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {'id': id},
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to recall broadcast: ${result.exception.toString()}');
+    }
+
+    return result.data?['recallBroadcast'] as bool? ?? false;
   }
 }

@@ -36,4 +36,6 @@ abstract class RequestRepository {
     required String action,
     String? rejectReason,
   });
+
+  Future<bool> recallBroadcast({required int id});
 }

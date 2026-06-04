@@ -21,6 +21,8 @@ class UserManagementScreen extends StatefulWidget {
   final String? locationName;
   final String? initialTab;
 
+  static final GlobalKey<UserManagementScreenState> userManagementKey = GlobalKey<UserManagementScreenState>();
+
   const UserManagementScreen({
     super.key,
     this.locationId,
@@ -28,10 +30,20 @@ class UserManagementScreen extends StatefulWidget {
     this.initialTab,
   });
   @override
-  State<UserManagementScreen> createState() => _UserManagementScreenState();
+  State<UserManagementScreen> createState() => UserManagementScreenState();
 }
 
-class _UserManagementScreenState extends State<UserManagementScreen> {
+class UserManagementScreenState extends State<UserManagementScreen> {
+  void selectTab(String tabName) {
+    final tabIndex = _tabs.indexOf(tabName);
+    if (tabIndex != -1) {
+      setState(() {
+        _selectedTab = tabIndex;
+      });
+      _loadUsers();
+    }
+  }
+
   final ScrollController _scrollController = ScrollController();
   int _selectedTab = 0; // 0=All, 1=Admin, 2=Sub Admin, 3=Member, 4=Pending
   final List<String> _tabs = ['All', 'Admin', 'Sub Admin', 'Member', 'Pending'];
@@ -588,7 +600,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               Icons.notifications_none_rounded,
               color: Colors.white,
             ),
-            onPressed: () {},
+            onPressed: () => Navigator.pushNamed(context, '/notifications'),
           ),
         ],
       ),
@@ -770,6 +782,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ],
         ),
       ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showAddUserSheet(context),
+          backgroundColor: NTKColors.primary,
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
       ),
     );
   }

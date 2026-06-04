@@ -102,7 +102,7 @@ class _EventResponsesScreenState extends State<EventResponsesScreen> {
           child: Scaffold(
             backgroundColor: const Color(0xFFF9FAFB),
             appBar: AppBar(
-              backgroundColor: const Color(0xFF0A7E3E),
+              backgroundColor: const Color(0xFF004D2A),
               foregroundColor: Colors.white,
               title: Text(
                 event.title,
@@ -223,7 +223,7 @@ class _EventResponsesScreenState extends State<EventResponsesScreen> {
                       ? const Center(
                           child: CircularProgressIndicator(
                             valueColor: AlwaysStoppedAnimation(
-                              Color(0xFF0A7E3E),
+                              Color(0xFF004D2A),
                             ),
                           ),
                         )
@@ -286,11 +286,11 @@ class _EventResponsesScreenState extends State<EventResponsesScreen> {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: const Color(0xFF0A7E3E).withOpacity(0.1),
+                backgroundColor: const Color(0xFF004D2A).withOpacity(0.1),
                 child: Text(
                   member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
                   style: const TextStyle(
-                    color: Color(0xFF0A7E3E),
+                    color: Color(0xFF004D2A),
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
@@ -332,7 +332,7 @@ class _EventResponsesScreenState extends State<EventResponsesScreen> {
                       ),
                       child: const Icon(
                         CupertinoIcons.phone_fill,
-                        color: Color(0xFF0A7E3E),
+                        color: Color(0xFF004D2A),
                         size: 18,
                       ),
                     ),

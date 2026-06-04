@@ -72,6 +72,36 @@ class AdminLoginModel extends Equatable {
     };
   }
 
+  AdminLoginModel copyWith({
+    int? id,
+    String? name,
+    String? surname,
+    String? phone,
+    String? role,
+    String? approvalStatus,
+    int? locationId,
+    String? locationName,
+    bool? isActive,
+    String? addedBy,
+    String? image,
+    String? token,
+  }) {
+    return AdminLoginModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      surname: surname ?? this.surname,
+      phone: phone ?? this.phone,
+      role: role ?? this.role,
+      approvalStatus: approvalStatus ?? this.approvalStatus,
+      locationId: locationId ?? this.locationId,
+      locationName: locationName ?? this.locationName,
+      isActive: isActive ?? this.isActive,
+      addedBy: addedBy ?? this.addedBy,
+      image: image ?? this.image,
+      token: token ?? this.token,
+    );
+  }
+
   @override
   List<Object?> get props => [
     id,

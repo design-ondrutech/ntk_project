@@ -46,6 +46,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   LocationModel? _selectedStreet;
   bool _loadingStreets = false;
 
+  final List<String> _professions = ['Doctor', 'Engineer', 'Teacher', 'Lawyer', 'Farmer', 'Volunteer'];
+  final List<String> _selectedProfessions = [];
+
   late LocationRepository _locationRepo;
 
   @override
@@ -183,7 +186,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF0A7E3E),
+              primary: Color(0xFF004D2A),
               onPrimary: Colors.white,
               onSurface: Color(0xFF1F2937),
             ),
@@ -201,7 +204,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF0A7E3E),
+              primary: Color(0xFF004D2A),
               onPrimary: Colors.white,
               onSurface: Color(0xFF1F2937),
             ),
@@ -292,6 +295,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         description: _descriptionController.text.trim(),
         date: _dateController.text.trim(),
         locationId: eventLocationId!,
+        professionNames: _selectedProfessions.isNotEmpty ? _selectedProfessions : null,
       ),
     );
 
@@ -303,13 +307,18 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: NTKAppBar(
-        title: 'Create Event',
-        subtitle:
-            context.read<AuthBloc>().state.loginData?.locationName ??
-            'Admin Portal',
-        showNotification: false,
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF004D2A), // Dark Green
+        elevation: 0,
+        leading: const BackButton(color: Colors.white),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Create Event', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500, fontSize: 11, letterSpacing: 1.2)),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -377,7 +386,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     children: [
                       const Icon(
                         CupertinoIcons.calendar,
-                        color: Color(0xFF0A7E3E),
+                        color: Color(0xFF004D2A),
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -512,6 +521,45 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   );
                 },
               ),
+              const SizedBox(height: 24),
+
+              // Target Profession Multi Select
+              _buildFormLabel('Target Profession (Optional)'),
+              Wrap(
+                spacing: 8.0,
+                runSpacing: 8.0,
+                children: _professions.map((profession) {
+                  final isSelected = _selectedProfessions.contains(profession);
+                  return FilterChip(
+                    label: Text(
+                      profession,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : const Color(0xFF374151),
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF004D2A),
+                    checkmarkColor: Colors.white,
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: isSelected ? const Color(0xFF004D2A) : const Color(0xFFE5E7EB),
+                      ),
+                    ),
+                    onSelected: (bool selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedProfessions.add(profession);
+                        } else {
+                          _selectedProfessions.remove(profession);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
 
               const SizedBox(height: 48),
 
@@ -521,7 +569,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 height: 54,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0A7E3E),
+                    backgroundColor: const Color(0xFF004D2A),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -580,7 +628,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF0A7E3E), width: 1.5),
+        borderSide: const BorderSide(color: Color(0xFF004D2A), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -652,7 +700,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation(Color(0xFF0A7E3E)),
+              valueColor: AlwaysStoppedAnimation(Color(0xFF004D2A)),
             ),
           ),
           SizedBox(width: 12),

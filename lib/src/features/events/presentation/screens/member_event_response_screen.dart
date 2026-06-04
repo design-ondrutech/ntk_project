@@ -7,6 +7,7 @@ import 'package:ntk_project/src/features/events/data/models/event_model.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_bloc.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_event.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MemberEventResponseScreen extends StatefulWidget {
   const MemberEventResponseScreen({super.key});
@@ -18,7 +19,34 @@ class MemberEventResponseScreen extends StatefulWidget {
 
 class _MemberEventResponseScreenState extends State<MemberEventResponseScreen> {
   String? _selectedStatus; // 'GOING', 'MAYBE', 'NOT_GOING'
+  String? _previousStatus; // stored previous RSVP (to pre-select on re-open)
   bool _isSubmitting = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Load previous response from storage as soon as we have a route context
+    final event = ModalRoute.of(context)?.settings.arguments as EventModel?;
+    if (event != null && _previousStatus == null) {
+      _loadPreviousResponse(event.id);
+    }
+  }
+
+  Future<void> _loadPreviousResponse(String eventId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('rsvp_event_$eventId');
+    if (saved != null && mounted) {
+      setState(() {
+        _previousStatus = saved;
+        _selectedStatus = saved; // pre-select the previous choice
+      });
+    }
+  }
+
+  Future<void> _savePreviousResponse(String eventId, String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('rsvp_event_$eventId', status);
+  }
 
   String _formatDateTime(String dt) {
     try {
@@ -103,7 +131,10 @@ class _MemberEventResponseScreenState extends State<MemberEventResponseScreen> {
               state.message!.contains('Successfully')) {
             setState(() {
               _isSubmitting = false;
+              _previousStatus = _selectedStatus;
             });
+            // Persist the new RSVP choice
+            _savePreviousResponse(event.id, _selectedStatus!);
             // Navigate to Success screen
             Navigator.pushReplacementNamed(
               context,
@@ -116,7 +147,7 @@ class _MemberEventResponseScreenState extends State<MemberEventResponseScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF9FAFB),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF0A7E3E),
+          backgroundColor: const Color(0xFF004D2A),
           foregroundColor: Colors.white,
           title: const Text(
             'Participation RSVP',
@@ -154,13 +185,13 @@ class _MemberEventResponseScreenState extends State<MemberEventResponseScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0A7E3E).withOpacity(0.1),
+                        color: const Color(0xFF004D2A).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
                         'Upcoming Event',
                         style: TextStyle(
-                          color: Color(0xFF0A7E3E),
+                          color: Color(0xFF004D2A),
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -241,7 +272,7 @@ class _MemberEventResponseScreenState extends State<MemberEventResponseScreen> {
                 title: 'Attend',
                 description: 'Yes, I will be attending this event.',
                 icon: CupertinoIcons.checkmark_circle_fill,
-                selectedColor: const Color(0xFF0A7E3E),
+                selectedColor: const Color(0xFF004D2A),
                 bgColor: const Color(0xFFE8F5E9),
               ),
               const SizedBox(height: 16),
@@ -271,7 +302,7 @@ class _MemberEventResponseScreenState extends State<MemberEventResponseScreen> {
                 height: 54,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0A7E3E),
+                    backgroundColor: const Color(0xFF004D2A),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -282,9 +313,9 @@ class _MemberEventResponseScreenState extends State<MemberEventResponseScreen> {
                       : () => _submitResponse(event),
                   child: _isSubmitting
                       ? const CupertinoActivityIndicator(color: Colors.white)
-                      : const Text(
-                          'CONFIRM RESPONSE',
-                          style: TextStyle(
+                      : Text(
+                          _previousStatus != null ? 'UPDATE RESPONSE' : 'CONFIRM RESPONSE',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,

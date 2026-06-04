@@ -20,6 +20,13 @@ class LoadRequests extends RequestEvent {
   List<Object?> get props => [locationId, status, scope];
 }
 
+class LoadBroadcastDetails extends RequestEvent {
+  final int id;
+  const LoadBroadcastDetails(this.id);
+  @override
+  List<Object?> get props => [id];
+}
+
 class CreateBroadcastMessage extends RequestEvent {
   final String title;
   final String message;
@@ -62,6 +69,14 @@ class UpdateRequestStatus extends RequestEvent {
   List<Object?> get props => [id, status];
 }
 
+class RecallBroadcast extends RequestEvent {
+  final int id;
+  final int? locationId;
+  const RecallBroadcast({required this.id, this.locationId});
+  @override
+  List<Object?> get props => [id, locationId];
+}
+
 // State
 class RequestState extends Equatable {
   final bool isLoading;
@@ -70,6 +85,7 @@ class RequestState extends Equatable {
   final String? error;
   final bool isSubmitting;
   final bool submitSuccess;
+  final BroadcastModel? currentBroadcast;
 
   const RequestState({
     this.isLoading = false,
@@ -78,6 +94,7 @@ class RequestState extends Equatable {
     this.error,
     this.isSubmitting = false,
     this.submitSuccess = false,
+    this.currentBroadcast,
   });
 
   RequestState copyWith({
@@ -87,6 +104,7 @@ class RequestState extends Equatable {
     String? error,
     bool? isSubmitting,
     bool? submitSuccess,
+    BroadcastModel? currentBroadcast,
   }) {
     return RequestState(
       isLoading: isLoading ?? this.isLoading,
@@ -95,6 +113,7 @@ class RequestState extends Equatable {
       error: error ?? this.error,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       submitSuccess: submitSuccess ?? this.submitSuccess,
+      currentBroadcast: currentBroadcast ?? this.currentBroadcast,
     );
   }
 
@@ -106,6 +125,7 @@ class RequestState extends Equatable {
     error,
     isSubmitting,
     submitSuccess,
+    currentBroadcast,
   ];
 }
 
@@ -115,9 +135,11 @@ class RequestBloc extends Bloc<RequestEvent, RequestState> {
 
   RequestBloc(this._repository) : super(const RequestState()) {
     on<LoadRequests>(_onLoadRequests);
+    on<LoadBroadcastDetails>(_onLoadBroadcastDetails);
     on<CreateBroadcastMessage>(_onCreateBroadcastMessage);
     on<CreateRequest>(_onCreateRequest);
     on<UpdateRequestStatus>(_onUpdateStatus);
+    on<RecallBroadcast>(_onRecallBroadcast);
   }
 
   Future<void> _onLoadRequests(
@@ -141,6 +163,19 @@ class RequestBloc extends Bloc<RequestEvent, RequestState> {
           requests: requests,
         ),
       );
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onLoadBroadcastDetails(
+    LoadBroadcastDetails event,
+    Emitter<RequestState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, error: null));
+    try {
+      final broadcast = await _repository.getBroadcastDetails(id: event.id);
+      emit(state.copyWith(isLoading: false, currentBroadcast: broadcast));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
     }
@@ -230,6 +265,30 @@ class RequestBloc extends Bloc<RequestEvent, RequestState> {
       );
     } catch (e) {
       emit(state.copyWith(isSubmitting: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onRecallBroadcast(
+    RecallBroadcast event,
+    Emitter<RequestState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, error: null));
+    try {
+      final success = await _repository.recallBroadcast(id: event.id);
+      if (success) {
+        final updatedBroadcasts = state.broadcasts.where((b) => b.id != event.id).toList();
+        emit(
+          state.copyWith(
+            isLoading: false,
+            broadcasts: updatedBroadcasts,
+            submitSuccess: true,
+          ),
+        );
+      } else {
+        throw Exception('Recall action returned failure status');
+      }
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 }

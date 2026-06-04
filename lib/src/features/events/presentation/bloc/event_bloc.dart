@@ -17,6 +17,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     on<FetchEmergencyResponses>(_onFetchEmergencyResponses);
     on<CreateEmergency>(_onCreateEmergency);
     on<RespondToEmergency>(_onRespondToEmergency);
+    on<RecallEvent>(_onRecallEvent);
   }
 
   Future<void> _onFetchEvents(
@@ -268,6 +269,37 @@ class EventBloc extends Bloc<EventEvent, EventState> {
         state.copyWith(
           isLoading: false,
           error: 'Failed to create event: ${e.toString()}',
+          clearMessage: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onRecallEvent(
+    RecallEvent event,
+    Emitter<EventState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final success = await _eventRepository.recallEvent(id: event.id);
+      if (success) {
+        final updatedEvents = state.events.where((e) => e.id != event.id).toList();
+        emit(
+          state.copyWith(
+            isLoading: false,
+            events: updatedEvents,
+            message: 'Event recalled successfully',
+            clearError: true,
+          ),
+        );
+      } else {
+        throw Exception('Recall action returned failure status');
+      }
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Failed to recall event: ${e.toString()}',
           clearMessage: true,
         ),
       );

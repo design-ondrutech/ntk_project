@@ -702,7 +702,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     final LocationModel? valueToUse = hasSelectedValue ? items.firstWhere((item) => item.id == value.id) : null;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -712,7 +712,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         child: DropdownButton<LocationModel?>(
           value: valueToUse,
           isExpanded: true,
-          icon: const Icon(CupertinoIcons.chevron_down, size: 16, color: Color(0xFF6B7280)),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 24, color: Color(0xFF6B7280)),
           hint: Text(hintText, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
           items: [
             DropdownMenuItem<LocationModel?>(
@@ -735,7 +735,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   Widget _buildDisabledField(String hintText) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(12),
@@ -743,7 +743,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       ),
       child: Row(
         children: [
-          const Icon(CupertinoIcons.lock, size: 16, color: Color(0xFF9CA3AF)),
+          const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF9CA3AF)),
           const SizedBox(width: 12),
           Text(hintText, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
         ],
@@ -811,7 +811,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       children: [
         const Text(
           'Target Location Hierarchy',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF111827)),
         ),
         const SizedBox(height: 16),
         if (!isSubAdmin) ...[
@@ -941,12 +941,12 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             onPressed: state.isSubmitting ? null : _sendBroadcast,
             icon: state.isSubmitting
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-                : const Icon(CupertinoIcons.paperplane_fill, color: Colors.white, size: 18),
+                : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
             label: Text(state.isSubmitting ? 'SENDING...' : 'SEND BROADCAST',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0F5A29),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               elevation: 0,
             ),
           ),

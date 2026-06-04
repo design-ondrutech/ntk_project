@@ -384,17 +384,14 @@ class CommunityRepositoryImpl implements CommunityRepository {
           category
           images
           authorName
-          authorRole
         }
       }
     ''';
 
-    final fullContent = '$title\n\n$content';
-
     final result = await _graphQLService.performMutation(
       mutation,
       variables: {
-        'content': fullContent,
+        'content': content,
         'category': category,
         'images': images,
         'authorName': authorName,

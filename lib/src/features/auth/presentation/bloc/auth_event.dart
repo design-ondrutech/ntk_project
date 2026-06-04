@@ -60,3 +60,13 @@ class RegisterRequested extends AuthEvent {
 class LogoutRequested extends AuthEvent {}
 
 class LoadMeRequested extends AuthEvent {}
+
+class ChangeLocationRequested extends AuthEvent {
+  final int? locationId;
+  final String? locationName;
+
+  const ChangeLocationRequested({required this.locationId, required this.locationName});
+
+  @override
+  List<Object?> get props => [locationId, locationName];
+}

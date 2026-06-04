@@ -19,6 +19,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<LoadMeRequested>(_onLoadMeRequested);
+    on<ChangeLocationRequested>(_onChangeLocationRequested);
   }
 
   Future<void> _onRegisterRequested(
@@ -118,6 +119,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       sl<FCMService>().saveTokenToBackend();
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  void _onChangeLocationRequested(
+    ChangeLocationRequested event,
+    Emitter<AuthState> emit,
+  ) {
+    if (state.loginData != null) {
+      final updatedModel = state.loginData!.copyWith(
+        locationId: event.locationId,
+        locationName: event.locationName,
+      );
+      emit(state.copyWith(loginData: updatedModel));
     }
   }
 }

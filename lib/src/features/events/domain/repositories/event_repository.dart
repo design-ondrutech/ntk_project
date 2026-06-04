@@ -43,4 +43,6 @@ abstract class EventRepository {
   Future<List<EmergencyResponseModel>> getEmergencyResponses({
     required String emergencyRequestId,
   });
+
+  Future<bool> recallEvent({required String id});
 }
