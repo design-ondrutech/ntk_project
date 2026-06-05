@@ -14,6 +14,8 @@ class UserRepositoryImpl implements UserRepository {
     required String password,
     required String role,
     int? locationId,
+    String? dateOfBirth,
+    String? gender,
   }) async {
     const String mutation = r'''
       mutation CreateUser(
@@ -23,6 +25,8 @@ class UserRepositoryImpl implements UserRepository {
         $password: String!
         $role: Role!
         $locationId: Int
+        $dateOfBirth: String
+        $gender: String
       ) {
         createUser(
           name: $name
@@ -31,12 +35,16 @@ class UserRepositoryImpl implements UserRepository {
           password: $password
           role: $role
           locationId: $locationId
+          dateOfBirth: $dateOfBirth
+          gender: $gender
         ) {
           id
           name
           surname
           phone
           role
+          dateOfBirth
+          gender
         }
       }
     ''';
@@ -48,6 +56,8 @@ class UserRepositoryImpl implements UserRepository {
       'password': password,
       'role': role,
       if (locationId != null) 'locationId': locationId,
+      if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
+      if (gender != null) 'gender': gender,
     };
 
     final result = await _graphQLService.performMutation(

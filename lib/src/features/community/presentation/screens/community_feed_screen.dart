@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
@@ -21,6 +22,7 @@ import 'package:ntk_project/src/features/community/presentation/bloc/community_p
 import 'package:ntk_project/src/features/community/presentation/bloc/community_state.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_chat_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
 import 'package:ntk_project/src/injection_container.dart';
@@ -161,6 +163,14 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
               NTKSnackbar.showError(context, message: state.error!);
               context.read<CommunityPollsBloc>().add(const ClearPollsError());
             }
+          },
+        ),
+        BlocListener<DashboardBloc, DashboardState>(
+          listenWhen: (previous, current) =>
+              previous.globalLocation?.id != current.globalLocation?.id,
+          listener: (context, state) {
+            _fetchFeed();
+            _fetchPolls();
           },
         ),
       ],
@@ -1486,7 +1496,15 @@ class _PollDetailsScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _SocialActions(likes: 12, comments: 5, onLike: () {}, onComment: () {}, onShare: () {}),
+                  _SocialActions(
+                    likes: 12,
+                    comments: 5,
+                    onLike: () {},
+                    onComment: () {},
+                    onShare: () {
+                      Share.share('${poll.question}\n\nShared via NTK App');
+                    },
+                  ),
                 ],
               ),
             ),
@@ -1766,7 +1784,15 @@ class _PostCard extends StatelessWidget {
               ],
             ),
             const Divider(height: 22, color: _line),
-            _SocialActions(likes: post.likes, comments: post.commentCount, onLike: onLike, onComment: onComment, onShare: () {}),
+            _SocialActions(
+              likes: post.likes,
+              comments: post.commentCount,
+              onLike: onLike,
+              onComment: onComment,
+              onShare: () {
+                Share.share('${_cleanContent(post.content)}\n\nShared via NTK App');
+              },
+            ),
           ],
         ),
       ),

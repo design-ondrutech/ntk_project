@@ -8,6 +8,7 @@ import 'package:ntk_project/src/features/events/presentation/bloc/event_event.da
 import 'package:ntk_project/src/features/events/presentation/bloc/event_state.dart';
 import 'package:ntk_project/src/features/notifications/data/models/notification_model.dart';
 import 'package:ntk_project/src/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/injection_container.dart';
 import 'package:intl/intl.dart';
 
@@ -128,9 +129,28 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
     final status = _toRsvpStatus(key);
     setState(() => _submittedActionKey = key);
 
-    context.read<EventBloc>().add(
-      RespondToEmergency(emergencyRequestId: resolvedId, status: status),
-    );
+    if (widget.notification.type?.toUpperCase() == 'EVENT') {
+      final authState = context.read<AuthBloc>().state;
+      final memberId = authState.loginData?.id;
+      if (memberId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not logged in')),
+        );
+        setState(() => _submittedActionKey = null);
+        return;
+      }
+      context.read<EventBloc>().add(
+        RespondToEvent(
+          eventId: resolvedId,
+          memberId: memberId,
+          status: status,
+        ),
+      );
+    } else {
+      context.read<EventBloc>().add(
+        RespondToEmergency(emergencyRequestId: resolvedId, status: status),
+      );
+    }
   }
 
   Widget _buildBasicDetails(BuildContext context, Color color) {
@@ -182,8 +202,16 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
     final actions = _asList(details['availableActions']);
     final history = _asList(details['activityHistory']);
 
-    // Try to get emergency ID — could be stored in the relatedEntityId
-    final emergencyId = widget.notification.relatedEntityId?.toString();
+    // Try to get emergency ID — could be stored in the relatedEntityId or inside the emergency details
+    final emergencyId = emergency?['id']?.toString() ?? widget.notification.relatedEntityId?.toString();
+
+    // Resolve sender: prefer createdBy field, fallback to first activityHistory actorName
+    final createdBy = _asMap(details['createdBy']);
+    final senderName = createdBy?['name']?.toString() ??
+        (_asList(details['activityHistory'])
+            .map((e) => _asMap(e)?['actorName']?.toString())
+            .firstWhere((n) => n != null && n.isNotEmpty, orElse: () => null));
+    final senderRole = createdBy?['role']?.toString();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,7 +232,66 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
             color: NTKColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
+
+        // Sent By row
+        if (senderName != null && senderName.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: NTKColors.primary.withOpacity(0.06),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: NTKColors.primary,
+                  child: Text(
+                    senderName[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Sent by',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: NTKColors.textSecondary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      senderName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: NTKColors.textPrimary,
+                      ),
+                    ),
+                    if (senderRole != null && senderRole.isNotEmpty)
+                      Text(
+                        senderRole,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: NTKColors.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+        const SizedBox(height: 12),
 
         // Location scope
         if (locationScope != null)

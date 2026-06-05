@@ -18,13 +18,15 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     on<CreateEmergency>(_onCreateEmergency);
     on<RespondToEmergency>(_onRespondToEmergency);
     on<RecallEvent>(_onRecallEvent);
+    on<ClearEventMessage>((event, emit) => emit(state.copyWith(clearMessage: true)));
+    on<ClearEventError>((event, emit) => emit(state.copyWith(clearError: true)));
   }
 
   Future<void> _onFetchEvents(
     FetchEvents event,
     Emitter<EventState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearError: true));
+    emit(state.copyWith(isLoading: true, clearError: true, clearMessage: true));
     try {
       final events = await _eventRepository.getRecentEvents(
         locationId: event.locationId,
@@ -40,7 +42,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     FetchEmergencies event,
     Emitter<EventState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearError: true));
+    emit(state.copyWith(isLoading: true, clearError: true, clearMessage: true));
     try {
       final emergencies = await _eventRepository.getEmergencyList(
         locationId: event.locationId,

@@ -196,6 +196,8 @@ class MemberRepositoryImpl implements MemberRepository {
           bloodGroup
           addedBy
           createdAt
+          dateOfBirth
+          gender
           location {
             id
             name
@@ -391,14 +393,16 @@ class MemberRepositoryImpl implements MemberRepository {
 
   int _roleRank(String? role) {
     switch (role?.trim().toUpperCase()) {
-      case 'ADMIN':
+      case 'SUPER_ADMIN':
         return 0;
-      case 'SUB_ADMIN':
+      case 'ADMIN':
         return 1;
-      case 'MEMBER':
+      case 'SUB_ADMIN':
         return 2;
-      default:
+      case 'MEMBER':
         return 3;
+      default:
+        return 4;
     }
   }
 }

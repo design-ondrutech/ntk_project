@@ -769,9 +769,9 @@ Widget buildActionCardStandard(
   );
 }
 
-Widget buildHorizontalActivityCard(String title, String value, Color valueColor) {
+Widget buildHorizontalActivityCard(String title, String value, Color valueColor, {double? width = 110}) {
   return Container(
-    width: 110,
+    width: width,
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: Colors.white,

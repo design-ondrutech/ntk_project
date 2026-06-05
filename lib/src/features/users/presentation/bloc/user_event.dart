@@ -20,6 +20,8 @@ class CreateUserRequested extends UserEvent {
   final int? streetId;
   final String? bloodGroup;
   final String? professionName;
+  final String? dateOfBirth;
+  final String? gender;
 
   const CreateUserRequested({
     required this.name,
@@ -34,6 +36,8 @@ class CreateUserRequested extends UserEvent {
     this.streetId,
     this.bloodGroup,
     this.professionName,
+    this.dateOfBirth,
+    this.gender,
   });
 
   @override
@@ -50,6 +54,8 @@ class CreateUserRequested extends UserEvent {
     streetId,
     bloodGroup,
     professionName,
+    dateOfBirth,
+    gender,
   ];
 }
 

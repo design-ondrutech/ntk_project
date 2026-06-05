@@ -12,6 +12,7 @@ class DashboardStatsModel extends Equatable {
   final int newMembersToday;
   final int approvedToday;
   final int activeBroadcasts;
+  final int totalTowns;
 
   const DashboardStatsModel({
     required this.totalMembers,
@@ -25,6 +26,7 @@ class DashboardStatsModel extends Equatable {
     required this.newMembersToday,
     required this.approvedToday,
     required this.activeBroadcasts,
+    required this.totalTowns,
   });
 
   factory DashboardStatsModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +42,7 @@ class DashboardStatsModel extends Equatable {
       newMembersToday: json['newMembersToday'] ?? 0,
       approvedToday: json['approvedToday'] ?? 0,
       activeBroadcasts: json['activeBroadcasts'] ?? 0,
+      totalTowns: json['totalTowns'] ?? 0,
     );
   }
 
@@ -56,5 +59,6 @@ class DashboardStatsModel extends Equatable {
         newMembersToday,
         approvedToday,
         activeBroadcasts,
+        totalTowns,
       ];
 }

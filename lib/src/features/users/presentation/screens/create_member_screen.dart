@@ -46,7 +46,36 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   bool _obscure = true;
   bool _obscureConfirm = true;
 
+  final _dobController = TextEditingController();
+  String? _selectedGender;
+
   late LocationRepositoryImpl _locationRepo;
+
+  Future<void> _selectDateOfBirth(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2000, 1, 1),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF004D2A),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1F2937),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
+  }
 
   static const List<String> _bloodGroups = [
     'A+',
@@ -226,6 +255,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _dobController.dispose();
     super.dispose();
   }
 
@@ -271,6 +301,9 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
       return;
     }
 
+    final dob = _dobController.text.trim().isEmpty ? null : _dobController.text.trim();
+    final gender = _selectedGender;
+
     context.read<UserBloc>().add(
       CreateUserRequested(
         name: _nameController.text.trim(),
@@ -283,6 +316,8 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
         streetId: _selectedStreet!.id,
         bloodGroup: _selectedBloodGroup,
         professionName: _selectedProfession,
+        dateOfBirth: dob,
+        gender: gender,
       ),
     );
   }
@@ -425,6 +460,31 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
                 selectedValue: _selectedProfession,
                 hintText: 'Select Profession',
                 onChanged: (val) => setState(() => _selectedProfession = val),
+                itemLabel: (item) => item,
+              ),
+              const SizedBox(height: 16),
+
+              // ── Date of Birth ────────────────────────────
+              GestureDetector(
+                onTap: () => _selectDateOfBirth(context),
+                child: AbsorbPointer(
+                  child: NTKTextField(
+                    label: 'Date of Birth',
+                    hintText: 'YYYY-MM-DD',
+                    controller: _dobController,
+                    icon: CupertinoIcons.calendar,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── Gender ───────────────────────────────────
+              NTKDropdownField<String>(
+                label: 'Gender',
+                items: const ['Male', 'Female', 'Other'],
+                selectedValue: _selectedGender,
+                hintText: 'Select Gender',
+                onChanged: (val) => setState(() => _selectedGender = val),
                 itemLabel: (item) => item,
               ),
               const SizedBox(height: 16),

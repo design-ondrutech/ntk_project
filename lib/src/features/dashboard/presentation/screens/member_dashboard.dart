@@ -164,38 +164,31 @@ class MemberDashboard extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         
-                        // Highlights horizontal scroll row
-                        SizedBox(
-                          height: 135,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            children: [
-                              _buildHighlightCard(
-                                title: 'Total Members',
-                                value: stats != null ? '${stats.totalMembers}' : '11',
-                                subtext: 'Total Members',
-                                icon: Icons.people_outline_rounded,
-                                color: const Color(0xFF10B981),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildHighlightCard(
-                                title: 'Upcoming Events',
-                                value: stats != null ? '${stats.activeEvents}' : '2',
-                                subtext: 'Upcoming Events',
-                                icon: Icons.calendar_today_outlined,
-                                color: const Color(0xFF2563EB),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildHighlightCard(
-                                title: 'Active Alerts',
-                                value: stats != null ? '${stats.emergencyRequests}' : '0',
-                                subtext: 'Active Alerts',
-                                icon: Icons.warning_amber_rounded,
-                                color: const Color(0xFFEF4444),
-                              ),
-                            ],
-                          ),
+                        // Highlights carousel
+                        DashboardCarousel(
+                          cards: [
+                            _buildHighlightCard(
+                              title: 'Total Members',
+                              value: stats != null ? '${stats.totalMembers}' : '11',
+                              subtext: 'Total Members',
+                              icon: Icons.people_outline_rounded,
+                              color: const Color(0xFF10B981),
+                            ),
+                            _buildHighlightCard(
+                              title: 'Upcoming Events',
+                              value: stats != null ? '${stats.activeEvents}' : '2',
+                              subtext: 'Upcoming Events',
+                              icon: Icons.calendar_today_outlined,
+                              color: const Color(0xFF2563EB),
+                            ),
+                            _buildHighlightCard(
+                              title: 'Active Alerts',
+                              value: stats != null ? '${stats.emergencyRequests}' : '0',
+                              subtext: 'Active Alerts',
+                              icon: Icons.warning_amber_rounded,
+                              color: const Color(0xFFEF4444),
+                            ),
+                          ],
                         ),
                         
                         const SizedBox(height: 28),
@@ -240,7 +233,7 @@ class MemberDashboard extends StatelessWidget {
                                 icon: Icons.warning_amber_rounded,
                                 color: const Color(0xFFEF4444),
                                 label: 'Emergency',
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(1),
+                                onTap: () => Navigator.pushNamed(context, '/create_announcement'),
                               ),
                               _buildCircleActionButton(
                                 context: context,
@@ -315,7 +308,6 @@ class MemberDashboard extends StatelessWidget {
     required Color color,
   }) {
     return Container(
-      width: 145,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -484,6 +476,35 @@ class MemberDashboard extends StatelessWidget {
     );
   }
 
+  String _formatActivityTime(String? value) {
+    if (value == null || value.isEmpty) return 'Just now';
+    try {
+      final parsedInt = int.tryParse(value);
+      DateTime date;
+      if (parsedInt != null) {
+        date = DateTime.fromMillisecondsSinceEpoch(
+          parsedInt > 9999999999 ? parsedInt : parsedInt * 1000,
+        ).toLocal();
+      } else {
+        String normalized = value;
+        if (!normalized.endsWith('Z') && !normalized.contains('+') && !normalized.contains(RegExp(r'-\d{2}:?\d{2}$'))) {
+          normalized = normalized.replaceAll(' ', 'T');
+          if (!normalized.endsWith('Z')) {
+            normalized = '${normalized}Z';
+          }
+        }
+        date = DateTime.parse(normalized).toLocal();
+      }
+      final diff = DateTime.now().difference(date);
+      if (diff.inDays > 0) return '${diff.inDays}d ago';
+      if (diff.inHours > 0) return '${diff.inHours}h ago';
+      if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+      return 'Just now';
+    } catch (_) {
+      return value;
+    }
+  }
+
   Widget _buildRecentUpdatesSection(BuildContext context, DashboardState state) {
     if (state.recentActivity.isEmpty) {
       return _buildRecentUpdateCard(
@@ -509,10 +530,81 @@ class MemberDashboard extends StatelessWidget {
           child: _buildRecentUpdateCard(
             title: title,
             subtitle: subtitle,
-            time: 'Just now',
+            time: _formatActivityTime(act.createdAt),
           ),
         );
       }).toList(),
+    );
+  }
+}
+
+class DashboardCarousel extends StatefulWidget {
+  final List<Widget> cards;
+
+  const DashboardCarousel({super.key, required this.cards});
+
+  @override
+  State<DashboardCarousel> createState() => _DashboardCarouselState();
+}
+
+class _DashboardCarouselState extends State<DashboardCarousel> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.85);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 145,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.cards.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: widget.cards[index],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.cards.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: _currentPage == index ? 16 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _currentPage == index
+                    ? const Color(0xFF004D2A)
+                    : const Color(0xFFD1D5DB),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

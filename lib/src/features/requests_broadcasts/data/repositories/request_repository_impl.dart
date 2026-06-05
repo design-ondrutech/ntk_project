@@ -226,11 +226,10 @@ class RequestRepositoryImpl implements RequestRepository {
     required String message,
     String? image,
     required int locationId,
-    int? streetId,
   }) async {
     const String mutation = r'''
-      mutation CreateBroadcast($title: String!, $message: String!, $image: String, $locationId: Int!, $streetId: Int) {
-        createBroadcast(title: $title, message: $message, image: $image, locationId: $locationId, streetId: $streetId) {
+      mutation CreateBroadcast($title: String!, $message: String!, $image: String, $locationId: Int!) {
+        createBroadcast(title: $title, message: $message, image: $image, locationId: $locationId) {
           id
           title
           message
@@ -246,7 +245,6 @@ class RequestRepositoryImpl implements RequestRepository {
         'message': message,
         'image': image,
         'locationId': locationId,
-        'streetId': streetId,
       },
     );
 

@@ -85,50 +85,61 @@ class MainScreenState extends State<MainScreen> {
       return roles.contains(userRole);
     }).toList();
 
-    return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex >= filteredTabs.length ? 0 : _selectedIndex,
-        children: filteredTabs.map((tab) => tab['screen'] as Widget).toList(),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF004D2A),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        if (_selectedIndex != 0) {
+          setState(() {
+            _selectedIndex = 0;
+          });
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _selectedIndex >= filteredTabs.length ? 0 : _selectedIndex,
+          children: filteredTabs.map((tab) => tab['screen'] as Widget).toList(),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex >= filteredTabs.length
-              ? 0
-              : _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFF004D2A),
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white70,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          elevation: 0,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          items: filteredTabs.map((tab) {
-            final isSelected = filteredTabs.indexOf(tab) == _selectedIndex;
-            return BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withOpacity(0.15) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(isSelected ? tab['activeIcon'] : tab['icon']),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF004D2A),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
               ),
-              label: tab['label'] as String,
-            );
-          }).toList(),
+            ],
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex >= filteredTabs.length
+                ? 0
+                : _selectedIndex,
+            onTap: _onItemTapped,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: const Color(0xFF004D2A),
+            selectedItemColor: Colors.white,
+            unselectedItemColor: Colors.white70,
+            selectedFontSize: 12,
+            unselectedFontSize: 12,
+            elevation: 0,
+            showSelectedLabels: true,
+            showUnselectedLabels: true,
+            items: filteredTabs.map((tab) {
+              final isSelected = filteredTabs.indexOf(tab) == _selectedIndex;
+              return BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.white.withOpacity(0.15) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(isSelected ? tab['activeIcon'] : tab['icon']),
+                ),
+                label: tab['label'] as String,
+              );
+            }).toList(),
+          ),
         ),
       ),
     );

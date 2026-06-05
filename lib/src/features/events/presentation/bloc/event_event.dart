@@ -141,3 +141,11 @@ class RecallEvent extends EventEvent {
   @override
   List<Object?> get props => [id];
 }
+
+class ClearEventMessage extends EventEvent {
+  const ClearEventMessage();
+}
+
+class ClearEventError extends EventEvent {
+  const ClearEventError();
+}

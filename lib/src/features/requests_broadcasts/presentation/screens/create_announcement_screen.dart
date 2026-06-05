@@ -40,6 +40,14 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   DateTime? _selectedExpiryDateTime;
   bool _collectResponse = true;
 
+  // Focus Nodes to keep cursor focus persistent and stable across rebuilds
+  final FocusNode _titleFocusNode = FocusNode();
+  final FocusNode _messageFocusNode = FocusNode();
+  final FocusNode _emergencyTitleFocusNode = FocusNode();
+  final FocusNode _emergencyDescriptionFocusNode = FocusNode();
+  final FocusNode _contactNameFocusNode = FocusNode();
+  final FocusNode _contactPhoneFocusNode = FocusNode();
+
   List<LocationModel> _districts = [];
   LocationModel? _selectedDistrict;
   bool _loadingDistricts = false;
@@ -60,6 +68,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   @override
   void initState() {
     super.initState();
+    final authState = context.read<AuthBloc>().state;
+    final userRole = authState.loginData?.role ?? 'MEMBER';
+    if (userRole == 'MEMBER') {
+      _activeFormType = 'EMERGENCY';
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initLocationSelectors();
     });
@@ -73,6 +86,12 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     _emergencyDescriptionController.dispose();
     _contactPersonController.dispose();
     _contactPhoneController.dispose();
+    _titleFocusNode.dispose();
+    _messageFocusNode.dispose();
+    _emergencyTitleFocusNode.dispose();
+    _emergencyDescriptionFocusNode.dispose();
+    _contactNameFocusNode.dispose();
+    _contactPhoneFocusNode.dispose();
     super.dispose();
   }
 
@@ -295,7 +314,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     final title = _titleController.text.trim();
     final message = _messageController.text.trim();
     final locationId = _composeLocationId();
-    final streetId = _selectedStreet?.id;
 
     if (title.isEmpty || message.isEmpty) {
       NTKSnackbar.showError(context, message: 'Title and message are required');
@@ -311,7 +329,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         title: title,
         message: message,
         locationId: locationId,
-        streetId: streetId,
       ),
     );
     _titleController.clear();
@@ -906,7 +923,10 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
           child: TextField(
+            key: const ValueKey('broadcast_title_field'),
             controller: _titleController,
+            focusNode: _titleFocusNode,
+            textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
               hintText: 'Enter broadcast title',
               border: InputBorder.none,
@@ -921,8 +941,12 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
           child: TextField(
+            key: const ValueKey('broadcast_message_field'),
             controller: _messageController,
+            focusNode: _messageFocusNode,
             maxLines: 5,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
             decoration: const InputDecoration(
               hintText: 'Type your message here...',
               border: InputBorder.none,
@@ -934,22 +958,49 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         const SizedBox(height: 20),
         _buildLocationSelectorsSection(userRole),
         const SizedBox(height: 36),
-        SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: ElevatedButton.icon(
-            onPressed: state.isSubmitting ? null : _sendBroadcast,
-            icon: state.isSubmitting
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-                : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-            label: Text(state.isSubmitting ? 'SENDING...' : 'SEND BROADCAST',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F5A29),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 54,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      color: Color(0xFF4B5563),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: SizedBox(
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: state.isSubmitting ? null : _sendBroadcast,
+                  icon: state.isSubmitting
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
+                      : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                  label: Text(state.isSubmitting ? 'SENDING...' : 'SEND BROADCAST',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F5A29),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 24),
       ],
@@ -995,8 +1046,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
           child: TextField(
+            key: const ValueKey('emergency_title_field'),
             controller: _emergencyTitleController,
+            focusNode: _emergencyTitleFocusNode,
             maxLength: 100,
+            textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
               hintText: 'Enter alert title',
               border: InputBorder.none,
@@ -1012,9 +1066,13 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
           child: TextField(
+            key: const ValueKey('emergency_desc_field'),
             controller: _emergencyDescriptionController,
+            focusNode: _emergencyDescriptionFocusNode,
             maxLines: 5,
             maxLength: 1000,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
             decoration: const InputDecoration(
               hintText: 'Type emergency description here...',
               border: InputBorder.none,
@@ -1027,14 +1085,17 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         const SizedBox(height: 20),
         _buildLocationSelectorsSection(userRole),
         const SizedBox(height: 20),
-        const Text('Contact Person', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+        const Text('Contact Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
           child: TextField(
+            key: const ValueKey('emergency_contact_name_field'),
             controller: _contactPersonController,
+            focusNode: _contactNameFocusNode,
+            textInputAction: TextInputAction.next,
             decoration: const InputDecoration(
-              hintText: "Enter contact person's name",
+              hintText: "Enter contact name",
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               filled: false,
@@ -1047,8 +1108,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
           child: TextField(
+            key: const ValueKey('emergency_contact_phone_field'),
             controller: _contactPhoneController,
+            focusNode: _contactPhoneFocusNode,
             keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(10),
@@ -1066,22 +1130,49 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         const SizedBox(height: 24),
         _buildResponseRequiredRadio(),
         const SizedBox(height: 36),
-        SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: ElevatedButton.icon(
-            onPressed: eventState.isLoading ? null : _sendEmergency,
-            icon: eventState.isLoading
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-                : const Icon(CupertinoIcons.paperplane_fill, color: Colors.white, size: 18),
-            label: Text(eventState.isLoading ? 'SENDING...' : 'SEND ALERT',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 0,
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 54,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      color: Color(0xFF4B5563),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: SizedBox(
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: eventState.isLoading ? null : _sendEmergency,
+                  icon: eventState.isLoading
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
+                      : const Icon(CupertinoIcons.paperplane_fill, color: Colors.white, size: 18),
+                  label: Text(eventState.isLoading ? 'SENDING...' : 'SEND ALERT',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 24),
       ],
@@ -1098,33 +1189,54 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       appBar: NTKAppBar(
         title: 'Create Announcement',
         subtitle: authState.loginData?.locationName ?? 'Tamil Nadu',
+        leading: IconButton(
+          icon: const Icon(CupertinoIcons.xmark, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: BlocConsumer<RequestBloc, RequestState>(
-        listener: (context, state) {
-          if (state.submitSuccess) {
-            NTKSnackbar.showSuccess(context, message: 'Sent successfully!');
-            Navigator.pop(context);
-          }
-          if (state.error != null) {
-            NTKSnackbar.showError(context, message: state.error!);
-          }
-        },
-        builder: (context, requestState) {
-          final eventState = context.watch<EventBloc>().state;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildFormToggle(),
-                if (_activeFormType == 'BROADCAST')
-                  _buildBroadcastForm(requestState, userRole)
-                else
-                  _buildEmergencyForm(requestState, eventState, userRole),
-              ],
-            ),
-          );
-        },
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<EventBloc, EventState>(
+            listener: (context, state) {
+              if (state.message == 'Emergency Alert created successfully') {
+                NTKSnackbar.showSuccess(context, message: 'Sent successfully!');
+                Navigator.pop(context);
+              }
+              if (state.error != null && _activeFormType == 'EMERGENCY') {
+                NTKSnackbar.showError(context, message: state.error!);
+              }
+            },
+          ),
+          BlocListener<RequestBloc, RequestState>(
+            listener: (context, state) {
+              if (state.submitSuccess) {
+                NTKSnackbar.showSuccess(context, message: 'Sent successfully!');
+                Navigator.pop(context);
+              }
+              if (state.error != null && _activeFormType == 'BROADCAST') {
+                NTKSnackbar.showError(context, message: state.error!);
+              }
+            },
+          ),
+        ],
+        child: BlocBuilder<RequestBloc, RequestState>(
+          builder: (context, requestState) {
+            final eventState = context.watch<EventBloc>().state;
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (userRole != 'MEMBER') _buildFormToggle(),
+                  if (_activeFormType == 'BROADCAST')
+                    _buildBroadcastForm(requestState, userRole)
+                  else
+                    _buildEmergencyForm(requestState, eventState, userRole),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

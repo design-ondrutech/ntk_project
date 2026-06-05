@@ -13,7 +13,10 @@ import 'package:ntk_project/src/features/location/data/models/location_model.dar
 import 'package:ntk_project/src/features/location/presentation/bloc/location_bloc.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_event.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
+import 'package:ntk_project/src/features/requests_broadcasts/data/models/broadcast_model.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/request_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/injection_container.dart';
 class EventsOverviewScreen extends StatefulWidget {
   final bool embedded;
@@ -32,11 +35,18 @@ class EventsOverviewScreen extends StatefulWidget {
 class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
   bool _isEmergency = false;
 
+  int? get _effectiveLocationId {
+    if (widget.locationId != null) return widget.locationId;
+    final dashboardBloc = context.read<DashboardBloc>();
+    final globalLocId = dashboardBloc.state.globalLocation?.id;
+    final authLocId = context.read<AuthBloc>().state.loginData?.locationId;
+    return globalLocId ?? authLocId;
+  }
+
   @override
   void initState() {
     super.initState();
-    final authState = context.read<AuthBloc>().state;
-    final locationId = widget.locationId ?? authState.loginData?.locationId;
+    final locationId = _effectiveLocationId;
     context.read<EventBloc>().add(FetchEvents(locationId: locationId));
     context.read<EventBloc>().add(FetchEmergencies(locationId: locationId));
   }
@@ -94,6 +104,8 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authState = context.watch<AuthBloc>().state;
+    // Watch globalLocation from DashboardBloc to trigger rebuild on location updates
+    context.select((DashboardBloc bloc) => bloc.state.globalLocation);
 
     final body = MultiBlocListener(
       listeners: [
@@ -104,8 +116,15 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
             final locId = widget.locationId ?? state.loginData?.locationId;
             context.read<EventBloc>().add(FetchEvents(locationId: locId));
             context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
-            // Note: RequestBloc is scoped lower down, so it will rebuild and re-fetch automatically 
-            // when authState changes, since we watch AuthBloc at the top of build.
+          },
+        ),
+        BlocListener<DashboardBloc, DashboardState>(
+          listenWhen: (previous, current) =>
+              previous.globalLocation?.id != current.globalLocation?.id,
+          listener: (context, state) {
+            final locId = widget.locationId ?? state.globalLocation?.id ?? context.read<AuthBloc>().state.loginData?.locationId;
+            context.read<EventBloc>().add(FetchEvents(locationId: locId));
+            context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
           },
         ),
         BlocListener<EventBloc, EventState>(
@@ -118,6 +137,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
                   behavior: SnackBarBehavior.floating,
                 ),
               );
+              context.read<EventBloc>().add(const ClearEventMessage());
             }
             if (state.error != null) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -127,6 +147,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
                   behavior: SnackBarBehavior.floating,
                 ),
               );
+              context.read<EventBloc>().add(const ClearEventError());
             }
           },
         ),
@@ -140,7 +161,8 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
         }
 
         return BlocProvider(
-          create: (context) => sl<RequestBloc>()..add(LoadRequests(locationId: widget.locationId ?? authState.loginData?.locationId)),
+          key: ValueKey(_effectiveLocationId),
+          create: (context) => sl<RequestBloc>()..add(LoadRequests(locationId: _effectiveLocationId)),
           child: DefaultTabController(
             length: 2,
             child: Column(
@@ -260,10 +282,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        final authState = context.read<AuthBloc>().state;
         context.read<EventBloc>().add(
           FetchEvents(
-            locationId: widget.locationId ?? authState.loginData?.locationId,
+            locationId: _effectiveLocationId,
           ),
         );
       },
@@ -338,278 +359,647 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
         }
 
         final broadcasts = reqState.broadcasts;
-        
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Recent Broadcasts',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                  ),
-                  if (canCreate)
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/create_announcement');
-                      },
-                      icon: const Icon(CupertinoIcons.plus, size: 16, color: Colors.white),
-                      label: const Text('Create Broadcast', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF004D2A),
-                        minimumSize: const Size(0, 36),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      ),
+        final emergencies = state.emergencies;
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            final locId = _effectiveLocationId;
+            context.read<RequestBloc>().add(LoadRequests(locationId: locId));
+            context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
+          },
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      canCreate ? 'Recent Broadcasts' : 'Emergency & Updates',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                     ),
-                ],
-              ),
-            ),
-            if (broadcasts.isEmpty)
-              const Expanded(
-                child: Center(child: Text('No broadcasts found')),
-              )
-            else
-              Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  itemCount: broadcasts.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final broadcast = broadcasts[index];
-                    return _buildBroadcastItem(
-                      broadcast.title,
-                      broadcast.locationName ?? 'Unknown Location',
-                      broadcast.createdAt ?? 'Unknown Time',
-                      broadcast.createdByName,
-                      broadcast.isActive ? 'Active' : 'Inactive',
-                      broadcast.isActive ? const Color(0xFF22C55E) : const Color(0xFF94A3B8),
-                      Icons.campaign_rounded,
-                      onDelete: canCreate
-                          ? () {
-                              showCupertinoDialog(
-                                context: context,
-                                builder: (context) => CupertinoAlertDialog(
-                                  title: const Text('Recall Broadcast'),
-                                  content: const Text(
-                                    'Are you sure you want to recall this broadcast message? This action cannot be undone.',
-                                  ),
-                                  actions: [
-                                    CupertinoDialogAction(
-                                      child: const Text('Cancel'),
-                                      onPressed: () => Navigator.pop(context),
-                                    ),
-                                    CupertinoDialogAction(
-                                      isDestructiveAction: true,
-                                      child: const Text('Recall'),
-                                      onPressed: () {
-                                        context
-                                            .read<RequestBloc>()
-                                            .add(RecallBroadcast(id: broadcast.id));
-                                        Navigator.pop(context);
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                          : null,
-                    );
-                  },
+                    if (canCreate)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/create_announcement');
+                        },
+                        icon: const Icon(CupertinoIcons.plus, size: 16, color: Colors.white),
+                        label: const Text('Create Broadcast', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF004D2A),
+                          minimumSize: const Size(0, 36),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                      )
+                    else
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/create_announcement');
+                        },
+                        icon: const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.white),
+                        label: const Text(
+                          'Report Emergency',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFEF4444),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          elevation: 0,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-          ],
+              if (broadcasts.isEmpty && emergencies.isEmpty)
+                const Expanded(
+                  child: Center(child: Text('No broadcasts or emergencies found')),
+                )
+              else
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    itemCount: (emergencies.isNotEmpty ? emergencies.length + 1 : 0) +
+                        (broadcasts.isNotEmpty ? broadcasts.length + 1 : 0),
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final hasEmergencies = emergencies.isNotEmpty;
+                      final hasBroadcasts = broadcasts.isNotEmpty;
+
+                      // Helper function to map flat index to sections
+                      if (hasEmergencies) {
+                        if (index == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Emergency Alerts',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFEF4444),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {},
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text(
+                                    'View All',
+                                    style: TextStyle(
+                                      color: Color(0xFFEF4444),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        } else if (index <= emergencies.length) {
+                          return _buildEmergencyCard(emergencies[index - 1]);
+                        }
+                      }
+
+                      // Adjust index for broadcasts
+                      final broadcastStartIndex = hasEmergencies ? emergencies.length + 1 : 0;
+                      final broadcastRelativeIndex = index - broadcastStartIndex;
+
+                      if (hasBroadcasts) {
+                        if (broadcastRelativeIndex == 0) {
+                          return const Padding(
+                            padding: EdgeInsets.only(top: 8.0, bottom: 4.0),
+                            child: Text(
+                              'Recent Broadcasts',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B)),
+                            ),
+                          );
+                        } else {
+                          final broadcast = broadcasts[broadcastRelativeIndex - 1];
+                          return _buildBroadcastItem(
+                            broadcast,
+                            onDelete: canCreate
+                                ? () {
+                                    showCupertinoDialog(
+                                      context: context,
+                                      builder: (context) => CupertinoAlertDialog(
+                                        title: const Text('Recall Broadcast'),
+                                        content: const Text(
+                                          'Are you sure you want to recall this broadcast message? This action cannot be undone.',
+                                        ),
+                                        actions: [
+                                          CupertinoDialogAction(
+                                            child: const Text('Cancel'),
+                                            onPressed: () => Navigator.pop(context),
+                                          ),
+                                          CupertinoDialogAction(
+                                            isDestructiveAction: true,
+                                            child: const Text('Recall'),
+                                            onPressed: () {
+                                              context
+                                                  .read<RequestBloc>()
+                                                  .add(RecallBroadcast(id: broadcast.id));
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+                                : null,
+                          );
+                        }
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
   }
 
   Widget _buildBroadcastItem(
-    String title,
-    String location,
-    String time,
-    String? author,
-    String status,
-    Color statusColor,
-    IconData icon, {
+    BroadcastModel broadcast, {
     VoidCallback? onDelete,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: () => _showBroadcastDetailsDialog(context, broadcast),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE6F4EA), // light green
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.campaign_rounded, color: Color(0xFF0F5A29), size: 24),
             ),
-            child: Icon(icon, color: statusColor, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 15),
-                        overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          broadcast.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                            fontSize: 16,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE6F4EA),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Active',
+                          style: TextStyle(
+                            color: Color(0xFF0F5A29),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                      child: Text(
-                        status,
-                        style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF64748B)),
-                    const SizedBox(width: 4),
-                    Text(location, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF64748B)),
-                    const SizedBox(width: 4),
-                    Text(time, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-                  ],
-                ),
-                if (author != null && author.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF64748B)),
-                      const SizedBox(width: 4),
-                      Text('By $author', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600)),
+                      const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'By ${broadcast.createdByName ?? 'Admin'}',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        broadcast.locationName ?? 'Unknown Location',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        broadcast.createdAt != null && broadcast.createdAt!.isNotEmpty
+                            ? _formatDateTime(broadcast.createdAt!)
+                            : 'Unknown Time',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.people_outline, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Delivered to ${broadcast.recipientCount} members',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              children: [
+                const Icon(CupertinoIcons.chevron_right, size: 16, color: Color(0xFF94A3B8)),
+                if (onDelete != null) ...[
+                  const SizedBox(height: 12),
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.trash, color: Color(0xFFEF4444), size: 18),
+                    onPressed: onDelete,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ],
             ),
-          ),
-          if (onDelete != null) ...[
-            const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(CupertinoIcons.trash, color: Color(0xFFEF4444), size: 20),
-              onPressed: onDelete,
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
 
+  void _showBroadcastDetailsDialog(BuildContext context, BroadcastModel broadcast) {
+    final requestBloc = context.read<RequestBloc>();
+    requestBloc.add(LoadBroadcastDetails(broadcast.id));
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: BlocProvider.value(
+            value: requestBloc,
+            child: BlocBuilder<RequestBloc, RequestState>(
+              builder: (context, state) {
+                final isLoading = state.isLoading ||
+                    state.currentBroadcast == null ||
+                    state.currentBroadcast!.id != broadcast.id;
+
+                if (isLoading) {
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (state.error != null) {
+                  return Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 40),
+                        const SizedBox(height: 12),
+                        Text('Failed to load details: ${state.error}', textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final details = state.currentBroadcast ?? broadcast;
+
+                return SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFE6F4EA),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.campaign_rounded, color: Color(0xFF0F5A29), size: 24),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Broadcast Details',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                              onPressed: () => Navigator.pop(dialogContext),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 24),
+                        
+                        Text(
+                          details.title,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE6F4EA),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Active',
+                                style: TextStyle(
+                                  color: Color(0xFF0F5A29),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0F2FE),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                details.type ?? 'AREA',
+                                style: const TextStyle(
+                                  color: Color(0xFF0369A1),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        const Text(
+                          'Message',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(
+                            details.message,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF334155),
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        _buildBroadcastInfoRow(Icons.person_outline_rounded, 'Created By', 'By ${details.createdByName ?? 'Admin'} (${details.createdByRole ?? 'SUB_ADMIN'})'),
+                        const SizedBox(height: 10),
+                        _buildBroadcastInfoRow(Icons.location_on_outlined, 'Location', details.locationName ?? 'Tamil Nadu'),
+                        const SizedBox(height: 10),
+                        _buildBroadcastInfoRow(Icons.access_time_rounded, 'Date & Time', details.createdAt != null ? _formatDateTime(details.createdAt!) : 'Unknown'),
+                        const SizedBox(height: 10),
+                        _buildBroadcastInfoRow(Icons.people_outline, 'Recipients', 'Delivered to ${details.recipientCount} members'),
+                        
+                        const SizedBox(height: 24),
+                        
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF004D2A),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: const Text(
+                              'Close',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBroadcastInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF64748B)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              children: [
+                TextSpan(text: '$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                TextSpan(text: value, style: const TextStyle(color: Color(0xFF334155))),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildEmergencyCard(EmergencyModel alert) {
-    final theme = Theme.of(context);
     return InkWell(
       onTap: () =>
           Navigator.pushNamed(context, '/emergency_details', arguments: alert),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: NTKColors.error.withOpacity(0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: NTKColors.error.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFFEE2E2)),
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: NTKColors.error.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.warning_rounded,
-                    color: NTKColors.error,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFCE8E6), // light pink
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.bloodtype_rounded, color: Color(0xFFC5221F), size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        alert.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: NTKColors.error,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          alert.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFC5221F), // dark red
+                            fontSize: 16,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Just now', // Placeholder
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: NTKColors.error,
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: alert.statusBadgeBgColor,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          alert.statusBadgeText,
+                          style: TextStyle(
+                            color: alert.statusBadgeTextColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              alert.description,
-              style: theme.textTheme.bodyMedium,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(
-                  CupertinoIcons.location_solid,
-                  size: 14,
-                  color: NTKColors.error,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    alert.locationName,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'By ${alert.createdBy ?? 'Unknown Member'}',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        alert.locationName,
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      Text(
+                        alert.createdAt != null && alert.createdAt!.isNotEmpty
+                            ? _formatDateTime(alert.createdAt!)
+                            : 'Just now',
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.account_tree_outlined, size: 16, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                          children: [
+                            const TextSpan(text: 'Current Level: '),
+                            TextSpan(
+                              text: alert.currentLevelText,
+                              style: const TextStyle(color: Color(0xFF1967D2), fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
+            const Icon(CupertinoIcons.chevron_right, size: 16, color: Color(0xFF94A3B8)),
           ],
         ),
       ),

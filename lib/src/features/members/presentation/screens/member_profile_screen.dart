@@ -416,9 +416,25 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             subtitle: member.location?.name ?? 'Details',
             showNotification: false,
             actions: [
-              IconButton(
-                icon: const Icon(CupertinoIcons.add_circled, color: Colors.white),
-                onPressed: () => _showEditMemberSheet(member),
+              PopupMenuButton<String>(
+                icon: const Icon(CupertinoIcons.settings, color: Colors.white),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _showEditMemberSheet(member);
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  const PopupMenuItem<String>(
+                    value: 'edit',
+                    child: Row(
+                      children: [
+                        Icon(CupertinoIcons.pencil, color: Colors.black87, size: 20),
+                        SizedBox(width: 8),
+                        Text('Edit Profile'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -540,8 +556,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                           title: 'Basic Information',
                           children: [
                             _buildInfoRow('Blood Group', member.bloodGroup ?? '—'),
-                            _buildInfoRow('Date of Birth', '—'),
-                            _buildInfoRow('Gender', '—', isLast: true),
+                            _buildInfoRow('Date of Birth', member.dateOfBirth ?? '—'),
+                            _buildInfoRow('Gender', member.gender ?? '—', isLast: true),
                           ],
                         ),
                         const SizedBox(height: 16),

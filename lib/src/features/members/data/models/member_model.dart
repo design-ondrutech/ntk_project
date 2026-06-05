@@ -14,6 +14,8 @@ class MemberModel extends Equatable {
   final String? addedBy;
   final bool isActive;
   final DateTime? createdAt;
+  final String? dateOfBirth;
+  final String? gender;
 
   const MemberModel({
     required this.id,
@@ -28,6 +30,8 @@ class MemberModel extends Equatable {
     this.addedBy,
     this.isActive = true,
     this.createdAt,
+    this.dateOfBirth,
+    this.gender,
   });
 
   factory MemberModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,8 @@ class MemberModel extends Equatable {
           json['addedBy'] as String? ?? (json['createdBy']?['name'] as String?),
       isActive: json['isActive'] as bool? ?? true,
       createdAt: _parseDate(json['createdAt']),
+      dateOfBirth: json['dateOfBirth'] as String?,
+      gender: json['gender'] as String?,
     );
   }
 
@@ -79,6 +85,8 @@ class MemberModel extends Equatable {
       'addedBy': addedBy,
       'isActive': isActive,
       'createdAt': createdAt?.toIso8601String(),
+      'dateOfBirth': dateOfBirth,
+      'gender': gender,
     };
   }
 
@@ -96,5 +104,7 @@ class MemberModel extends Equatable {
     addedBy,
     isActive,
     createdAt,
+    dateOfBirth,
+    gender,
   ];
 }

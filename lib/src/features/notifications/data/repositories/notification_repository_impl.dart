@@ -90,6 +90,10 @@ class NotificationRepositoryImpl implements NotificationRepository {
           notificationTypeBadge
           statusBadge
           purpose
+          createdBy {
+            name
+            role
+          }
           locationScope {
             label
             district
@@ -97,7 +101,8 @@ class NotificationRepositoryImpl implements NotificationRepository {
             area
             street
           }
-          emergency {
+           emergency {
+            id
             title
             description
             type

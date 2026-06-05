@@ -28,6 +28,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         role: event.role,
         locationId:
             event.locationId ?? event.streetId ?? event.areaId ?? event.talukId,
+        dateOfBirth: event.dateOfBirth,
+        gender: event.gender,
       );
       emit(UserCreatedSuccess(user));
     } catch (e) {

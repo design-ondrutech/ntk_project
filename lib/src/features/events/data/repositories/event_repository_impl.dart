@@ -316,10 +316,23 @@ class EventRepositoryImpl implements EventRepository {
           contactPhone
           expiryDate
           collectResponse
+          createdAt
+          status
+          audience
           location {
             id
             name
             type
+          }
+          member {
+            id
+            name
+            surname
+          }
+          createdBy {
+            id
+            name
+            role
           }
           stats {
             going
@@ -373,6 +386,11 @@ class EventRepositoryImpl implements EventRepository {
             id
             name
             surname
+          }
+          createdBy {
+            id
+            name
+            role
           }
           stats {
             total
@@ -450,8 +468,8 @@ class EventRepositoryImpl implements EventRepository {
     required String emergencyRequestId,
   }) async {
     const String query = r'''
-      query GetEmergencyResponses($emergencyRequestId: Int!) {
-        getEmergencyRequestList(emergencyRequestId: $emergencyRequestId) {
+      query GetEmergencyResponses($id: Int!) {
+        getEmergencyRequestDetails(id: $id) {
           id
           stats {
             going
@@ -473,16 +491,14 @@ class EventRepositoryImpl implements EventRepository {
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'emergencyRequestId': int.parse(emergencyRequestId)},
+      variables: {'id': int.parse(emergencyRequestId)},
     );
 
     if (result.hasException) throw Exception(result.exception.toString());
 
-    final list = result.data?['getEmergencyRequestList'] as List?;
-    if (list == null || list.isEmpty) return [];
-
-    final emergency = list.first as Map<String, dynamic>?;
-    final responses = emergency?['responses'] as List?;
+    final emergency = result.data?['getEmergencyRequestDetails'] as Map<String, dynamic>?;
+    if (emergency == null) return [];
+    final responses = emergency['responses'] as List?;
     if (responses == null) return [];
 
     return responses

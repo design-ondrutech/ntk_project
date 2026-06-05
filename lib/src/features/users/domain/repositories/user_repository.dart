@@ -6,5 +6,7 @@ abstract class UserRepository {
     required String password,
     required String role,
     int? locationId,
+    String? dateOfBirth,
+    String? gender,
   });
 }

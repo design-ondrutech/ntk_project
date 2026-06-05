@@ -254,86 +254,77 @@ class SubAdminDashboard extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         
-                        // Today's Activity horizontal list
-                        SizedBox(
-                          height: 135,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            children: [
-                              _buildActivityCard(
-                                context: context,
-                                title: 'Events Today',
-                                value: '${stats?.activeEvents ?? 0}',
-                                subtext: 'Upcoming',
-                                icon: Icons.calendar_today_outlined,
-                                color: const Color(0xFF2563EB),
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildActivityCard(
-                                context: context,
-                                title: 'Broadcasts',
-                                value: '${stats?.activeBroadcasts ?? 0}',
-                                subtext: 'Messages sent',
-                                icon: Icons.campaign_outlined,
-                                color: const Color(0xFF8B5CF6),
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildActivityCard(
-                                context: context,
-                                title: 'Emergency',
-                                value: '${stats?.emergencyRequests ?? 0}',
-                                subtext: 'Active alerts',
-                                icon: Icons.warning_amber_rounded,
-                                color: const Color(0xFFEF4444),
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildActivityCard(
-                                context: context,
-                                title: 'Members',
-                                value: '${stats?.totalMembers ?? 0}',
-                                subtext: 'View all > >',
-                                icon: Icons.people_outline_rounded,
-                                color: const Color(0xFF2563EB),
-                                isLink: true,
-                                onTap: () {
-                                  MainScreen.of(context)?.setSelectedIndex(1);
-                                  UserManagementScreen.userManagementKey.currentState?.selectTab('Member');
-                                },
-                              ),
-                              const SizedBox(width: 12),
-                              _buildActivityCard(
-                                context: context,
-                                title: 'Pending Requests',
-                                value: '${stats?.pendingApprovals ?? 0}',
-                                subtext: 'View requests > >',
-                                icon: Icons.assignment_outlined,
-                                color: const Color(0xFFF59E0B),
-                                isLink: true,
-                                onTap: () {
-                                  MainScreen.of(context)?.setSelectedIndex(1);
-                                  UserManagementScreen.userManagementKey.currentState?.selectTab('Pending');
-                                },
-                              ),
-                              const SizedBox(width: 12),
-                              _buildActivityCard(
-                                context: context,
-                                title: 'Sub Admins',
-                                value: '${stats?.totalSubAdmins ?? 0}',
-                                subtext: 'View all > >',
-                                icon: Icons.security_outlined,
-                                color: const Color(0xFF8B5CF6),
-                                isLink: true,
-                                onTap: () {
-                                  MainScreen.of(context)?.setSelectedIndex(1);
-                                  UserManagementScreen.userManagementKey.currentState?.selectTab('Sub Admin');
-                                },
-                              ),
-                            ],
-                          ),
+                        // Today's Activity carousel
+                        DashboardCarousel(
+                          cards: [
+                            _buildActivityCard(
+                              context: context,
+                              title: 'New Members',
+                              value: '${stats?.newMembersToday ?? 0}',
+                              subtext: 'Registered today',
+                              icon: Icons.person_add_outlined,
+                              color: const Color(0xFF004D2A),
+                              onTap: () {
+                                MainScreen.of(context)?.setSelectedIndex(1);
+                                UserManagementScreen.userManagementKey.currentState?.selectTab('Member');
+                              },
+                            ),
+                            _buildActivityCard(
+                              context: context,
+                              title: 'Approved Today',
+                              value: '${stats?.approvedToday ?? 0}',
+                              subtext: 'Approved today',
+                              icon: Icons.how_to_reg_outlined,
+                              color: const Color(0xFF10B981),
+                              onTap: () {
+                                MainScreen.of(context)?.setSelectedIndex(1);
+                                UserManagementScreen.userManagementKey.currentState?.selectTab('Member');
+                              },
+                            ),
+                            _buildActivityCard(
+                              context: context,
+                              title: 'Total Towns',
+                              value: '${stats?.totalTowns ?? 0}',
+                              subtext: 'Total towns in scope',
+                              icon: Icons.location_city_outlined,
+                              color: const Color(0xFF2563EB),
+                            ),
+                            _buildActivityCard(
+                              context: context,
+                              title: 'Total Streets',
+                              value: '${stats?.totalStreets ?? 0}',
+                              subtext: 'Total streets in scope',
+                              icon: Icons.streetview_outlined,
+                              color: const Color(0xFFD97706),
+                            ),
+                            _buildActivityCard(
+                              context: context,
+                              title: 'Active Events',
+                              value: '${stats?.activeEvents ?? 0}',
+                              subtext: 'Upcoming events',
+                              icon: Icons.calendar_today_outlined,
+                              color: const Color(0xFF2563EB),
+                              onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                            ),
+                            _buildActivityCard(
+                              context: context,
+                              title: 'Emergency Requests',
+                              value: '${stats?.emergencyRequests ?? 0}',
+                              subtext: 'Active alerts',
+                              icon: Icons.warning_amber_rounded,
+                              color: const Color(0xFFEF4444),
+                              onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                            ),
+                            _buildActivityCard(
+                              context: context,
+                              title: 'Active Broadcasts',
+                              value: '${stats?.activeBroadcasts ?? 0}',
+                              subtext: 'Active broadcasts',
+                              icon: Icons.campaign_outlined,
+                              color: const Color(0xFF8B5CF6),
+                              onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                            ),
+                          ],
                         ),
                         
                         const SizedBox(height: 28),
@@ -407,13 +398,12 @@ class SubAdminDashboard extends StatelessWidget {
     required String subtext,
     required IconData icon,
     required Color color,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
     bool isLink = false,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 145,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -533,6 +523,77 @@ class SubAdminDashboard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class DashboardCarousel extends StatefulWidget {
+  final List<Widget> cards;
+
+  const DashboardCarousel({super.key, required this.cards});
+
+  @override
+  State<DashboardCarousel> createState() => _DashboardCarouselState();
+}
+
+class _DashboardCarouselState extends State<DashboardCarousel> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.85);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 145,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.cards.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: widget.cards[index],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.cards.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: _currentPage == index ? 16 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _currentPage == index
+                    ? const Color(0xFF004D2A)
+                    : const Color(0xFFD1D5DB),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -84,13 +84,14 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final myId = context.watch<AuthBloc>().state.loginData?.id;
+
     return Scaffold(
       appBar: NTKAppBar(
         title: widget.community.name,
         subtitle: 'Community Chat',
-        // TODO: add settings action
       ),
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFEFEFEF),
       body: Column(
         children: [
           Expanded(
@@ -120,12 +121,11 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                 return ListView.builder(
                   controller: _scrollController,
                   reverse: true, // Messages appear from bottom up
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
                   itemCount: state.messages.length,
                   itemBuilder: (context, index) {
                     final message = state.messages[index];
-                    // Basic check for "my" message. In real app, compare with current user ID
-                    final isMe = message.senderName == 'Me';
+                    final isMe = message.senderId == myId || message.senderName == 'Me';
                     return _buildMessageBubble(message, isMe);
                   },
                 );
@@ -138,6 +138,24 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
     );
   }
 
+  Color _getSenderColor(String name) {
+    final colors = [
+      Colors.red[700]!,
+      Colors.blue[700]!,
+      Colors.green[700]!,
+      Colors.orange[700]!,
+      Colors.purple[700]!,
+      Colors.teal[700]!,
+      Colors.pink[700]!,
+      Colors.indigo[700]!,
+    ];
+    int hash = 0;
+    for (int i = 0; i < name.length; i++) {
+      hash = name.codeUnitAt(i) + ((hash << 5) - hash);
+    }
+    return colors[hash.abs() % colors.length];
+  }
+
   Widget _buildMessageBubble(CommunityMessageModel message, bool isMe) {
     if (message.isDeleted) {
       return Align(
@@ -146,8 +164,9 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.grey[300],
+            color: Colors.grey[200],
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE5E7EB), width: 0.8),
           ),
           child: const Text(
             '🚫 This message was deleted',
@@ -162,65 +181,74 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         decoration: BoxDecoration(
-          color: isMe ? NTKColors.primary : Colors.white,
+          color: isMe ? const Color(0xFFDCFCE7) : Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(isMe ? 16 : 0),
             bottomRight: Radius.circular(isMe ? 0 : 16),
           ),
+          border: Border.all(
+            color: isMe ? const Color(0xFFBBF7D0) : const Color(0xFFE5E7EB),
+            width: 0.8,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 1.5),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (!isMe)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4.0),
                   child: Text(
                     message.senderName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: NTKColors.primary,
-                      fontSize: 12,
+                      color: _getSenderColor(message.senderName),
+                      fontSize: 12.5,
                     ),
                   ),
                 ),
               _buildMessageContent(message, isMe),
               const SizedBox(height: 6),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    _formatTime(message.createdAt),
-                    style: TextStyle(
-                      color: isMe ? Colors.white70 : Colors.grey,
-                      fontSize: 10,
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _formatTime(message.createdAt),
+                      style: TextStyle(
+                        color: isMe
+                            ? const Color(0xFF166534).withOpacity(0.7)
+                            : const Color(0xFF6B7280),
+                        fontSize: 10,
+                      ),
                     ),
-                  ),
-                  if (isMe) ...[
-                    const SizedBox(width: 4),
-                    Icon(
-                      message.readByCount > 0 ? Icons.done_all : Icons.check,
-                      size: 14,
-                      color: message.readByCount > 0
-                          ? Colors.blue[200]
-                          : Colors.white70,
-                    ),
+                    if (isMe) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        message.readByCount > 0 ? Icons.done_all : Icons.done,
+                        size: 14,
+                        color: message.readByCount > 0
+                            ? Colors.blue[600]
+                            : const Color(0xFF166534).withOpacity(0.7),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ],
           ),
@@ -256,7 +284,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
     return Text(
       message.message,
       style: TextStyle(
-        color: isMe ? Colors.white : Colors.black87,
+        color: isMe ? const Color(0xFF14532D) : const Color(0xFF1F2937),
         fontSize: 15,
       ),
     );
@@ -293,7 +321,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
           Text(
             message.message,
             style: TextStyle(
-              color: isMe ? Colors.white : Colors.black87,
+              color: isMe ? const Color(0xFF14532D) : const Color(0xFF1F2937),
               fontSize: 14,
             ),
           ),
@@ -345,7 +373,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
           Text(
             message.message,
             style: TextStyle(
-              color: isMe ? Colors.white : Colors.black87,
+              color: isMe ? const Color(0xFF14532D) : const Color(0xFF1F2937),
               fontSize: 14,
             ),
           ),
@@ -359,7 +387,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isMe ? Colors.white12 : Colors.grey[100],
+        color: isMe ? const Color(0xFFBBF7D0).withOpacity(0.3) : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -367,7 +395,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
         children: [
           Icon(
             Icons.audiotrack,
-            color: isMe ? Colors.white : NTKColors.primary,
+            color: isMe ? const Color(0xFF166534) : NTKColors.primary,
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -378,7 +406,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                 Text(
                   message.fileName ?? 'Audio Attachment',
                   style: TextStyle(
-                    color: isMe ? Colors.white : Colors.black87,
+                    color: isMe ? const Color(0xFF14532D) : const Color(0xFF1F2937),
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
@@ -388,7 +416,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                 Text(
                   message.message.isNotEmpty ? message.message : 'Audio',
                   style: TextStyle(
-                    color: isMe ? Colors.white70 : Colors.black54,
+                    color: isMe ? const Color(0xFF166534).withOpacity(0.8) : Colors.black54,
                     fontSize: 11,
                   ),
                 ),
@@ -399,7 +427,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
             IconButton(
               icon: Icon(
                 Icons.play_circle_outline,
-                color: isMe ? Colors.white : NTKColors.primary,
+                color: isMe ? const Color(0xFF166534) : NTKColors.primary,
               ),
               onPressed: () => _launchURL(url),
             ),
@@ -413,7 +441,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: isMe ? Colors.white12 : Colors.grey[100],
+        color: isMe ? const Color(0xFFBBF7D0).withOpacity(0.3) : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -421,7 +449,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
         children: [
           Icon(
             Icons.insert_drive_file,
-            color: isMe ? Colors.white : NTKColors.primary,
+            color: isMe ? const Color(0xFF166534) : NTKColors.primary,
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -432,7 +460,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                 Text(
                   message.fileName ?? 'Document',
                   style: TextStyle(
-                    color: isMe ? Colors.white : Colors.black87,
+                    color: isMe ? const Color(0xFF14532D) : const Color(0xFF1F2937),
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
@@ -444,7 +472,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                       ? message.message
                       : 'File Attachment',
                   style: TextStyle(
-                    color: isMe ? Colors.white70 : Colors.black54,
+                    color: isMe ? const Color(0xFF166534).withOpacity(0.8) : Colors.black54,
                     fontSize: 11,
                   ),
                 ),
@@ -455,7 +483,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
             IconButton(
               icon: Icon(
                 Icons.download,
-                color: isMe ? Colors.white : NTKColors.primary,
+                color: isMe ? const Color(0xFF166534) : NTKColors.primary,
               ),
               onPressed: () => _launchURL(url),
             ),
@@ -482,9 +510,9 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isMe ? Colors.white10 : Colors.grey[100],
+        color: isMe ? const Color(0xFFBBF7D0).withOpacity(0.3) : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isMe ? Colors.white24 : Colors.grey[300]!),
+        border: Border.all(color: isMe ? const Color(0xFFBBF7D0) : Colors.grey[300]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -493,10 +521,10 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor: isMe ? Colors.white24 : NTKColors.emerald50,
+                backgroundColor: isMe ? const Color(0xFFBBF7D0) : NTKColors.emerald50,
                 child: Icon(
                   Icons.person,
-                  color: isMe ? Colors.white : NTKColors.primary,
+                  color: isMe ? const Color(0xFF166534) : NTKColors.primary,
                   size: 18,
                 ),
               ),
@@ -508,7 +536,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                     Text(
                       name,
                       style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
+                        color: isMe ? const Color(0xFF14532D) : const Color(0xFF1F2937),
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -517,7 +545,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                       Text(
                         phone,
                         style: TextStyle(
-                          color: isMe ? Colors.white70 : Colors.black54,
+                          color: isMe ? const Color(0xFF166534).withOpacity(0.8) : Colors.black54,
                           fontSize: 12,
                         ),
                       ),
@@ -535,12 +563,12 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
               icon: Icon(
                 Icons.phone,
                 size: 16,
-                color: isMe ? Colors.white : NTKColors.primary,
+                color: isMe ? const Color(0xFF166534) : NTKColors.primary,
               ),
               label: Text(
                 'Call Contact',
                 style: TextStyle(
-                  color: isMe ? Colors.white : NTKColors.primary,
+                  color: isMe ? const Color(0xFF166534) : NTKColors.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
@@ -575,9 +603,9 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isMe ? Colors.white10 : Colors.grey[100],
+        color: isMe ? const Color(0xFFBBF7D0).withOpacity(0.3) : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isMe ? Colors.white24 : Colors.grey[300]!),
+        border: Border.all(color: isMe ? const Color(0xFFBBF7D0) : Colors.grey[300]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,7 +614,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
             children: [
               Icon(
                 Icons.event,
-                color: isMe ? Colors.amber[300] : NTKColors.amber500,
+                color: isMe ? const Color(0xFF166534) : NTKColors.primary,
                 size: 24,
               ),
               const SizedBox(width: 8),
@@ -605,7 +633,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                     Text(
                       title,
                       style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
+                        color: isMe ? const Color(0xFF14532D) : const Color(0xFF1F2937),
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -635,7 +663,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
               child: Text(
                 'View Event Details →',
                 style: TextStyle(
-                  color: isMe ? Colors.white : NTKColors.primary,
+                  color: isMe ? const Color(0xFF166534) : NTKColors.primary,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
@@ -660,9 +688,9 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isMe ? Colors.white10 : Colors.grey[100],
+        color: isMe ? const Color(0xFFBBF7D0).withOpacity(0.3) : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isMe ? Colors.white24 : Colors.grey[300]!),
+        border: Border.all(color: isMe ? const Color(0xFFBBF7D0) : Colors.grey[300]!),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -671,7 +699,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
             children: [
               Icon(
                 Icons.bar_chart,
-                color: isMe ? Colors.green[300] : NTKColors.primary,
+                color: isMe ? const Color(0xFF166534) : NTKColors.primary,
                 size: 24,
               ),
               const SizedBox(width: 8),
@@ -690,7 +718,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                     Text(
                       question,
                       style: TextStyle(
-                        color: isMe ? Colors.white : Colors.black87,
+                        color: isMe ? const Color(0xFF14532D) : const Color(0xFF1F2937),
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -715,7 +743,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
             child: Text(
               'Go to Polls Tab to Vote →',
               style: TextStyle(
-                color: isMe ? Colors.white : NTKColors.primary,
+                color: isMe ? const Color(0xFF166534) : NTKColors.primary,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),

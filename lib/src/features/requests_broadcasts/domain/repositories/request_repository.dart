@@ -10,7 +10,6 @@ abstract class RequestRepository {
     required String message,
     String? image,
     required int locationId,
-    int? streetId,
   });
 
   Future<List<EmergencyRequestModel>> getEmergencyRequestList({

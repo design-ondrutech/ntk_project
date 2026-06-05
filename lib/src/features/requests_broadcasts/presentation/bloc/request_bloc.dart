@@ -31,17 +31,15 @@ class CreateBroadcastMessage extends RequestEvent {
   final String title;
   final String message;
   final int locationId;
-  final int? streetId;
 
   const CreateBroadcastMessage({
     required this.title,
     required this.message,
     required this.locationId,
-    this.streetId,
   });
 
   @override
-  List<Object?> get props => [title, message, locationId, streetId];
+  List<Object?> get props => [title, message, locationId];
 }
 
 class CreateRequest extends RequestEvent {
@@ -191,7 +189,6 @@ class RequestBloc extends Bloc<RequestEvent, RequestState> {
         title: event.title,
         message: event.message,
         locationId: event.locationId,
-        streetId: event.streetId,
       );
       final broadcasts = await _repository.getBroadcasts(
         locationId: event.locationId,

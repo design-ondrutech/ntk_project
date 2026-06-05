@@ -24,6 +24,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
           newMembersToday
           approvedToday
           activeBroadcasts
+          totalTowns
         }
       }
     ''';

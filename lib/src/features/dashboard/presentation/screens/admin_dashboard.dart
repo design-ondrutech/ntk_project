@@ -183,94 +183,111 @@ class AdminDashboard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  SizedBox(
-                    height: 125,
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _buildActivityCard(
-                          title: 'Events Today',
-                          value: '${stats?.activeEvents ?? 0}',
-                          subtext: 'Upcoming',
-                          icon: Icons.event,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 12),
-                        _buildActivityCard(
-                          title: 'Broadcasts',
-                          value: '${stats?.activeBroadcasts ?? 0}',
-                          subtext: 'Messages sent',
-                          icon: Icons.campaign_outlined,
-                          color: Colors.purple,
-                        ),
-                        const SizedBox(width: 12),
-                        _buildActivityCard(
-                          title: 'Emergency',
-                          value: '${stats?.emergencyRequests ?? 0}',
-                          subtext: 'Active alerts',
-                          icon: Icons.warning_amber_rounded,
-                          color: Colors.red,
-                        ),
-                      ],
-                    ),
+                  DashboardCarousel(
+                    height: 135,
+                    cards: [
+                      _buildActivityCard(
+                        title: 'New Members',
+                        value: '${stats?.newMembersToday ?? 0}',
+                        subtext: 'Registered today',
+                        icon: Icons.person_add_outlined,
+                        color: const Color(0xFF004D2A),
+                        onTap: () {
+                          MainScreen.of(context)?.setSelectedIndex(1);
+                          UserManagementScreen.userManagementKey.currentState?.selectTab('Member');
+                        },
+                      ),
+                      _buildActivityCard(
+                        title: 'Approved Today',
+                        value: '${stats?.approvedToday ?? 0}',
+                        subtext: 'Approved today',
+                        icon: Icons.how_to_reg_outlined,
+                        color: const Color(0xFF10B981),
+                        onTap: () {
+                          MainScreen.of(context)?.setSelectedIndex(1);
+                          UserManagementScreen.userManagementKey.currentState?.selectTab('Member');
+                        },
+                      ),
+                      _buildActivityCard(
+                        title: 'Total Towns',
+                        value: '${stats?.totalTowns ?? 0}',
+                        subtext: 'Total towns in scope',
+                        icon: Icons.location_city_outlined,
+                        color: const Color(0xFF2563EB),
+                      ),
+                      _buildActivityCard(
+                        title: 'Total Streets',
+                        value: '${stats?.totalStreets ?? 0}',
+                        subtext: 'Total streets in scope',
+                        icon: Icons.streetview_outlined,
+                        color: const Color(0xFFD97706),
+                      ),
+                      _buildActivityCard(
+                        title: 'Active Events',
+                        value: '${stats?.activeEvents ?? 0}',
+                        subtext: 'Upcoming events',
+                        icon: Icons.calendar_today_outlined,
+                        color: const Color(0xFF2563EB),
+                        onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                      ),
+                      _buildActivityCard(
+                        title: 'Emergency Requests',
+                        value: '${stats?.emergencyRequests ?? 0}',
+                        subtext: 'Active alerts',
+                        icon: Icons.warning_amber_rounded,
+                        color: const Color(0xFFEF4444),
+                        onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                      ),
+                      _buildActivityCard(
+                        title: 'Active Broadcasts',
+                        value: '${stats?.activeBroadcasts ?? 0}',
+                        subtext: 'Active broadcasts',
+                        icon: Icons.campaign_outlined,
+                        color: const Color(0xFF8B5CF6),
+                        onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 24),
 
                   // Statistics Overview Section (Horizontal List)
-                  SizedBox(
-                    height: 140,
-                    child: ListView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        SizedBox(
-                          width: 150,
-                          child: _buildCustomStatCard(
-                            title: 'Sub Admins',
-                            value: '${stats?.totalSubAdmins ?? 0}',
-                            icon: Icons.person_add_alt_1_outlined,
-                            color: const Color(0xFF059669), // Green
-                            actionText: 'View all',
-                            onTap: () {
-                              MainScreen.of(context)?.setSelectedIndex(1);
-                              UserManagementScreen.userManagementKey.currentState?.selectTab('Sub Admin');
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 150,
-                          child: _buildCustomStatCard(
-                            title: 'Members',
-                            value: '${stats?.totalMembers ?? 0}',
-                            icon: Icons.people_alt_outlined,
-                            color: const Color(0xFF2563EB), // Blue
-                            actionText: 'View all',
-                            onTap: () {
-                              MainScreen.of(context)?.setSelectedIndex(1);
-                              UserManagementScreen.userManagementKey.currentState?.selectTab('Member');
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 150,
-                          child: _buildCustomStatCard(
-                            title: 'Pending Requests',
-                            value: '${stats?.pendingApprovals ?? 0}',
-                            icon: Icons.assignment_late_outlined,
-                            color: const Color(0xFFD97706), // Amber
-                            actionText: 'View queue',
-                            onTap: () {
-                              MainScreen.of(context)?.setSelectedIndex(1);
-                              UserManagementScreen.userManagementKey.currentState?.selectTab('Pending');
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                  DashboardCarousel(
+                    height: 150,
+                    cards: [
+                      _buildCustomStatCard(
+                        title: 'Sub Admins',
+                        value: '${stats?.totalSubAdmins ?? 0}',
+                        icon: Icons.person_add_alt_1_outlined,
+                        color: const Color(0xFF059669), // Green
+                        actionText: 'View all',
+                        onTap: () {
+                          MainScreen.of(context)?.setSelectedIndex(1);
+                          UserManagementScreen.userManagementKey.currentState?.selectTab('Sub Admin');
+                        },
+                      ),
+                      _buildCustomStatCard(
+                        title: 'Members',
+                        value: '${stats?.totalMembers ?? 0}',
+                        icon: Icons.people_alt_outlined,
+                        color: const Color(0xFF2563EB), // Blue
+                        actionText: 'View all',
+                        onTap: () {
+                          MainScreen.of(context)?.setSelectedIndex(1);
+                          UserManagementScreen.userManagementKey.currentState?.selectTab('Member');
+                        },
+                      ),
+                      _buildCustomStatCard(
+                        title: 'Pending Requests',
+                        value: '${stats?.pendingApprovals ?? 0}',
+                        icon: Icons.assignment_late_outlined,
+                        color: const Color(0xFFD97706), // Amber
+                        actionText: 'View queue',
+                        onTap: () {
+                          Navigator.pushNamed(context, '/pending_requests');
+                        },
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 28),
@@ -375,69 +392,73 @@ class AdminDashboard extends StatelessWidget {
     required String subtext,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      width: 140,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    shape: BoxShape.circle,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  child: Icon(icon, size: 16, color: color),
                 ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtext,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[500],
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 4),
+            Text(
+              subtext,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -581,6 +602,78 @@ class AdminDashboard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class DashboardCarousel extends StatefulWidget {
+  final List<Widget> cards;
+  final double height;
+
+  const DashboardCarousel({super.key, required this.cards, this.height = 145});
+
+  @override
+  State<DashboardCarousel> createState() => _DashboardCarouselState();
+}
+
+class _DashboardCarouselState extends State<DashboardCarousel> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.85);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: widget.height,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.cards.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: widget.cards[index],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.cards.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: _currentPage == index ? 16 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _currentPage == index
+                    ? const Color(0xFF004D2A)
+                    : const Color(0xFFD1D5DB),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -141,22 +141,14 @@ class SuperAdminDashboard extends StatelessWidget {
                         // Today's Activity Section
                         const Text('Today\'s Activity', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                         const SizedBox(height: 12),
-                        SizedBox(
-                          height: 96,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              buildHorizontalActivityCard('New\nMembers', '0', const Color(0xFF004D2A)),
-                              const SizedBox(width: 12),
-                              buildHorizontalActivityCard('Approved', '0', const Color(0xFF004D2A)),
-                              const SizedBox(width: 12),
-                              buildHorizontalActivityCard('Events', '14', Colors.blue),
-                              const SizedBox(width: 12),
-                              buildHorizontalActivityCard('Broadcasts', '2', Colors.purple),
-                              const SizedBox(width: 12),
-                              buildHorizontalActivityCard('Emergency\nAlerts', '0', Colors.red),
-                            ],
-                          ),
+                        DashboardCarousel(
+                          cards: [
+                            buildHorizontalActivityCard('New\nMembers', '${state.stats?.newMembersToday ?? 0}', const Color(0xFF004D2A), width: null),
+                            buildHorizontalActivityCard('Approved', '${state.stats?.approvedToday ?? 0}', const Color(0xFF004D2A), width: null),
+                            buildHorizontalActivityCard('Events', '${state.stats?.activeEvents ?? 0}', Colors.blue, width: null),
+                            buildHorizontalActivityCard('Broadcasts', '${state.stats?.activeBroadcasts ?? 0}', Colors.purple, width: null),
+                            buildHorizontalActivityCard('Emergency\nAlerts', '${state.stats?.emergencyRequests ?? 0}', Colors.red, width: null),
+                          ],
                         ),
                         const SizedBox(height: 20),
 
@@ -205,8 +197,7 @@ class SuperAdminDashboard extends StatelessWidget {
                               Icons.assignment_late_outlined,
                               Colors.red,
                               onTap: () {
-                                MainScreen.of(context)?.setSelectedIndex(1);
-                                UserManagementScreen.userManagementKey.currentState?.selectTab('Pending');
+                                Navigator.pushNamed(context, '/pending_requests');
                               },
                             ),
                           ],
@@ -252,6 +243,77 @@ class SuperAdminDashboard extends StatelessWidget {
                 ),
         );
       },
+    );
+  }
+}
+
+class DashboardCarousel extends StatefulWidget {
+  final List<Widget> cards;
+
+  const DashboardCarousel({super.key, required this.cards});
+
+  @override
+  State<DashboardCarousel> createState() => _DashboardCarouselState();
+}
+
+class _DashboardCarouselState extends State<DashboardCarousel> {
+  late final PageController _pageController;
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.85);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 106,
+          child: PageView.builder(
+            controller: _pageController,
+            itemCount: widget.cards.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: widget.cards[index],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            widget.cards.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: _currentPage == index ? 16 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _currentPage == index
+                    ? const Color(0xFF004D2A)
+                    : const Color(0xFFD1D5DB),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
