@@ -34,6 +34,7 @@ class EventsOverviewScreen extends StatefulWidget {
 
 class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
   bool _isEmergency = false;
+  int _selectedSubTabIndex = 0; // 0: Emergency Alerts, 1: Recent Broadcasts
 
   int? get _effectiveLocationId {
     if (widget.locationId != null) return widget.locationId;
@@ -371,163 +372,229 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      canCreate ? 'Recent Broadcasts' : 'Emergency & Updates',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/create_announcement');
+                    },
+                    icon: Icon(
+                      canCreate ? CupertinoIcons.plus : Icons.warning_amber_rounded,
+                      size: 18,
+                      color: Colors.white,
                     ),
-                    if (canCreate)
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/create_announcement');
-                        },
-                        icon: const Icon(CupertinoIcons.plus, size: 16, color: Colors.white),
-                        label: const Text('Create Broadcast', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF004D2A),
-                          minimumSize: const Size(0, 36),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        ),
-                      )
-                    else
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/create_announcement');
-                        },
-                        icon: const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.white),
-                        label: const Text(
-                          'Report Emergency',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEF4444),
-                          minimumSize: const Size(0, 32),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          elevation: 0,
+                    label: Text(
+                      canCreate ? 'Create Broadcast' : 'Report Emergency',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: canCreate ? const Color(0xFF004D2A) : const Color(0xFFEF4444),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(() => _selectedSubTabIndex = 0),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Emergency Alerts',
+                              style: TextStyle(
+                                color: _selectedSubTabIndex == 0 ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: _selectedSubTabIndex == 0 ? const Color(0xFFEF4444) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => setState(() => _selectedSubTabIndex = 1),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Recent Broadcasts',
+                              style: TextStyle(
+                                color: _selectedSubTabIndex == 1 ? const Color(0xFF004D2A) : const Color(0xFF64748B),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: _selectedSubTabIndex == 1 ? const Color(0xFF004D2A) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              if (broadcasts.isEmpty && emergencies.isEmpty)
-                const Expanded(
-                  child: Center(child: Text('No broadcasts or emergencies found')),
-                )
-              else
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: (emergencies.isNotEmpty ? emergencies.length + 1 : 0) +
-                        (broadcasts.isNotEmpty ? broadcasts.length + 1 : 0),
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final hasEmergencies = emergencies.isNotEmpty;
-                      final hasBroadcasts = broadcasts.isNotEmpty;
-
-                      // Helper function to map flat index to sections
-                      if (hasEmergencies) {
-                        if (index == 0) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Emergency Alerts',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFEF4444),
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: () {},
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  child: const Text(
-                                    'View All',
-                                    style: TextStyle(
-                                      color: Color(0xFFEF4444),
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        } else if (index <= emergencies.length) {
-                          return _buildEmergencyCard(emergencies[index - 1]);
-                        }
-                      }
-
-                      // Adjust index for broadcasts
-                      final broadcastStartIndex = hasEmergencies ? emergencies.length + 1 : 0;
-                      final broadcastRelativeIndex = index - broadcastStartIndex;
-
-                      if (hasBroadcasts) {
-                        if (broadcastRelativeIndex == 0) {
-                          return const Padding(
-                            padding: EdgeInsets.only(top: 8.0, bottom: 4.0),
-                            child: Text(
-                              'Recent Broadcasts',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B)),
-                            ),
-                          );
-                        } else {
-                          final broadcast = broadcasts[broadcastRelativeIndex - 1];
-                          return _buildBroadcastItem(
-                            broadcast,
-                            onDelete: canCreate
-                                ? () {
-                                    showCupertinoDialog(
-                                      context: context,
-                                      builder: (context) => CupertinoAlertDialog(
-                                        title: const Text('Recall Broadcast'),
-                                        content: const Text(
-                                          'Are you sure you want to recall this broadcast message? This action cannot be undone.',
+              Expanded(
+                child: _selectedSubTabIndex == 0
+                    ? (emergencies.isEmpty
+                        ? const Center(child: Text('No emergency alerts found'))
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: emergencies.take(5).length + 1,
+                            separatorBuilder: (context, index) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              if (index == 0) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'Emergency Alerts',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFFEF4444),
                                         ),
-                                        actions: [
-                                          CupertinoDialogAction(
-                                            child: const Text('Cancel'),
-                                            onPressed: () => Navigator.pop(context),
-                                          ),
-                                          CupertinoDialogAction(
-                                            isDestructiveAction: true,
-                                            child: const Text('Recall'),
-                                            onPressed: () {
-                                              context
-                                                  .read<RequestBloc>()
-                                                  .add(RecallBroadcast(id: broadcast.id));
-                                              Navigator.pop(context);
-                                            },
-                                          ),
-                                        ],
                                       ),
-                                    );
-                                  }
-                                : null,
-                          );
-                        }
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/all_alerts',
+                                            arguments: {'type': 'EMERGENCY'},
+                                          );
+                                        },
+                                        style: TextButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        child: const Text(
+                                          'View All',
+                                          style: TextStyle(
+                                            color: Color(0xFFEF4444),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return _buildEmergencyCard(emergencies[index - 1]);
+                            },
+                          ))
+                    : (broadcasts.isEmpty
+                        ? const Center(child: Text('No recent broadcasts found'))
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: broadcasts.take(5).length + 1,
+                            separatorBuilder: (context, index) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              if (index == 0) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'Recent Broadcasts',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF004D2A),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/all_alerts',
+                                            arguments: {'type': 'BROADCAST'},
+                                          );
+                                        },
+                                        style: TextButton.styleFrom(
+                                          padding: EdgeInsets.zero,
+                                          minimumSize: Size.zero,
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                        child: const Text(
+                                          'View All',
+                                          style: TextStyle(
+                                            color: Color(0xFF004D2A),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              final broadcast = broadcasts[index - 1];
+                              return _buildBroadcastItem(
+                                context,
+                                broadcast,
+                                onDelete: canCreate
+                                    ? () {
+                                        showCupertinoDialog(
+                                          context: context,
+                                          builder: (context) => CupertinoAlertDialog(
+                                            title: const Text('Recall Broadcast'),
+                                            content: const Text(
+                                              'Are you sure you want to recall this broadcast message? This action cannot be undone.',
+                                            ),
+                                            actions: [
+                                              CupertinoDialogAction(
+                                                child: const Text('Cancel'),
+                                                onPressed: () => Navigator.pop(context),
+                                              ),
+                                              CupertinoDialogAction(
+                                                isDestructiveAction: true,
+                                                child: const Text('Recall'),
+                                                onPressed: () {
+                                                  context
+                                                      .read<RequestBloc>()
+                                                      .add(RecallBroadcast(id: broadcast.id));
+                                                  Navigator.pop(context);
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                    : null,
+                              );
+                            },
+                          )),
+              ),
             ],
           ),
         );
@@ -536,6 +603,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
   }
 
   Widget _buildBroadcastItem(
+    BuildContext context,
     BroadcastModel broadcast, {
     VoidCallback? onDelete,
   }) {
@@ -679,17 +747,6 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
             value: requestBloc,
             child: BlocBuilder<RequestBloc, RequestState>(
               builder: (context, state) {
-                final isLoading = state.isLoading ||
-                    state.currentBroadcast == null ||
-                    state.currentBroadcast!.id != broadcast.id;
-
-                if (isLoading) {
-                  return const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
                 if (state.error != null) {
                   return Padding(
                     padding: const EdgeInsets.all(20.0),
@@ -706,6 +763,17 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> {
                         ),
                       ],
                     ),
+                  );
+                }
+
+                final isLoading = state.isLoading ||
+                    state.currentBroadcast == null ||
+                    state.currentBroadcast!.id != broadcast.id;
+
+                if (isLoading) {
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(child: CircularProgressIndicator()),
                   );
                 }
 

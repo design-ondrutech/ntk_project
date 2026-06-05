@@ -9,6 +9,7 @@ import 'package:ntk_project/src/features/members/presentation/screens/member_pro
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/event_details_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/emergency_details_screen.dart';
+import 'package:ntk_project/src/features/events/presentation/screens/all_alerts_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/create_event_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/event_responses_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/member_event_response_screen.dart';
@@ -134,6 +135,11 @@ class MainApp extends StatelessWidget {
           '/create_announcement': (context) => const CreateAnnouncementScreen(),
           '/event_details': (context) => const EventDetailsScreen(),
           '/emergency_details': (context) => const EmergencyDetailsScreen(),
+          '/all_alerts': (context) {
+            final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+            final type = args['type'] as String? ?? 'EMERGENCY';
+            return AllAlertsScreen(type: type);
+          },
           '/community': (context) => const CommunityGroupsScreen(),
           '/notifications': (context) => const NotificationsScreen(),
           '/add_member': (context) => const AddMemberScreen(),
