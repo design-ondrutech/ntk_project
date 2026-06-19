@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
+import 'package:ntk_project/src/core/widgets/async_base64_image.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/members/presentation/bloc/member_bloc.dart';
@@ -25,18 +26,44 @@ class _MembersListScreenState extends State<MembersListScreen> {
   String? _searchQuery;
   String? _selectedBloodGroup;
   String? _selectedRole;
+  int? _selectedLocationId;
+  String? _selectedLocationName;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _fetchMembers();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      final authState = context.read<AuthBloc>().state;
+      final locationId = _selectedLocationId ?? authState.loginData?.locationId;
+      context.read<MemberBloc>().add(
+        LoadMoreMembers(
+          locationId: locationId,
+          search: _searchQuery,
+          bloodGroup: _selectedBloodGroup,
+          role: _selectedRole,
+        ),
+      );
+    }
   }
 
   void _fetchMembers() {
     final authState = context.read<AuthBloc>().state;
+    final locationId = _selectedLocationId ?? authState.loginData?.locationId;
     context.read<MemberBloc>().add(
       LoadMembers(
-        locationId: authState.loginData?.locationId,
+        locationId: locationId,
         search: _searchQuery,
         bloodGroup: _selectedBloodGroup,
         role: _selectedRole,
@@ -201,6 +228,9 @@ class _MembersListScreenState extends State<MembersListScreen> {
   }
 
   String _getLocationSubtitle(AuthState authState) {
+    if (_selectedLocationName != null) {
+      return _selectedLocationName!;
+    }
     final loginLocationName = authState.loginData?.locationName;
     if (loginLocationName != null &&
         loginLocationName.isNotEmpty &&
@@ -224,7 +254,7 @@ class _MembersListScreenState extends State<MembersListScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final authState = context.watch<AuthBloc>().state;
-    final locationName = authState.loginData?.locationName ?? 'Tamil Nadu';
+    final locationName = _selectedLocationName ?? authState.loginData?.locationName ?? 'Tamil Nadu';
     final districtFilterValue = (locationName == 'Tamil Nadu') ? 'All Districts' : locationName;
 
     return Scaffold(
@@ -349,11 +379,18 @@ class _MembersListScreenState extends State<MembersListScreen> {
                   child: RefreshIndicator(
                     onRefresh: () async => _fetchMembers(),
                     child: ListView.separated(
+                      controller: _scrollController,
                       padding: const EdgeInsets.all(20),
-                      itemCount: state.members.length,
+                      itemCount: state.members.length + (state.hasReachedMax ? 0 : 1),
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 12),
                       itemBuilder: (context, index) {
+                        if (index >= state.members.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
                         final member = state.members[index];
                         return _buildMemberCard(member);
                       },
@@ -365,7 +402,10 @@ class _MembersListScreenState extends State<MembersListScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pushNamed(context, '/add_member'),
+        onPressed: () async {
+          await Navigator.pushNamed(context, '/add_member');
+          _fetchMembers();
+        },
         backgroundColor: theme.colorScheme.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -435,7 +475,10 @@ class _MembersListScreenState extends State<MembersListScreen> {
                         ListTile(
                           title: const Text('All Districts', style: TextStyle(fontWeight: FontWeight.bold)),
                           onTap: () {
-                            context.read<AuthBloc>().add(const ChangeLocationRequested(locationId: 1, locationName: 'Tamil Nadu'));
+                            setState(() {
+                              _selectedLocationId = 1;
+                              _selectedLocationName = 'Tamil Nadu';
+                            });
                             Navigator.pop(context);
                             _fetchMembers();
                           },
@@ -443,7 +486,10 @@ class _MembersListScreenState extends State<MembersListScreen> {
                         ...state.districts.map((d) => ListTile(
                           title: Text(d.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                           onTap: () {
-                            context.read<AuthBloc>().add(ChangeLocationRequested(locationId: d.id, locationName: d.name));
+                            setState(() {
+                              _selectedLocationId = d.id;
+                              _selectedLocationName = d.name;
+                            });
                             Navigator.pop(context);
                             _fetchMembers();
                           },
@@ -463,8 +509,10 @@ class _MembersListScreenState extends State<MembersListScreen> {
   Widget _buildMemberCard(MemberModel member) {
     final theme = Theme.of(context);
     return InkWell(
-      onTap: () =>
-          Navigator.pushNamed(context, '/profile', arguments: member.id),
+      onTap: () async {
+        await Navigator.pushNamed(context, '/profile', arguments: member.id);
+        _fetchMembers();
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -488,16 +536,59 @@ class _MembersListScreenState extends State<MembersListScreen> {
                 color: NTKColors.emerald50,
                 shape: BoxShape.circle,
               ),
-              child: Center(
-                child: Text(
-                  member.name[0],
-                  style: const TextStyle(
-                    color: NTKColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                  ),
-                ),
-              ),
+              clipBehavior: Clip.hardEdge,
+              child: member.image != null && member.image!.trim().isNotEmpty
+                  ? (member.image!.startsWith('http://') || member.image!.startsWith('https://')
+                      ? Image.network(
+                          member.image!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
+                              style: const TextStyle(
+                                color: NTKColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                              ),
+                            ),
+                          ),
+                        )
+                      : AsyncBase64Image(
+                          base64String: member.image!.contains('base64,')
+                              ? member.image!.substring(member.image!.indexOf('base64,') + 7)
+                              : member.image!,
+                          fit: BoxFit.cover,
+                          placeholderBuilder: (_) => Center(
+                            child: Text(
+                              member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
+                              style: const TextStyle(
+                                color: NTKColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                              ),
+                            ),
+                          ),
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
+                              style: const TextStyle(
+                                color: NTKColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                              ),
+                            ),
+                          ),
+                        ))
+                  : Center(
+                      child: Text(
+                        member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
+                        style: const TextStyle(
+                          color: NTKColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(

@@ -6,12 +6,15 @@ import 'package:ntk_project/src/features/auth/presentation/bloc/auth_event.dart'
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
+import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_bloc.dart';
+import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_state.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_bloc.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/main_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_widgets.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
+import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 
 class SuperAdminDashboard extends StatelessWidget {
   const SuperAdminDashboard({super.key, required this.authState});
@@ -32,6 +35,10 @@ class SuperAdminDashboard extends StatelessWidget {
             elevation: 0,
             centerTitle: false,
             automaticallyImplyLeading: false,
+            leading: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: buildDashboardAvatar(context),
+            ),
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -40,29 +47,39 @@ class SuperAdminDashboard extends StatelessWidget {
               ],
             ),
             actions: [
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/notifications');
-                    },
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
+              BlocBuilder<NotificationBloc, NotificationState>(
+                builder: (context, notifState) {
+                  final unreadCount = notifState.notifications.where((n) => !n.isRead).length;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/notifications');
+                        },
                       ),
-                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                      child: const Text('3', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                    ),
-                  ),
-                ],
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            child: Text(
+                              unreadCount > 99 ? '99+' : '$unreadCount',
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -72,6 +89,7 @@ class SuperAdminDashboard extends StatelessWidget {
               : RefreshIndicator(
                   onRefresh: () async {
                     context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
+                    context.read<DashboardBloc>().add(LoadModerationStats(state.globalLocation?.id ?? authState.loginData?.locationId));
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -129,6 +147,7 @@ class SuperAdminDashboard extends StatelessWidget {
                                     final location = val == null ? null : locationState.districts.firstWhere((d) => d.id == val);
                                     context.read<DashboardBloc>().add(UpdateGlobalLocation(location));
                                     context.read<DashboardBloc>().add(LoadDashboardStats(val ?? 1));
+                                    context.read<DashboardBloc>().add(LoadModerationStats(val ?? 1));
                                     context.read<PendingRequestsBloc>().add(LoadPendingRequests(locationId: val ?? 1));
                                   },
                                 ),
@@ -196,13 +215,121 @@ class SuperAdminDashboard extends StatelessWidget {
                               '${state.stats?.pendingApprovals ?? 0}',
                               Icons.assignment_late_outlined,
                               Colors.red,
-                              onTap: () {
-                                Navigator.pushNamed(context, '/pending_requests');
+                              onTap: () async {
+                                await Navigator.pushNamed(context, '/pending_requests');
+                                if (context.mounted) {
+                                  context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
+                                }
                               },
                             ),
                           ],
                         ),
                         const SizedBox(height: 24),
+                        const SizedBox(height: 24),
+                        
+                        // Moderation Section
+                        if (state.moderationStats != null) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Reported Posts',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                              if ((state.moderationStats?.highPriority ?? 0) > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.warning_rounded, size: 14, color: Colors.red),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${state.moderationStats?.highPriority} High Priority',
+                                        style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          GestureDetector(
+                            onTap: () async {
+                              await Navigator.pushNamed(context, '/moderation_queue');
+                              if (context.mounted) {
+                                context.read<DashboardBloc>().add(LoadModerationStats(state.globalLocation?.id ?? authState.loginData?.locationId));
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFF1F5F9)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.03),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Pending Reviews',
+                                            style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${state.moderationStats?.pendingReviews ?? 0}',
+                                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                                          ),
+                                        ],
+                                      ),
+                                      Container(
+                                        height: 40,
+                                        width: 1,
+                                        color: Colors.grey[200],
+                                      ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Total Reports',
+                                            style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${state.moderationStats?.totalReported ?? 0}',
+                                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                                          ),
+                                        ],
+                                      ),
+                                      const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+
                         
                         // Quick Actions Section
                         const Text('Quick Actions', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
@@ -215,13 +342,37 @@ class SuperAdminDashboard extends StatelessWidget {
                           crossAxisSpacing: 12,
                           childAspectRatio: 0.95,
                           children: [
-                            buildModernActionBtn('Add Admin', Icons.person_add_alt_1_outlined, const Color(0xFF004D2A), () => Navigator.pushNamed(context, '/create_admin')),
-                            buildModernActionBtn('Add Sub Admin', Icons.person_add_alt_outlined, const Color(0xFF004D2A), () => Navigator.pushNamed(context, '/create_sub_admin')),
-                            buildModernActionBtn('Add Member', Icons.person_add_outlined, const Color(0xFF004D2A), () => Navigator.pushNamed(context, '/create_member')),
-                            buildModernActionBtn('Broadcasts', Icons.campaign_outlined, const Color(0xFF004D2A), () => MainScreen.of(context)?.setSelectedIndex(2)),
-                            buildModernActionBtn('Events', Icons.event_note_outlined, const Color(0xFF004D2A), () => MainScreen.of(context)?.setSelectedIndex(2)),
-                            buildModernActionBtn('Emergency Alert', Icons.warning_amber_rounded, Colors.red, () => MainScreen.of(context)?.setSelectedIndex(2)),
-                            buildModernActionBtn('Requests', Icons.rule_folder_outlined, const Color(0xFF004D2A), () => MainScreen.of(context)?.setSelectedIndex(1)),
+                            buildModernActionBtn('Add Admin', Icons.person_add_alt_1_outlined, const Color(0xFF004D2A), () async {
+                              await Navigator.pushNamed(context, '/create_admin');
+                              if (context.mounted) {
+                                context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
+                              }
+                            }),
+                            buildModernActionBtn('Add Sub Admin', Icons.person_add_alt_outlined, const Color(0xFF004D2A), () async {
+                              await Navigator.pushNamed(context, '/create_sub_admin');
+                              if (context.mounted) {
+                                context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
+                              }
+                            }),
+                            buildModernActionBtn('Add Member', Icons.person_add_outlined, const Color(0xFF004D2A), () async {
+                              await Navigator.pushNamed(context, '/create_member');
+                              if (context.mounted) {
+                                context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
+                              }
+                            }),
+                            buildModernActionBtn('Broadcasts', Icons.campaign_outlined, const Color(0xFF004D2A), () {
+                              MainScreen.of(context)?.setSelectedIndex(2);
+                              EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 1);
+                            }),
+                            buildModernActionBtn('Events', Icons.event_note_outlined, const Color(0xFF004D2A), () {
+                              MainScreen.of(context)?.setSelectedIndex(2);
+                              EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(1);
+                            }),
+                            buildModernActionBtn('Emergency Alert', Icons.warning_amber_rounded, Colors.red, () {
+                              MainScreen.of(context)?.setSelectedIndex(2);
+                              EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 0);
+                            }),
+                            buildModernActionBtn('Requests', Icons.rule_folder_outlined, const Color(0xFF004D2A), () => Navigator.pushNamed(context, '/pending_requests')),
                             buildModernActionBtn('Community', Icons.forum_outlined, const Color(0xFF004D2A), () => MainScreen.of(context)?.setSelectedIndex(3)),
                           ],
                         ),

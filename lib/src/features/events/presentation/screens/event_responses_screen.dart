@@ -5,6 +5,7 @@ import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/events/data/models/event_model.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_bloc.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_state.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EventResponsesScreen extends StatefulWidget {
@@ -68,6 +69,64 @@ class _EventResponsesScreenState extends State<EventResponsesScreen> {
       return Scaffold(
         appBar: AppBar(title: const Text('Event Responses')),
         body: const Center(child: Text('No event specified')),
+      );
+    }
+
+    final authState = context.watch<AuthBloc>().state;
+    final userRole = authState.loginData?.role ?? 'MEMBER';
+
+    if (userRole == 'MEMBER') {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF004D2A),
+          foregroundColor: Colors.white,
+          title: const Text(
+            'Access Denied',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.lock_shield_fill,
+                    color: Colors.red,
+                    size: 48,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Access Denied',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Normal members do not have permission to view other participants\' response list.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 

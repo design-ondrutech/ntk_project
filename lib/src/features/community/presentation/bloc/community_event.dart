@@ -135,6 +135,16 @@ class DeletePost extends CommunityEvent {
   List<Object?> get props => [postId];
 }
 
+class ReportPost extends CommunityEvent {
+  final int postId;
+  final String reason;
+
+  const ReportPost({required this.postId, required this.reason});
+
+  @override
+  List<Object?> get props => [postId, reason];
+}
+
 class CreateCommunity extends CommunityEvent {
   final String name;
   final String? description;
@@ -154,12 +164,11 @@ class CreateCommunity extends CommunityEvent {
 
 class JoinCommunity extends CommunityEvent {
   final int communityId;
-  final int memberId;
 
-  const JoinCommunity({required this.communityId, required this.memberId});
+  const JoinCommunity({required this.communityId});
 
   @override
-  List<Object?> get props => [communityId, memberId];
+  List<Object?> get props => [communityId];
 }
 
 // ─── Chat Interactions ────────────────────────────────────────────────────────

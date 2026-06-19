@@ -13,6 +13,7 @@ import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/injection_container.dart';
+import 'package:ntk_project/src/core/utils/validators.dart';
 
 class CreateAdminScreen extends StatefulWidget {
   const CreateAdminScreen({super.key});
@@ -42,6 +43,7 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
   
   final _dobController = TextEditingController();
   String? _selectedGender;
+  String? _phoneErrorText;
 
   late LocationRepositoryImpl _locationRepo;
 
@@ -99,6 +101,13 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
     super.initState();
     _locationRepo = LocationRepositoryImpl(sl());
     _loadDistricts();
+    _phoneController.addListener(() {
+      if (_phoneErrorText != null) {
+        setState(() {
+          _phoneErrorText = null;
+        });
+      }
+    });
   }
 
   Future<void> _loadDistricts() async {
@@ -160,6 +169,14 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
       _showSnack('Please enter full name');
       return;
     }
+    if (!Validators.isValidName(_nameController.text)) {
+      _showSnack('Full Name can only contain English and Tamil alphabets and spaces');
+      return;
+    }
+    if (_surnameController.text.trim().isNotEmpty && !Validators.isValidName(_surnameController.text)) {
+      _showSnack('Surname can only contain English and Tamil alphabets and spaces');
+      return;
+    }
     if (_phoneController.text.trim().isEmpty) {
       _showSnack('Please enter mobile number');
       return;
@@ -170,6 +187,14 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
     }
     if (_selectedTaluk == null) {
       _showSnack('Please select a Taluk');
+      return;
+    }
+    if (_selectedBloodGroup == null) {
+      _showSnack('Please select Blood Group');
+      return;
+    }
+    if (_selectedProfession == null) {
+      _showSnack('Please select Profession');
       return;
     }
     if (_passwordController.text != _confirmPasswordController.text) {
@@ -196,6 +221,8 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
         locationId: _selectedTaluk!.id,
         dateOfBirth: dob,
         gender: gender,
+        bloodGroup: _selectedBloodGroup,
+        professionName: _selectedProfession,
       ),
     );
   }
@@ -208,7 +235,16 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
           _showSnack('Admin created successfully', isError: false);
           Navigator.pop(context);
         } else if (state is UserFailure) {
-          _showSnack(state.error);
+          final errMsg = state.error;
+          if (errMsg.contains('USER_PHONE_ALREADY_EXISTS') ||
+              errMsg.contains('This phone number is already registered') ||
+              errMsg.contains('already registered')) {
+            setState(() {
+              _phoneErrorText = 'This mobile number is already registered';
+            });
+          } else {
+            _showSnack(errMsg);
+          }
         }
       },
       child: Scaffold(
@@ -262,6 +298,7 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
                 controller: _phoneController,
                 icon: CupertinoIcons.phone,
                 keyboardType: TextInputType.phone,
+                errorText: _phoneErrorText,
               ),
               const SizedBox(height: 16),
 

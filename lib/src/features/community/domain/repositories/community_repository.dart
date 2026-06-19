@@ -6,11 +6,11 @@ import 'package:ntk_project/src/features/community/data/models/poll_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_member_model.dart';
 
 abstract class CommunityRepository {
-  Future<List<CommunityModel>> getCommunities();
+  Future<List<CommunityModel>> getCommunities({bool? joinedOnly});
 
   Future<List<PostModel>> getCommunityFeed({int? locationId});
 
-  Future<List<PostModel>> getCommunityPosts({required int communityId});
+  Future<List<PostModel>> getCommunityPosts({required int communityId, String? category});
   Future<PostModel> getPostDetails({required int id});
 
   Future<List<CommunityMessageModel>> getCommunityMessages({
@@ -31,6 +31,7 @@ abstract class CommunityRepository {
   });
 
   Future<int> likePost({required int id});
+  Future<int> unlikePost({required int id});
 
   Future<CommentModel> addComment({
     required int postId,
@@ -39,7 +40,7 @@ abstract class CommunityRepository {
     required String authorRole,
   });
 
-  Future<PostModel> createCommunityPost({
+  Future<PostModel> createFeedPost({
     required String title,
     required String content,
     required String category,
@@ -49,6 +50,15 @@ abstract class CommunityRepository {
     List<String>? images,
   });
 
+  Future<PostModel> createCommunityPost({
+    required int communityId,
+    required String title,
+    required String content,
+    String? category,
+    List<String>? images,
+    List<String>? documents,
+  });
+
   Future<PostModel> editPost({
     required int id,
     required String content,
@@ -56,6 +66,34 @@ abstract class CommunityRepository {
   });
 
   Future<bool> deletePost({required int id});
+
+  Future<void> reportPost({required int postId, required String reason});
+
+  Future<List<PostModel>> getReportedPostsList({int? locationId});
+
+  Future<PostModel> moderatePost({
+    required int postId,
+    required String action,
+    String? warningMessage,
+  });
+
+  Future<int> likeCommunityPost({required int postId});
+
+  Future<CommentModel> addCommunityComment({
+    required int postId,
+    required String content,
+  });
+
+  Future<void> reportCommunityPost({
+    required int postId,
+    required String reason,
+  });
+
+  Future<void> resolveCommunityPostReport({
+    required int reportId,
+    required String action,
+    String? warningMessage,
+  });
 
   Future<CommunityModel> createCommunity({
     required String name,
@@ -87,7 +125,8 @@ abstract class CommunityRepository {
     required int communityId,
   });
 
-  Future<bool> joinCommunity({required int communityId, required int memberId});
+  Future<bool> joinCommunity({required int communityId});
+  Future<bool> leaveCommunity({required int communityId});
 
   Future<CommunityModel> updateCommunityChatSettings({
     required int communityId,
@@ -119,6 +158,7 @@ abstract class CommunityRepository {
   });
 
   Future<int> voteInPoll({required int pollId, required int optionId});
-
+  Future<void> likePoll({required int pollId});
+  Future<CommentModel> addPollComment({required int pollId, required String content});
   Future<PollModel> getPollDetails({required int id});
 }

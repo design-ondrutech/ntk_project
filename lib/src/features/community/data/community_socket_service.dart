@@ -23,6 +23,14 @@ class CommunitySocketService {
   final _memberRemovedController =
       StreamController<Map<String, dynamic>>.broadcast();
 
+  // Moderation & Post Sync Events
+  final _reportResolvedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _postDeletedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _pollDeletedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
   Stream<CommunityMessageModel> get onMessageReceived =>
       _messageController.stream;
   Stream<CommunityMessageModel> get onMessageEdited =>
@@ -40,11 +48,19 @@ class CommunitySocketService {
   Stream<Map<String, dynamic>> get onMemberRemoved =>
       _memberRemovedController.stream;
 
+  // Moderation & Post Sync Streams
+  Stream<Map<String, dynamic>> get onReportResolved =>
+      _reportResolvedController.stream;
+  Stream<Map<String, dynamic>> get onPostDeletedGlobal =>
+      _postDeletedController.stream;
+  Stream<Map<String, dynamic>> get onPollDeletedGlobal =>
+      _pollDeletedController.stream;
+
   void connect(String token) {
     if (_socket != null && _socket!.connected) return;
 
     _socket = IO.io(
-      'https://naam-tamilar-katchi.onrender.com',
+      'https://naam-tamilar-katchi-5.onrender.com',
       IO.OptionBuilder().setTransports(['websocket']).setExtraHeaders({
         'Authorization': 'Bearer $token',
       }).build(),
@@ -110,6 +126,24 @@ class CommunitySocketService {
       }
     });
 
+    _socket?.on('reportResolved', (data) {
+      if (data != null) {
+        _reportResolvedController.add(data as Map<String, dynamic>);
+      }
+    });
+
+    _socket?.on('postDeleted', (data) {
+      if (data != null) {
+        _postDeletedController.add(data as Map<String, dynamic>);
+      }
+    });
+
+    _socket?.on('pollDeleted', (data) {
+      if (data != null) {
+        _pollDeletedController.add(data as Map<String, dynamic>);
+      }
+    });
+
     _socket?.onDisconnect((_) => print('Socket.IO disconnected'));
   }
 
@@ -136,5 +170,8 @@ class CommunitySocketService {
     _settingsUpdatedController.close();
     _memberMutedController.close();
     _memberRemovedController.close();
+    _reportResolvedController.close();
+    _postDeletedController.close();
+    _pollDeletedController.close();
   }
 }

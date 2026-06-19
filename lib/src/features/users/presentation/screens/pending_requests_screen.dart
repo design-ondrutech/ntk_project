@@ -8,6 +8,7 @@ import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
 
 class PendingRequestsScreen extends StatefulWidget {
   const PendingRequestsScreen({super.key});
@@ -17,7 +18,7 @@ class PendingRequestsScreen extends StatefulWidget {
 }
 
 class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
-  final Set<int> _processingRequests = {};
+  final Map<int, String> _processingRequests = {};
 
   @override
   void initState() {
@@ -40,10 +41,10 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
   }
 
   Future<void> _updateStatus(int requestId, String status) async {
-    if (_processingRequests.contains(requestId)) return;
+    if (_processingRequests.containsKey(requestId)) return;
 
     setState(() {
-      _processingRequests.add(requestId);
+      _processingRequests[requestId] = status;
     });
 
     if (status == 'APPROVED') {
@@ -86,11 +87,16 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
         listener: (context, state) {
           if (state.message != null) {
             NTKSnackbar.showSuccess(context, message: state.message!);
-            setState(() => _processingRequests.clear());
+            setState(() => _processingRequests.removeWhere((key, value) => true));
+            final authState = context.read<AuthBloc>().state;
+            final dashState = context.read<DashboardBloc>().state;
+            context.read<DashboardBloc>().add(
+              LoadDashboardStats(dashState.globalLocation?.id ?? authState.loginData?.locationId),
+            );
           }
           if (state.error != null) {
             NTKSnackbar.showError(context, message: state.error!);
-            setState(() => _processingRequests.clear());
+            setState(() => _processingRequests.removeWhere((key, value) => true));
           }
         },
         builder: (context, state) {
@@ -111,7 +117,14 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
                       size: 48,
                     ),
                     const SizedBox(height: 16),
-                    Text(state.error!, textAlign: TextAlign.center),
+                    Text(
+                      state.error!.contains('SocketException') || state.error!.contains('Failed host lookup') || state.error!.contains('ClientException')
+                          ? 'Network error. Please check your internet connection and try again.'
+                          : (state.error!.contains('OperationException') 
+                              ? 'An unexpected server error occurred. Please try again later.' 
+                              : state.error!),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
@@ -200,8 +213,22 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
     final requestDate = request.createdAt as String?;
 
     return GestureDetector(
-      onTap: () =>
-          Navigator.pushNamed(context, '/profile', arguments: request.id),
+      onTap: () async {
+        await Navigator.pushNamed(context, '/profile', arguments: request.id);
+        if (mounted) {
+          final authState = context.read<AuthBloc>().state;
+          final role = authState.loginData?.role ?? 'MEMBER';
+          final dashState = context.read<DashboardBloc>().state;
+          final locationId = dashState.globalLocation?.id ??
+              (role == 'SUB_ADMIN' ? authState.loginData?.locationId : null);
+          context.read<PendingRequestsBloc>().add(
+            LoadPendingRequests(
+              locationId: locationId,
+              role: role == 'SUB_ADMIN' ? 'MEMBER' : 'All',
+            ),
+          );
+        }
+      },
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -279,13 +306,13 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _processingRequests.contains(request.id)
+                    onPressed: _processingRequests.containsKey(request.id)
                         ? null
                         : () => _updateStatus(request.id, 'REJECTED'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: NTKColors.error,
                     ),
-                    child: _processingRequests.contains(request.id)
+                    child: _processingRequests[request.id] == 'REJECTED'
                         ? const SizedBox(
                             height: 16,
                             width: 16,
@@ -300,13 +327,13 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _processingRequests.contains(request.id)
+                    onPressed: _processingRequests.containsKey(request.id)
                         ? null
                         : () => _updateStatus(request.id, 'APPROVED'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: NTKColors.primary,
                     ),
-                    child: _processingRequests.contains(request.id)
+                    child: _processingRequests[request.id] == 'APPROVED'
                         ? const SizedBox(
                             height: 16,
                             width: 16,

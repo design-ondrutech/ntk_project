@@ -13,9 +13,12 @@ class CommunityPostsBloc
     on<FetchFeedPosts>(_onFetchFeedPosts);
     on<CreateCommunityPostEvent>(_onCreateCommunityPost);
     on<LikePostEvent>(_onLikePost);
+    on<LikeCommunityPostEvent>(_onLikeCommunityPost);
     on<AddCommentEvent>(_onAddComment);
+    on<AddCommunityCommentEvent>(_onAddCommunityComment);
     on<EditPostEvent>(_onEditPost);
     on<DeletePostEvent>(_onDeletePost);
+    on<ResetCommunityPosts>((event, emit) => emit(const CommunityPostsState()));
   }
 
   Future<void> _onFetchCommunityPostsList(
@@ -55,13 +58,12 @@ class CommunityPostsBloc
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
       final newPost = await _repository.createCommunityPost(
+        communityId: event.communityId,
         title: event.title,
         content: event.content,
         category: event.category,
-        authorName: event.authorName,
-        authorRole: event.authorRole,
-        locationId: event.locationId,
-        images: event.image != null ? [event.image!] : null,
+        images: event.images,
+        documents: event.documents,
       );
 
       emit(
@@ -88,30 +90,107 @@ class CommunityPostsBloc
     Emitter<CommunityPostsState> emit,
   ) async {
     try {
-      final newLikes = await _repository.likePost(id: event.postId);
+      PostModel? postToToggle;
+      try {
+        postToToggle = state.posts.firstWhere((p) => p.id == event.postId);
+      } catch (_) {
+        try {
+          postToToggle = state.feedPosts.firstWhere((p) => p.id == event.postId);
+        } catch (_) {}
+      }
 
-      final updatedPosts = state.posts.map((post) {
-        return post.id == event.postId
-            ? post.copyWith(likes: newLikes, isLiked: !post.isLiked)
-            : post;
+      if (postToToggle == null) return;
+      final isCurrentlyLiked = postToToggle.isLiked;
+
+      // 1. Optimistic Update
+      final optimisticPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
       }).toList();
 
-      final updatedFeedPosts = state.feedPosts.map((post) {
-        return post.id == event.postId
-            ? post.copyWith(likes: newLikes, isLiked: !post.isLiked)
-            : post;
+      final optimisticFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
       }).toList();
 
       emit(
         state.copyWith(
-          posts: updatedPosts,
-          feedPosts: updatedFeedPosts,
+          posts: optimisticPosts,
+          feedPosts: optimisticFeedPosts,
+          clearError: true,
+        ),
+      );
+
+      // 2. Background API Call
+      final newLikesFromServer = isCurrentlyLiked 
+          ? await _repository.unlikePost(id: event.postId)
+          : await _repository.likePost(id: event.postId);
+
+      // 3. Sync Server State
+      final syncedPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          return post.copyWith(likes: newLikesFromServer);
+        }
+        return post;
+      }).toList();
+
+      final syncedFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          return post.copyWith(likes: newLikesFromServer);
+        }
+        return post;
+      }).toList();
+
+      emit(
+        state.copyWith(
+          posts: syncedPosts,
+          feedPosts: syncedFeedPosts,
           clearError: true,
         ),
       );
     } catch (e) {
+      // 4. Rollback on failure
+      final rollbackPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
+      }).toList();
+
+      final rollbackFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
+      }).toList();
+
       emit(
-        state.copyWith(error: 'Failed to like post: $e', clearSuccess: true),
+        state.copyWith(
+          posts: rollbackPosts,
+          feedPosts: rollbackFeedPosts,
+          error: 'Failed to like post: $e',
+          clearSuccess: true,
+        ),
       );
     }
   }
@@ -126,6 +205,160 @@ class CommunityPostsBloc
         content: event.content,
         authorName: event.authorName,
         authorRole: event.authorRole,
+      );
+
+      final updatedPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          return post.copyWith(
+            commentCount: post.commentCount + 1,
+            comments: [...post.comments, comment],
+          );
+        }
+        return post;
+      }).toList();
+
+      final updatedFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          return post.copyWith(
+            commentCount: post.commentCount + 1,
+            comments: [...post.comments, comment],
+          );
+        }
+        return post;
+      }).toList();
+
+      emit(
+        state.copyWith(
+          posts: updatedPosts,
+          feedPosts: updatedFeedPosts,
+          successMessage: 'Comment added',
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(error: 'Failed to add comment: $e', clearSuccess: true),
+      );
+    }
+  }
+
+  Future<void> _onLikeCommunityPost(
+    LikeCommunityPostEvent event,
+    Emitter<CommunityPostsState> emit,
+  ) async {
+    try {
+      PostModel? postToToggle;
+      try {
+        postToToggle = state.posts.firstWhere((p) => p.id == event.postId);
+      } catch (_) {
+        try {
+          postToToggle = state.feedPosts.firstWhere((p) => p.id == event.postId);
+        } catch (_) {}
+      }
+
+      if (postToToggle == null) return;
+      final isCurrentlyLiked = postToToggle.isLiked;
+
+      // 1. Optimistic Update
+      final optimisticPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
+      }).toList();
+
+      final optimisticFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
+      }).toList();
+
+      emit(
+        state.copyWith(
+          posts: optimisticPosts,
+          feedPosts: optimisticFeedPosts,
+          clearError: true,
+        ),
+      );
+
+      // 2. Background API Call (Wait, unlike is not explicitly in the API guide, 
+      // but likeCommunityPost toggles it returning the new like count and isLiked status)
+      final newLikesFromServer = await _repository.likeCommunityPost(postId: event.postId);
+
+      // 3. Sync Server State
+      final syncedPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          return post.copyWith(likes: newLikesFromServer);
+        }
+        return post;
+      }).toList();
+
+      final syncedFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          return post.copyWith(likes: newLikesFromServer);
+        }
+        return post;
+      }).toList();
+
+      emit(
+        state.copyWith(
+          posts: syncedPosts,
+          feedPosts: syncedFeedPosts,
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      // 4. Rollback on failure
+      final rollbackPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
+      }).toList();
+
+      final rollbackFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
+      }).toList();
+
+      emit(
+        state.copyWith(
+          posts: rollbackPosts,
+          feedPosts: rollbackFeedPosts,
+          error: 'Failed to like post: $e',
+          clearSuccess: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onAddCommunityComment(
+    AddCommunityCommentEvent event,
+    Emitter<CommunityPostsState> emit,
+  ) async {
+    try {
+      final comment = await _repository.addCommunityComment(
+        postId: event.postId,
+        content: event.content,
       );
 
       final updatedPosts = state.posts.map((post) {

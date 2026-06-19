@@ -68,6 +68,8 @@ class AddMemberRequested extends UserEvent {
   final int? areaId;
   final String? bloodGroup;
   final String? professionName;
+  final String? dateOfBirth;
+  final String? gender;
 
   const AddMemberRequested({
     required this.name,
@@ -78,6 +80,8 @@ class AddMemberRequested extends UserEvent {
     this.areaId,
     this.bloodGroup,
     this.professionName,
+    this.dateOfBirth,
+    this.gender,
   });
 
   @override
@@ -90,5 +94,7 @@ class AddMemberRequested extends UserEvent {
     areaId,
     bloodGroup,
     professionName,
+    dateOfBirth,
+    gender,
   ];
 }

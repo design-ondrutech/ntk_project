@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   flutter_bloc: ^8.1.6
   equatable: ^2.0.5
@@ -19,15 +21,25 @@ dependencies:
   url_launcher: ^6.3.1
   image_picker: ^1.1.2
   socket_io_client: ^3.1.2
-  intl: ^0.19.0
+  intl: ^0.20.2
   firebase_core: ^3.9.0
   firebase_messaging: ^15.2.0
+  flutter_local_notifications: ^17.1.2
   share_plus: ^13.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: "^0.14.4"
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo.png"
 
 flutter:
+  generate: true
   uses-material-design: true

@@ -95,6 +95,7 @@ class PendingRequestsBloc
             role
             approvalStatus
             createdAt
+            image
             location {
               id
               name

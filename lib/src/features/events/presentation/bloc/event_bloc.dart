@@ -20,6 +20,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     on<RecallEvent>(_onRecallEvent);
     on<ClearEventMessage>((event, emit) => emit(state.copyWith(clearMessage: true)));
     on<ClearEventError>((event, emit) => emit(state.copyWith(clearError: true)));
+    on<ResetEvents>((event, emit) => emit(const EventState()));
   }
 
   Future<void> _onFetchEvents(
@@ -32,6 +33,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
         locationId: event.locationId,
         limit: event.limit,
       );
+      events.sort((a, b) => (b.date ?? '').compareTo(a.date ?? ''));
       emit(state.copyWith(isLoading: false, events: events));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
@@ -47,6 +49,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
       final emergencies = await _eventRepository.getEmergencyList(
         locationId: event.locationId,
       );
+      emergencies.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
       emit(state.copyWith(isLoading: false, emergencies: emergencies));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
@@ -57,14 +60,16 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     FetchEventResponses event,
     Emitter<EventState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, clearError: true));
+    // Use isResponsesLoading (not isLoading) so the RSVP UI stays enabled
+    // while responses are being fetched and doesn't appear disabled.
+    emit(state.copyWith(isResponsesLoading: true, clearError: true));
     try {
       final responses = await _eventRepository.getEventResponses(
         eventId: event.eventId,
       );
-      emit(state.copyWith(isLoading: false, eventResponses: responses));
+      emit(state.copyWith(isResponsesLoading: false, eventResponses: responses));
     } catch (e) {
-      emit(state.copyWith(isLoading: false, error: e.toString()));
+      emit(state.copyWith(isResponsesLoading: false, error: e.toString()));
     }
   }
 
@@ -103,6 +108,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
       final refreshed = await _eventRepository.getEmergencyList(
         locationId: event.locationId,
       );
+      refreshed.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
 
       emit(
         state.copyWith(
@@ -128,35 +134,59 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     Emitter<EventState> emit,
   ) async {
     try {
+      // Optimistic update
+      final optimisticResponses = List<EventResponseModel>.from(state.eventResponses);
+      final existingIndex = optimisticResponses.indexWhere((r) => r.member.id == event.memberId.toString());
+      if (existingIndex >= 0) {
+        optimisticResponses[existingIndex] = EventResponseModel(
+          status: event.status,
+          member: optimisticResponses[existingIndex].member,
+        );
+      } else {
+        optimisticResponses.add(EventResponseModel(
+          status: event.status,
+          member: EventMemberModel(id: event.memberId.toString(), name: 'You', phone: ''),
+        ));
+      }
+      
+      // Emit optimistic state immediately
+      emit(state.copyWith(eventResponses: optimisticResponses));
+
       await _eventRepository.respondToEvent(
         eventId: event.eventId,
         memberId: event.memberId,
         status: event.status,
       );
 
+      final responses = await _eventRepository.getEventResponses(
+        eventId: event.eventId,
+      );
+
+      int goingCount = 0;
+      int maybeCount = 0;
+      int notGoingCount = 0;
+      for (final r in responses) {
+        if (r.status == 'GOING') {
+          goingCount++;
+        } else if (r.status == 'MAYBE') {
+          maybeCount++;
+        } else if (r.status == 'NOT_GOING') {
+          notGoingCount++;
+        }
+      }
+
       final updatedEvents = state.events.map((e) {
         if (e.id == event.eventId) {
-          int newGoing = e.going;
-          int newMaybe = e.maybe;
-          int newNotGoing = e.notGoing;
-
-          if (event.status == 'GOING') {
-            newGoing++;
-          } else if (event.status == 'MAYBE') {
-            newMaybe++;
-          } else if (event.status == 'NOT_GOING') {
-            newNotGoing++;
-          }
-
           return EventModel(
             id: e.id,
             title: e.title,
             description: e.description,
             date: e.date,
             locationName: e.locationName,
-            going: newGoing,
-            maybe: newMaybe,
-            notGoing: newNotGoing,
+            going: goingCount,
+            maybe: maybeCount,
+            notGoing: notGoingCount,
+            createdById: e.createdById, // preserve creator info
           );
         }
         return e;
@@ -165,6 +195,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
       emit(
         state.copyWith(
           events: updatedEvents,
+          eventResponses: responses.isNotEmpty ? responses : optimisticResponses,
           message: 'Successfully responded to event',
           clearError: true,
         ),
@@ -204,16 +235,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
             newNotGoing++;
           }
 
-          return EmergencyModel(
-            id: e.id,
-            title: e.title,
-            description: e.description,
-            type: e.type,
-            contactName: e.contactName,
-            contactPhone: e.contactPhone,
-            expiryDate: e.expiryDate,
-            collectResponse: e.collectResponse,
-            locationName: e.locationName,
+          return e.copyWith(
             going: newGoing,
             maybe: newMaybe,
             notGoing: newNotGoing,
@@ -222,9 +244,14 @@ class EventBloc extends Bloc<EventEvent, EventState> {
         return e;
       }).toList();
 
+      final responses = await _eventRepository.getEmergencyResponses(
+        emergencyRequestId: event.emergencyRequestId,
+      );
+
       emit(
         state.copyWith(
           emergencies: updatedEmergencies,
+          emergencyResponses: responses,
           message: 'Successfully responded to emergency',
           clearError: true,
         ),
@@ -257,6 +284,7 @@ class EventBloc extends Bloc<EventEvent, EventState> {
         locationId: event.locationId,
         limit: 10,
       );
+      refreshed.sort((a, b) => (b.date ?? '').compareTo(a.date ?? ''));
 
       emit(
         state.copyWith(

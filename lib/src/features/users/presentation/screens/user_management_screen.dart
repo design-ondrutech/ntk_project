@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
+import 'package:ntk_project/src/core/widgets/async_base64_image.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
@@ -13,6 +14,7 @@ import 'package:ntk_project/src/features/users/presentation/bloc/user_management
 import 'package:ntk_project/src/features/members/data/models/member_model.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
+import 'package:ntk_project/src/features/dashboard/domain/repositories/dashboard_repository.dart';
 import 'package:ntk_project/src/injection_container.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -34,6 +36,11 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class UserManagementScreenState extends State<UserManagementScreen> {
+  int? _localTotalAdmins;
+  int? _localTotalSubAdmins;
+  int? _localTotalMembers;
+  bool _loadingStats = false;
+
   void selectTab(String tabName) {
     final tabIndex = _tabs.indexOf(tabName);
     if (tabIndex != -1) {
@@ -154,7 +161,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     final targetLocationId =
         widget.locationId ?? authState.loginData?.locationId;
     if (targetLocationId != null) {
-      context.read<DashboardBloc>().add(LoadDashboardStats(targetLocationId));
+      _fetchLocalStats(targetLocationId);
     }
   }
 
@@ -381,6 +388,26 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
+  Future<void> _fetchLocalStats(int? locationId) async {
+    if (locationId == null) return;
+    setState(() => _loadingStats = true);
+    try {
+      final stats = await sl<DashboardRepository>().getDashboardStats(locationId);
+      if (mounted) {
+        setState(() {
+          _localTotalAdmins = stats.totalAdmins;
+          _localTotalSubAdmins = stats.totalSubAdmins;
+          _localTotalMembers = stats.totalMembers;
+          _loadingStats = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingStats = false);
+      }
+    }
+  }
+
   void _loadUsers() {
     final locationId = widget.locationId ?? _getLowestLocationId();
     context.read<UserManagementBloc>().add(
@@ -393,7 +420,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
       ),
     );
     if (locationId != null) {
-      context.read<DashboardBloc>().add(LoadDashboardStats(locationId));
+      _fetchLocalStats(locationId);
     }
   }
 
@@ -857,7 +884,10 @@ class UserManagementScreenState extends State<UserManagementScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => Navigator.pushNamed(context, '/profile', arguments: user.id),
+          onTap: () async {
+            await Navigator.pushNamed(context, '/profile', arguments: user.id);
+            _loadUsers();
+          },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
             child: Row(
@@ -872,16 +902,58 @@ class UserManagementScreenState extends State<UserManagementScreen> {
                     color: Color(0xFFE8F5E9),
                   ),
                   clipBehavior: Clip.hardEdge,
-                  child: Center(
-                    child: Text(
-                      initials,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: NTKColors.primary,
-                      ),
-                    ),
-                  ),
+                  child: user.image != null && user.image!.trim().isNotEmpty
+                      ? (user.image!.startsWith('http://') || user.image!.startsWith('https://')
+                          ? Image.network(
+                              user.image!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Text(
+                                  initials,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: NTKColors.primary,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : AsyncBase64Image(
+                              base64String: user.image!.contains('base64,')
+                                  ? user.image!.substring(user.image!.indexOf('base64,') + 7)
+                                  : user.image!,
+                              fit: BoxFit.cover,
+                              placeholderBuilder: (_) => Center(
+                                child: Text(
+                                  initials,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: NTKColors.primary,
+                                  ),
+                                ),
+                              ),
+                              errorBuilder: (_, __, ___) => Center(
+                                child: Text(
+                                  initials,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: NTKColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ))
+                      : Center(
+                          child: Text(
+                            initials,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: NTKColors.primary,
+                            ),
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 12),
 
@@ -1314,24 +1386,27 @@ class UserManagementScreenState extends State<UserManagementScreen> {
             const SizedBox(height: 20),
             // Super Admin can add Admin
             if (_userRole == 'SUPER_ADMIN') ...[
-              _addOption(Icons.admin_panel_settings_outlined, 'Add Admin', () {
+              _addOption(Icons.admin_panel_settings_outlined, 'Add Admin', () async {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/create_admin');
+                await Navigator.pushNamed(context, '/create_admin');
+                _loadUsers();
               }),
               const SizedBox(height: 12),
             ],
             // Super Admin and Admin can add Sub Admin
             if (_userRole == 'SUPER_ADMIN' || _userRole == 'ADMIN') ...[
-              _addOption(Icons.badge_outlined, 'Add Sub Admin', () {
+              _addOption(Icons.badge_outlined, 'Add Sub Admin', () async {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, '/create_sub_admin');
+                await Navigator.pushNamed(context, '/create_sub_admin');
+                _loadUsers();
               }),
               const SizedBox(height: 12),
             ],
             // All roles can add Member
-            _addOption(Icons.person_add_outlined, 'Add Member', () {
+            _addOption(Icons.person_add_outlined, 'Add Member', () async {
               Navigator.pop(context);
-              Navigator.pushNamed(context, '/create_member');
+              await Navigator.pushNamed(context, '/create_member');
+              _loadUsers();
             }),
             const SizedBox(height: 16),
           ],
@@ -1749,22 +1824,17 @@ class UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Widget _buildHorizontalStats() {
-    return BlocBuilder<DashboardBloc, DashboardState>(
-      builder: (context, dashState) {
-        final stats = dashState.stats;
-        final total = (stats?.totalAdmins ?? 0) + (stats?.totalSubAdmins ?? 0) + (stats?.totalMembers ?? 0);
-        return Row(
-          children: [
-            Expanded(child: _buildSmallStatCard('Admins', stats?.totalAdmins ?? 0, const Color(0xFF166534))),
-            const SizedBox(width: 8),
-            Expanded(child: _buildSmallStatCard('Sub Admins', stats?.totalSubAdmins ?? 0, const Color(0xFF1E40AF))),
-            const SizedBox(width: 8),
-            Expanded(child: _buildSmallStatCard('Members', stats?.totalMembers ?? 0, const Color(0xFF065F46))),
-            const SizedBox(width: 8),
-            Expanded(child: _buildSmallStatCard('Total', total, const Color(0xFFB45309))),
-          ],
-        );
-      },
+    final total = (_localTotalAdmins ?? 0) + (_localTotalSubAdmins ?? 0) + (_localTotalMembers ?? 0);
+    return Row(
+      children: [
+        Expanded(child: _buildSmallStatCard('Admins', _localTotalAdmins ?? 0, const Color(0xFF166534))),
+        const SizedBox(width: 8),
+        Expanded(child: _buildSmallStatCard('Sub Admins', _localTotalSubAdmins ?? 0, const Color(0xFF1E40AF))),
+        const SizedBox(width: 8),
+        Expanded(child: _buildSmallStatCard('Members', _localTotalMembers ?? 0, const Color(0xFF065F46))),
+        const SizedBox(width: 8),
+        Expanded(child: _buildSmallStatCard('Total', total, const Color(0xFFB45309))),
+      ],
     );
   }
 

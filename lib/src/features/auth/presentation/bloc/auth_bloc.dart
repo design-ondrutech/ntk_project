@@ -5,6 +5,7 @@ import 'auth_event.dart';
 import 'auth_state.dart';
 import 'package:ntk_project/src/injection_container.dart';
 import 'package:ntk_project/src/core/services/fcm_service.dart';
+import 'package:ntk_project/src/core/network/graphql_service.dart';
 
 export 'auth_state.dart';
 
@@ -45,6 +46,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         streetId: event.streetId,
         bloodGroup: event.bloodGroup,
         professionName: event.professionName,
+        dateOfBirth: event.dateOfBirth,
+        gender: event.gender,
       );
       emit(state.copyWith(isLoading: false, registrationSuccess: true));
     } catch (e) {
@@ -81,6 +84,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
       await _authRepository.logout();
+      sl<GraphQLService>().client.cache.store.reset();
       emit(const AuthState());
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));

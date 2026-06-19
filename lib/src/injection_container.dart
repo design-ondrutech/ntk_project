@@ -45,9 +45,11 @@ import 'package:ntk_project/src/features/community/data/repositories/community_r
 import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_list_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/community_member_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_chat_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_polls_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/moderation_queue/moderation_queue_bloc.dart';
 import 'package:ntk_project/src/features/community/data/community_socket_service.dart';
 
 // Notifications feature
@@ -99,11 +101,13 @@ Future<void> init() async {
   sl.registerFactory<UserBloc>(() => UserBloc(sl(), sl()));
   sl.registerFactory<PendingRequestsBloc>(() => PendingRequestsBloc(sl()));
   sl.registerFactory<RequestBloc>(() => RequestBloc(sl()));
-  sl.registerFactory<CommunityBloc>(() => CommunityBloc(sl()));
+  sl.registerFactory<CommunityBloc>(() => CommunityBloc(sl(), sl()));
   sl.registerFactory<CommunityListBloc>(() => CommunityListBloc(sl()));
+  sl.registerFactory<CommunityMemberBloc>(() => CommunityMemberBloc(sl()));
   sl.registerFactory<CommunityChatBloc>(() => CommunityChatBloc(sl(), sl()));
   sl.registerFactory<CommunityPostsBloc>(() => CommunityPostsBloc(sl()));
-  sl.registerFactory<CommunityPollsBloc>(() => CommunityPollsBloc(sl()));
+  sl.registerFactory<CommunityPollsBloc>(() => CommunityPollsBloc(sl(), sl()));
+  sl.registerFactory<ModerationQueueBloc>(() => ModerationQueueBloc(sl(), sl()));
   sl.registerFactory<NotificationBloc>(() => NotificationBloc(sl(), sl()));
   sl.registerFactory<NotificationSettingsBloc>(() => NotificationSettingsBloc(sl()));
 }

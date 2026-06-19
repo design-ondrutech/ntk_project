@@ -14,13 +14,17 @@ class EventRepositoryImpl implements EventRepository {
     int limit = 10,
   }) async {
     const String query = r'''
-      query GetEventList($locationId: Int, $status: EventStatus) {
-        getEventList(locationId: $locationId, status: $status) {
+      query GetEventList($locationId: Int) {
+        getEventList(locationId: $locationId) {
           id
           title
           description
           date
           location {
+            id
+            name
+          }
+          createdBy {
             id
             name
           }
@@ -37,7 +41,6 @@ class EventRepositoryImpl implements EventRepository {
       query,
       variables: {
         if (locationId != null) 'locationId': locationId,
-        'status': 'ACTIVE',
       },
     );
 
@@ -52,7 +55,6 @@ class EventRepositoryImpl implements EventRepository {
 
     return data
         .where((e) => e != null)
-        .take(limit)
         .map((e) => EventModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
@@ -211,6 +213,15 @@ class EventRepositoryImpl implements EventRepository {
           location {
             id
             name
+          }
+          createdBy {
+            id
+            name
+          }
+          stats {
+            going
+            maybe
+            notGoing
           }
         }
       }
@@ -377,6 +388,14 @@ class EventRepositoryImpl implements EventRepository {
           expiryDate
           collectResponse
           createdAt
+          bloodGroup
+          unitsRequired
+          hospitalName
+          patientCondition
+          disasterType
+          affectedArea
+          requiredSupport
+          volunteerType
           location {
             id
             name
@@ -525,5 +544,25 @@ class EventRepositoryImpl implements EventRepository {
     }
 
     return result.data?['recallEvent'] as bool? ?? false;
+  }
+
+  @override
+  Future<bool> deleteEmergencyRequest({required String id}) async {
+    const String mutation = r'''
+      mutation DeleteEmergencyRequest($id: Int!) {
+        deleteEmergencyRequest(id: $id)
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {'id': int.parse(id)},
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to delete emergency request: ${result.exception.toString()}');
+    }
+
+    return result.data?['deleteEmergencyRequest'] as bool? ?? false;
   }
 }

@@ -9,6 +9,8 @@ class PostModel extends Equatable {
   final String? image;
   final String? category;
   final List<String> images;
+  final List<String> documents;
+  final List<String> attachments;
   final int likes;
   final String authorName;
   final String? authorRole;
@@ -19,6 +21,14 @@ class PostModel extends Equatable {
   final String? createdAt;
   final List<CommentModel> comments;
   final bool isLiked;
+  final int? createdById;
+  final String? status;
+  final int reportCount;
+  final List<String> reportReasons;
+  final int reportedUsersCount;
+  final bool isHighPriority;
+  final bool isUnderReview;
+  final bool hasWarning;
 
   const PostModel({
     required this.id,
@@ -27,6 +37,8 @@ class PostModel extends Equatable {
     this.image,
     this.category,
     this.images = const [],
+    this.documents = const [],
+    this.attachments = const [],
     required this.likes,
     required this.authorName,
     this.authorRole,
@@ -37,6 +49,14 @@ class PostModel extends Equatable {
     this.createdAt,
     this.comments = const [],
     this.isLiked = false,
+    this.createdById,
+    this.status,
+    this.reportCount = 0,
+    this.reportReasons = const [],
+    this.reportedUsersCount = 0,
+    this.isHighPriority = false,
+    this.isUnderReview = false,
+    this.hasWarning = false,
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
@@ -60,6 +80,8 @@ class PostModel extends Equatable {
       image: json['image'] as String?,
       category: json['category'] as String?,
       images: (json['images'] as List?)?.map((e) => e as String).toList() ?? [],
+      documents: (json['documents'] as List?)?.map((e) => e as String).toList() ?? [],
+      attachments: (json['attachments'] as List?)?.map((e) => e as String).toList() ?? [],
       likes: json['likes'] as int? ?? 0,
       authorName: authorName,
       authorRole: authorRole,
@@ -71,9 +93,25 @@ class PostModel extends Equatable {
       commentCount: json['commentCount'] as int? ?? commentsJson.length,
       createdAt: json['createdAt'] as String?,
       isLiked: json['isLiked'] as bool? ?? false,
+      createdById: json['createdById'] == null
+          ? (createdBy?['id'] == null
+              ? null
+              : (createdBy!['id'] is int
+                  ? createdBy['id'] as int
+                  : int.tryParse(createdBy['id'].toString())))
+          : (json['createdById'] is int
+              ? json['createdById'] as int
+              : int.tryParse(json['createdById'].toString())),
       comments: commentsJson
           .map((c) => CommentModel.fromJson(c as Map<String, dynamic>))
           .toList(),
+      status: json['status'] as String?,
+      reportCount: json['reportCount'] as int? ?? 0,
+      reportReasons: (json['reportReasons'] as List?)?.map((e) => e as String).toList() ?? [],
+      reportedUsersCount: json['reportedUsersCount'] as int? ?? 0,
+      isHighPriority: json['isHighPriority'] as bool? ?? false,
+      isUnderReview: json['isUnderReview'] as bool? ?? false,
+      hasWarning: json['hasWarning'] as bool? ?? false,
     );
   }
 
@@ -84,6 +122,8 @@ class PostModel extends Equatable {
     String? image,
     String? category,
     List<String>? images,
+    List<String>? documents,
+    List<String>? attachments,
     int? likes,
     String? authorName,
     String? authorRole,
@@ -94,6 +134,14 @@ class PostModel extends Equatable {
     String? createdAt,
     List<CommentModel>? comments,
     bool? isLiked,
+    int? createdById,
+    String? status,
+    int? reportCount,
+    List<String>? reportReasons,
+    int? reportedUsersCount,
+    bool? isHighPriority,
+    bool? isUnderReview,
+    bool? hasWarning,
   }) {
     return PostModel(
       id: id ?? this.id,
@@ -102,6 +150,8 @@ class PostModel extends Equatable {
       image: image ?? this.image,
       category: category ?? this.category,
       images: images ?? this.images,
+      documents: documents ?? this.documents,
+      attachments: attachments ?? this.attachments,
       likes: likes ?? this.likes,
       authorName: authorName ?? this.authorName,
       authorRole: authorRole ?? this.authorRole,
@@ -112,6 +162,14 @@ class PostModel extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       comments: comments ?? this.comments,
       isLiked: isLiked ?? this.isLiked,
+      createdById: createdById ?? this.createdById,
+      status: status ?? this.status,
+      reportCount: reportCount ?? this.reportCount,
+      reportReasons: reportReasons ?? this.reportReasons,
+      reportedUsersCount: reportedUsersCount ?? this.reportedUsersCount,
+      isHighPriority: isHighPriority ?? this.isHighPriority,
+      isUnderReview: isUnderReview ?? this.isUnderReview,
+      hasWarning: hasWarning ?? this.hasWarning,
     );
   }
 
@@ -123,6 +181,8 @@ class PostModel extends Equatable {
     image,
     category,
     images,
+    documents,
+    attachments,
     likes,
     authorName,
     authorRole,
@@ -132,5 +192,14 @@ class PostModel extends Equatable {
     commentCount,
     createdAt,
     comments,
+    isLiked,
+    createdById,
+    status,
+    reportCount,
+    reportReasons,
+    reportedUsersCount,
+    isHighPriority,
+    isUnderReview,
+    hasWarning,
   ];
 }

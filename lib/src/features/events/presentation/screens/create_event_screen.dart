@@ -3,10 +3,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_bloc.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_event.dart';
+import 'package:ntk_project/src/features/events/presentation/bloc/event_state.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
 import 'package:ntk_project/src/injection_container.dart';
@@ -215,41 +217,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     );
     if (time == null) return;
 
-    final dt = DateTime(
+    // Build as local time, then convert to UTC so the backend and
+    // DateHelper.parseUtcToLocal() both receive an unambiguous UTC string.
+    final dtLocal = DateTime(
       date.year,
       date.month,
       date.day,
       time.hour,
       time.minute,
     );
-    _dateController.text = dt.toIso8601String();
+    _dateController.text = dtLocal.toUtc().toIso8601String(); // ends with 'Z'
     setState(() {});
   }
 
   String _formatDateTimeDisplay(String dt) {
-    try {
-      final date = DateTime.parse(dt);
-      final months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-      final ampm = date.hour < 12 ? 'AM' : 'PM';
-      final minute = date.minute.toString().padLeft(2, '0');
-      return '${date.day} ${months[date.month - 1]} ${date.year}, $hour:$minute $ampm';
-    } catch (_) {
-      return dt;
-    }
+    return DateHelper.formatDateTime(dt);
   }
 
   void _onCreateEvent() {
@@ -298,10 +280,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         professionNames: _selectedProfessions.isNotEmpty ? _selectedProfessions : null,
       ),
     );
-
-    NTKSnackbar.showSuccess(context, message: 'Event created successfully.');
-
-    Navigator.pop(context);
   }
 
   @override
@@ -320,277 +298,293 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ],
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Form title
-              const Text(
-                'New Event Details',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Fill in the information to schedule a new community event.',
-                style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-              ),
-              const SizedBox(height: 28),
-
-              // Title input
-              _buildFormLabel('Event Title *'),
-              TextFormField(
-                controller: _titleController,
-                validator: (val) => val == null || val.trim().isEmpty
-                    ? 'Please enter event title'
-                    : null,
-                decoration: _inputDecoration('e.g., General Body Meeting'),
-              ),
-              const SizedBox(height: 20),
-
-              // Description input
-              _buildFormLabel('Description *'),
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 4,
-                validator: (val) => val == null || val.trim().isEmpty
-                    ? 'Please enter event description'
-                    : null,
-                decoration: _inputDecoration(
-                  'Add event details, agenda, and specifications...',
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Date & Time picker
-              _buildFormLabel('Date & Time *'),
-              GestureDetector(
-                onTap: () => _selectDateTime(context),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
+      body: BlocListener<EventBloc, EventState>(
+        listener: (context, state) {
+          if (state.message == 'Event created successfully') {
+            NTKSnackbar.showSuccess(context, message: 'Event created successfully.');
+            context.read<EventBloc>().add(const ClearEventMessage());
+            Navigator.pop(context);
+          }
+          if (state.error != null) {
+            NTKSnackbar.showError(context, message: state.error!);
+            context.read<EventBloc>().add(const ClearEventError());
+            setState(() {
+              _isSubmitting = false;
+            });
+          }
+        },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Form title
+                const Text(
+                  'New Event Details',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Fill in the information to schedule a new community event.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                ),
+                const SizedBox(height: 28),
+
+                // Title input
+                _buildFormLabel('Event Title *'),
+                TextFormField(
+                  controller: _titleController,
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? 'Please enter event title'
+                      : null,
+                  decoration: _inputDecoration('e.g., General Body Meeting'),
+                ),
+                const SizedBox(height: 20),
+
+                // Description input
+                _buildFormLabel('Description *'),
+                TextFormField(
+                  controller: _descriptionController,
+                  maxLines: 4,
+                  validator: (val) => val == null || val.trim().isEmpty
+                      ? 'Please enter event description'
+                      : null,
+                  decoration: _inputDecoration(
+                    'Add event details, agenda, and specifications...',
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        CupertinoIcons.calendar,
-                        color: Color(0xFF004D2A),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _dateController.text.isEmpty
-                              ? 'Select Date & Time'
-                              : _formatDateTimeDisplay(_dateController.text),
-                          style: TextStyle(
-                            color: _dateController.text.isEmpty
-                                ? const Color(0xFF9CA3AF)
-                                : const Color(0xFF1F2937),
-                            fontSize: 14,
+                ),
+                const SizedBox(height: 20),
+
+                // Date & Time picker
+                _buildFormLabel('Date & Time *'),
+                GestureDetector(
+                  onTap: () => _selectDateTime(context),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          CupertinoIcons.calendar,
+                          color: Color(0xFF004D2A),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _dateController.text.isEmpty
+                                ? 'Select Date & Time'
+                                : _formatDateTimeDisplay(_dateController.text),
+                            style: TextStyle(
+                              color: _dateController.text.isEmpty
+                                  ? const Color(0xFF9CA3AF)
+                                  : const Color(0xFF1F2937),
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                      ),
-                      const Icon(
-                        CupertinoIcons.chevron_down,
-                        size: 14,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ],
+                        const Icon(
+                          CupertinoIcons.chevron_down,
+                          size: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              const Divider(height: 1, color: Color(0xFFE5E7EB)),
-              const SizedBox(height: 24),
+                const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                const SizedBox(height: 24),
 
-              // Build location fields based on role
-              Builder(
-                builder: (context) {
-                  final authState = context.read<AuthBloc>().state;
-                  final userRole = authState.loginData?.role ?? '';
-                  final isSubAdmin = userRole == 'SUB_ADMIN';
+                // Build location fields based on role
+                Builder(
+                  builder: (context) {
+                    final authState = context.read<AuthBloc>().state;
+                    final userRole = authState.loginData?.role ?? '';
+                    final isSubAdmin = userRole == 'SUB_ADMIN';
 
-                  if (isSubAdmin) {
-                    // Sub Admin: show only Street selector (Area is auto-set from their location)
+                    if (isSubAdmin) {
+                      // Sub Admin: show only Street selector (Area is auto-set from their location)
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFormLabel('Street'),
+                          _loadingStreets
+                              ? _buildLoadingField('Street')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _streets,
+                                  value: _selectedStreet,
+                                  onChanged: (val) =>
+                                      setState(() => _selectedStreet = val),
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Street (Optional)',
+                                ),
+                        ],
+                      );
+                    }
+
+                    // Non-Sub Admin: full hierarchy
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // 1. State
+                        _buildFormLabel('State'),
+                        _buildDropdownField<String>(
+                          items: _states,
+                          value: _selectedState,
+                          onChanged: (val) =>
+                              setState(() => _selectedState = val),
+                          itemLabel: (item) => item,
+                          hintText: 'Select State',
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 2. District
+                        _buildFormLabel('District *'),
+                        _loadingDistricts
+                            ? _buildLoadingField('District')
+                            : _buildDropdownField<LocationModel>(
+                                items: _districts,
+                                value: _selectedDistrict,
+                                onChanged: _onDistrictChanged,
+                                itemLabel: (item) => item.name,
+                                hintText: 'Select District',
+                              ),
+                        const SizedBox(height: 16),
+
+                        // 3. Constituency (Taluk)
+                        _buildFormLabel('Constituency (Taluk)'),
+                        _loadingConstituencies
+                            ? _buildLoadingField('Constituency')
+                            : _selectedDistrict == null
+                            ? _buildDisabledField('Select District first')
+                            : _buildDropdownField<LocationModel>(
+                                items: _constituencies,
+                                value: _selectedConstituency,
+                                onChanged: _onConstituencyChanged,
+                                itemLabel: (item) => item.name,
+                                hintText: 'Select Constituency',
+                              ),
+                        const SizedBox(height: 16),
+
+                        // 4. Area (Town)
+                        _buildFormLabel('Area (Town)'),
+                        _loadingAreas
+                            ? _buildLoadingField('Area')
+                            : _selectedConstituency == null
+                            ? _buildDisabledField('Select Constituency first')
+                            : _buildDropdownField<LocationModel>(
+                                items: _areas,
+                                value: _selectedArea,
+                                onChanged: _onAreaChanged,
+                                itemLabel: (item) => item.name,
+                                hintText: 'Select Area',
+                              ),
+                        const SizedBox(height: 16),
+
+                        // 5. Street
                         _buildFormLabel('Street'),
                         _loadingStreets
                             ? _buildLoadingField('Street')
+                            : _selectedArea == null
+                            ? _buildDisabledField('Select Area first')
                             : _buildDropdownField<LocationModel>(
                                 items: _streets,
                                 value: _selectedStreet,
                                 onChanged: (val) =>
                                     setState(() => _selectedStreet = val),
                                 itemLabel: (item) => item.name,
-                                hintText: 'Select Street (Optional)',
+                                hintText: 'Select Street',
                               ),
                       ],
                     );
-                  }
-
-                  // Non-Sub Admin: full hierarchy
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. State
-                      _buildFormLabel('State'),
-                      _buildDropdownField<String>(
-                        items: _states,
-                        value: _selectedState,
-                        onChanged: (val) =>
-                            setState(() => _selectedState = val),
-                        itemLabel: (item) => item,
-                        hintText: 'Select State',
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 2. District
-                      _buildFormLabel('District *'),
-                      _loadingDistricts
-                          ? _buildLoadingField('District')
-                          : _buildDropdownField<LocationModel>(
-                              items: _districts,
-                              value: _selectedDistrict,
-                              onChanged: _onDistrictChanged,
-                              itemLabel: (item) => item.name,
-                              hintText: 'Select District',
-                            ),
-                      const SizedBox(height: 16),
-
-                      // 3. Constituency (Taluk)
-                      _buildFormLabel('Constituency (Taluk)'),
-                      _loadingConstituencies
-                          ? _buildLoadingField('Constituency')
-                          : _selectedDistrict == null
-                          ? _buildDisabledField('Select District first')
-                          : _buildDropdownField<LocationModel>(
-                              items: _constituencies,
-                              value: _selectedConstituency,
-                              onChanged: _onConstituencyChanged,
-                              itemLabel: (item) => item.name,
-                              hintText: 'Select Constituency',
-                            ),
-                      const SizedBox(height: 16),
-
-                      // 4. Area (Town)
-                      _buildFormLabel('Area (Town)'),
-                      _loadingAreas
-                          ? _buildLoadingField('Area')
-                          : _selectedConstituency == null
-                          ? _buildDisabledField('Select Constituency first')
-                          : _buildDropdownField<LocationModel>(
-                              items: _areas,
-                              value: _selectedArea,
-                              onChanged: _onAreaChanged,
-                              itemLabel: (item) => item.name,
-                              hintText: 'Select Area',
-                            ),
-                      const SizedBox(height: 16),
-
-                      // 5. Street
-                      _buildFormLabel('Street'),
-                      _loadingStreets
-                          ? _buildLoadingField('Street')
-                          : _selectedArea == null
-                          ? _buildDisabledField('Select Area first')
-                          : _buildDropdownField<LocationModel>(
-                              items: _streets,
-                              value: _selectedStreet,
-                              onChanged: (val) =>
-                                  setState(() => _selectedStreet = val),
-                              itemLabel: (item) => item.name,
-                              hintText: 'Select Street',
-                            ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Target Profession Multi Select
-              _buildFormLabel('Target Profession (Optional)'),
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children: _professions.map((profession) {
-                  final isSelected = _selectedProfessions.contains(profession);
-                  return FilterChip(
-                    label: Text(
-                      profession,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : const Color(0xFF374151),
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFF004D2A),
-                    checkmarkColor: Colors.white,
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: isSelected ? const Color(0xFF004D2A) : const Color(0xFFE5E7EB),
-                      ),
-                    ),
-                    onSelected: (bool selected) {
-                      setState(() {
-                        if (selected) {
-                          _selectedProfessions.add(profession);
-                        } else {
-                          _selectedProfessions.remove(profession);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 48),
-
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF004D2A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: _isSubmitting ? null : _onCreateEvent,
-                  child: _isSubmitting
-                      ? const CupertinoActivityIndicator(color: Colors.white)
-                      : const Text(
-                          'CREATE EVENT',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
+                  },
                 ),
-              ),
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 24),
+
+                // Target Profession Multi Select
+                _buildFormLabel('Target Profession (Optional)'),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: _professions.map((profession) {
+                    final isSelected = _selectedProfessions.contains(profession);
+                    return FilterChip(
+                      label: Text(
+                        profession,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : const Color(0xFF374151),
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      selected: isSelected,
+                      selectedColor: const Color(0xFF004D2A),
+                      checkmarkColor: Colors.white,
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: isSelected ? const Color(0xFF004D2A) : const Color(0xFFE5E7EB),
+                        ),
+                      ),
+                      onSelected: (bool selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedProfessions.add(profession);
+                          } else {
+                            _selectedProfessions.remove(profession);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+
+                const SizedBox(height: 48),
+
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF004D2A),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: _isSubmitting ? null : _onCreateEvent,
+                    child: _isSubmitting
+                        ? const CupertinoActivityIndicator(color: Colors.white)
+                        : const Text(
+                            'CREATE EVENT',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),

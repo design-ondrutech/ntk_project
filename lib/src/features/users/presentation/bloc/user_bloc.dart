@@ -30,6 +30,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
             event.locationId ?? event.streetId ?? event.areaId ?? event.talukId,
         dateOfBirth: event.dateOfBirth,
         gender: event.gender,
+        bloodGroup: event.bloodGroup,
+        professionName: event.professionName,
       );
       emit(UserCreatedSuccess(user));
     } catch (e) {
@@ -52,6 +54,8 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         areaId: event.areaId,
         bloodGroup: event.bloodGroup,
         professionName: event.professionName,
+        dateOfBirth: event.dateOfBirth,
+        gender: event.gender,
       );
       emit(UserCreatedSuccess(member.toJson()));
     } catch (e) {

@@ -16,6 +16,7 @@ class MemberModel extends Equatable {
   final DateTime? createdAt;
   final String? dateOfBirth;
   final String? gender;
+  final String? image;
 
   const MemberModel({
     required this.id,
@@ -32,6 +33,7 @@ class MemberModel extends Equatable {
     this.createdAt,
     this.dateOfBirth,
     this.gender,
+    this.image,
   });
 
   factory MemberModel.fromJson(Map<String, dynamic> json) {
@@ -49,8 +51,9 @@ class MemberModel extends Equatable {
       location: json['location'] != null
           ? LocationModel.fromJson(json['location'])
           : null,
-      professionName:
-          json['profession'] as String? ?? (json['professionName'] as String?),
+      professionName: json['profession'] is Map
+          ? (json['profession']['name'] as String?)
+          : (json['profession'] as String? ?? json['professionName'] as String?),
       bloodGroup: json['bloodGroup'] as String?,
       addedBy:
           json['addedBy'] as String? ?? (json['createdBy']?['name'] as String?),
@@ -58,6 +61,7 @@ class MemberModel extends Equatable {
       createdAt: _parseDate(json['createdAt']),
       dateOfBirth: json['dateOfBirth'] as String?,
       gender: json['gender'] as String?,
+      image: json['image'] as String?,
     );
   }
 
@@ -87,6 +91,7 @@ class MemberModel extends Equatable {
       'createdAt': createdAt?.toIso8601String(),
       'dateOfBirth': dateOfBirth,
       'gender': gender,
+      'image': image,
     };
   }
 
@@ -106,5 +111,6 @@ class MemberModel extends Equatable {
     createdAt,
     dateOfBirth,
     gender,
+    image,
   ];
 }

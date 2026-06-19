@@ -16,6 +16,8 @@ class UserRepositoryImpl implements UserRepository {
     int? locationId,
     String? dateOfBirth,
     String? gender,
+    String? bloodGroup,
+    String? professionName,
   }) async {
     const String mutation = r'''
       mutation CreateUser(
@@ -27,6 +29,8 @@ class UserRepositoryImpl implements UserRepository {
         $locationId: Int
         $dateOfBirth: String
         $gender: String
+        $bloodGroup: String
+        $professionName: String
       ) {
         createUser(
           name: $name
@@ -37,6 +41,8 @@ class UserRepositoryImpl implements UserRepository {
           locationId: $locationId
           dateOfBirth: $dateOfBirth
           gender: $gender
+          bloodGroup: $bloodGroup
+          professionName: $professionName
         ) {
           id
           name
@@ -58,6 +64,8 @@ class UserRepositoryImpl implements UserRepository {
       if (locationId != null) 'locationId': locationId,
       if (dateOfBirth != null) 'dateOfBirth': dateOfBirth,
       if (gender != null) 'gender': gender,
+      if (bloodGroup != null) 'bloodGroup': bloodGroup,
+      if (professionName != null) 'professionName': professionName,
     };
 
     final result = await _graphQLService.performMutation(

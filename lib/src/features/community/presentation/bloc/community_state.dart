@@ -14,6 +14,7 @@ class CommunityState extends Equatable {
   final int? selectedCommunityId;
   final String? error;
   final String? message;
+  final bool isReportingPost;
 
   const CommunityState({
     this.isLoading = false,
@@ -26,6 +27,7 @@ class CommunityState extends Equatable {
     this.selectedCommunityId,
     this.error,
     this.message,
+    this.isReportingPost = false,
   });
 
   CommunityState copyWith({
@@ -39,6 +41,7 @@ class CommunityState extends Equatable {
     int? selectedCommunityId,
     String? error,
     String? message,
+    bool? isReportingPost,
     bool clearError = false,
     bool clearMessage = false,
     bool clearSelectedCommunity = false,
@@ -56,6 +59,7 @@ class CommunityState extends Equatable {
           : (selectedCommunityId ?? this.selectedCommunityId),
       error: clearError ? null : (error ?? this.error),
       message: clearMessage ? null : (message ?? this.message),
+      isReportingPost: isReportingPost ?? this.isReportingPost,
     );
   }
 
@@ -71,5 +75,6 @@ class CommunityState extends Equatable {
     selectedCommunityId,
     error,
     message,
+    isReportingPost,
   ];
 }

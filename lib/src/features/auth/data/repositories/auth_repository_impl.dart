@@ -19,6 +19,7 @@ class AuthRepositoryImpl implements AuthRepository {
         role
         approvalStatus
         addedBy
+        image
         location {
           id
           name
@@ -44,6 +45,7 @@ class AuthRepositoryImpl implements AuthRepository {
             role
             approvalStatus
             addedBy
+            image
             location {
               id
               name
@@ -222,6 +224,8 @@ class AuthRepositoryImpl implements AuthRepository {
     required int streetId,
     String? bloodGroup,
     String? professionName,
+    String? dateOfBirth,
+    String? gender,
   }) async {
     const String registerMutation = r'''
       mutation AddMember(
@@ -232,6 +236,8 @@ class AuthRepositoryImpl implements AuthRepository {
         $streetId: Int
         $bloodGroup: String
         $professionName: String
+        $dateOfBirth: String
+        $gender: String
       ) {
         addMember(
           name: $name
@@ -241,6 +247,8 @@ class AuthRepositoryImpl implements AuthRepository {
           streetId: $streetId
           bloodGroup: $bloodGroup
           professionName: $professionName
+          dateOfBirth: $dateOfBirth
+          gender: $gender
         ) {
           id
           name
@@ -261,6 +269,8 @@ class AuthRepositoryImpl implements AuthRepository {
         'streetId': streetId,
         'bloodGroup': bloodGroup,
         'professionName': professionName,
+        'dateOfBirth': dateOfBirth,
+        'gender': gender,
       },
     );
 

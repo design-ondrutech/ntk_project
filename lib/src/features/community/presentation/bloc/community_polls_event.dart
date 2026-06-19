@@ -55,3 +55,31 @@ class ClearPollsMessage extends CommunityPollsEvent {
 class ClearPollsError extends CommunityPollsEvent {
   const ClearPollsError();
 }
+
+class LikePollEvent extends CommunityPollsEvent {
+  final int pollId;
+
+  const LikePollEvent({required this.pollId});
+
+  @override
+  List<Object?> get props => [pollId];
+}
+
+class AddPollCommentEvent extends CommunityPollsEvent {
+  final int pollId;
+  final String content;
+
+  const AddPollCommentEvent({required this.pollId, required this.content});
+
+  @override
+  List<Object?> get props => [pollId, content];
+}
+
+class DeletePollEvent extends CommunityPollsEvent {
+  final int pollId;
+
+  const DeletePollEvent({required this.pollId});
+
+  @override
+  List<Object?> get props => [pollId];
+}

@@ -19,10 +19,14 @@ class CommunityMessageReactionModel extends Equatable {
 
   factory CommunityMessageReactionModel.fromJson(Map<String, dynamic> json) {
     return CommunityMessageReactionModel(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       emoji: json['emoji'] as String? ?? '',
       reactorName: json['reactorName'] as String? ?? 'Unknown',
-      reactorId: json['reactorId'] as int?,
+      reactorId: json['reactorId'] is int
+          ? json['reactorId'] as int
+          : int.tryParse(json['reactorId']?.toString() ?? ''),
       reactorType: json['reactorType'] as String?,
       createdAt: json['createdAt'] as String?,
     );
@@ -89,9 +93,9 @@ class CommunityMessageModel extends Equatable {
     final replyJson = json['replyTo'] as Map<String, dynamic>?;
 
     return CommunityMessageModel(
-      id: json['id'] as int? ?? 0,
-      communityId: json['communityId'] as int? ?? 0,
-      senderId: json['senderId'] as int?,
+      id: json['id'] != null ? (json['id'] is int ? json['id'] as int : int.tryParse(json['id'].toString()) ?? 0) : 0,
+      communityId: json['communityId'] != null ? (json['communityId'] is int ? json['communityId'] as int : int.tryParse(json['communityId'].toString()) ?? 0) : 0,
+      senderId: json['senderId'] != null ? (json['senderId'] is int ? json['senderId'] as int : int.tryParse(json['senderId'].toString())) : null,
       senderType: json['senderType'] as String?,
       senderName: json['senderName'] as String? ?? 'Unknown',
       message: json['message'] as String? ?? '',

@@ -14,6 +14,7 @@ import 'package:ntk_project/src/features/users/presentation/bloc/user_bloc.dart'
 import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
+import 'package:ntk_project/src/core/utils/validators.dart';
 
 class AddMemberScreen extends StatefulWidget {
   const AddMemberScreen({super.key});
@@ -29,11 +30,14 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   final _professionController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _dobController = TextEditingController();
 
   String? selectedBloodGroup;
+  String? selectedGender;
   LocationModel? selectedStreet;
   bool _obscure = true;
   bool _obscureConfirm = true;
+  String? _phoneErrorText;
 
   final List<String> bloodGroups = [
     'A+',
@@ -65,6 +69,13 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   void initState() {
     super.initState();
     _loadStreets();
+    _phoneController.addListener(() {
+      if (_phoneErrorText != null) {
+        setState(() {
+          _phoneErrorText = null;
+        });
+      }
+    });
   }
 
   Future<void> _loadStreets() async {
@@ -87,6 +98,33 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
     }
   }
 
+  Future<void> _selectDateOfBirth(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2000, 1, 1),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF004D2A),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1F2937),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _dobController.text =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -95,6 +133,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
     _professionController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _dobController.dispose();
     super.dispose();
   }
 
@@ -109,6 +148,19 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
   void _onAddMember() {
     if (_nameController.text.trim().isEmpty) {
       _showSnack('Please enter full name');
+      return;
+    }
+    if (!Validators.isValidName(_nameController.text)) {
+      _showSnack(
+        'Full Name can only contain English and Tamil alphabets and spaces',
+      );
+      return;
+    }
+    if (_surnameController.text.trim().isNotEmpty &&
+        !Validators.isValidName(_surnameController.text)) {
+      _showSnack(
+        'Surname can only contain English and Tamil alphabets and spaces',
+      );
       return;
     }
     if (_phoneController.text.trim().isEmpty) {
@@ -127,8 +179,20 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
       _showSnack('Please select a street');
       return;
     }
+    if (selectedBloodGroup == null) {
+      _showSnack('Please select Blood Group');
+      return;
+    }
+    if (_professionController.text.trim().isEmpty) {
+      _showSnack('Please select Profession');
+      return;
+    }
 
     final authState = context.read<AuthBloc>().state;
+    final dob = _dobController.text.trim().isEmpty
+        ? null
+        : _dobController.text.trim();
+    final gender = selectedGender;
 
     context.read<UserBloc>().add(
       AddMemberRequested(
@@ -142,6 +206,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         areaId: authState.loginData?.locationId,
         bloodGroup: selectedBloodGroup,
         professionName: _professionController.text.trim(),
+        dateOfBirth: dob,
+        gender: gender,
       ),
     );
   }
@@ -154,14 +220,25 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
           _showSnack('Member added successfully', isError: false);
           Navigator.pop(context);
         } else if (state is UserFailure) {
-          _showSnack(state.error);
+          final errMsg = state.error;
+          if (errMsg.contains('USER_PHONE_ALREADY_EXISTS') ||
+              errMsg.contains('This phone number is already registered') ||
+              errMsg.contains('already registered')) {
+            setState(() {
+              _phoneErrorText = 'This mobile number is already registered';
+            });
+          } else {
+            _showSnack(errMsg);
+          }
         }
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F4F8),
         appBar: NTKAppBar(
           title: 'Add Member',
-          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
+          subtitle:
+              context.read<AuthBloc>().state.loginData?.locationName ??
+              'Admin Portal',
           showNotification: false,
         ),
         body: SingleChildScrollView(
@@ -222,6 +299,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                 controller: _phoneController,
                 icon: CupertinoIcons.phone,
                 keyboardType: TextInputType.phone,
+                errorText: _phoneErrorText,
               ),
               const SizedBox(height: 16),
 
@@ -264,6 +342,37 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                       onChanged: (val) => setState(
                         () => _professionController.text = val ?? '',
                       ),
+                      itemLabel: (item) => item,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── Date of Birth & Gender Row ────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _selectDateOfBirth(context),
+                      child: AbsorbPointer(
+                        child: NTKTextField(
+                          label: 'Date of Birth',
+                          hintText: 'YYYY-MM-DD',
+                          controller: _dobController,
+                          icon: CupertinoIcons.calendar,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: NTKDropdownField<String>(
+                      label: 'Gender',
+                      items: const ['Male', 'Female', 'Other'],
+                      selectedValue: selectedGender,
+                      hintText: 'Select',
+                      onChanged: (val) => setState(() => selectedGender = val),
                       itemLabel: (item) => item,
                     ),
                   ),

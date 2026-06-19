@@ -13,6 +13,7 @@ import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/injection_container.dart';
+import 'package:ntk_project/src/core/utils/validators.dart';
 
 class CreateMemberScreen extends StatefulWidget {
   const CreateMemberScreen({super.key});
@@ -22,6 +23,7 @@ class CreateMemberScreen extends StatefulWidget {
 
 class _CreateMemberScreenState extends State<CreateMemberScreen> {
   final _nameController = TextEditingController();
+  final _surnameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -48,6 +50,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
 
   final _dobController = TextEditingController();
   String? _selectedGender;
+  String? _phoneErrorText;
 
   late LocationRepositoryImpl _locationRepo;
 
@@ -72,7 +75,8 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
     );
     if (picked != null) {
       setState(() {
-        _dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+        _dobController.text =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       });
     }
   }
@@ -104,6 +108,13 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   void initState() {
     super.initState();
     _locationRepo = LocationRepositoryImpl(sl());
+    _phoneController.addListener(() {
+      if (_phoneErrorText != null) {
+        setState(() {
+          _phoneErrorText = null;
+        });
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initLocationForRole();
     });
@@ -252,6 +263,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _surnameController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -270,6 +282,19 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   void _onCreateMember() {
     if (_nameController.text.trim().isEmpty) {
       _showSnack('Please enter full name');
+      return;
+    }
+    if (!Validators.isValidName(_nameController.text)) {
+      _showSnack(
+        'Full Name can only contain English and Tamil alphabets and spaces',
+      );
+      return;
+    }
+    if (_surnameController.text.trim().isNotEmpty &&
+        !Validators.isValidName(_surnameController.text)) {
+      _showSnack(
+        'Surname can only contain English and Tamil alphabets and spaces',
+      );
       return;
     }
     if (_phoneController.text.trim().isEmpty) {
@@ -292,6 +317,14 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
       _showSnack('Please select a Street');
       return;
     }
+    if (_selectedBloodGroup == null) {
+      _showSnack('Please select Blood Group');
+      return;
+    }
+    if (_selectedProfession == null) {
+      _showSnack('Please select Profession');
+      return;
+    }
     if (_passwordController.text != _confirmPasswordController.text) {
       _showSnack('Passwords do not match');
       return;
@@ -301,12 +334,17 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
       return;
     }
 
-    final dob = _dobController.text.trim().isEmpty ? null : _dobController.text.trim();
+    final dob = _dobController.text.trim().isEmpty
+        ? null
+        : _dobController.text.trim();
     final gender = _selectedGender;
 
     context.read<UserBloc>().add(
       CreateUserRequested(
         name: _nameController.text.trim(),
+        surname: _surnameController.text.trim().isEmpty
+            ? null
+            : _surnameController.text.trim(),
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
         role: 'MEMBER',
@@ -333,14 +371,25 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
           _showSnack('Member registered successfully', isError: false);
           Navigator.pop(context);
         } else if (state is UserFailure) {
-          _showSnack(state.error);
+          final errMsg = state.error;
+          if (errMsg.contains('USER_PHONE_ALREADY_EXISTS') ||
+              errMsg.contains('This phone number is already registered') ||
+              errMsg.contains('already registered')) {
+            setState(() {
+              _phoneErrorText = 'This mobile number is already registered';
+            });
+          } else {
+            _showSnack(errMsg);
+          }
         }
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F4F8),
         appBar: NTKAppBar(
           title: 'Create Member',
-          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
+          subtitle:
+              context.read<AuthBloc>().state.loginData?.locationName ??
+              'Admin Portal',
           showNotification: false,
         ),
         body: SingleChildScrollView(
@@ -372,6 +421,15 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
               ),
               const SizedBox(height: 16),
 
+              // ── Surname ──────────────────────────────────
+              NTKTextField(
+                label: 'Surname',
+                hintText: 'Enter surname',
+                controller: _surnameController,
+                icon: CupertinoIcons.person,
+              ),
+              const SizedBox(height: 16),
+
               // ── Mobile Number ────────────────────────────
               NTKTextField(
                 label: 'Mobile Number',
@@ -379,6 +437,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
                 controller: _phoneController,
                 icon: CupertinoIcons.phone,
                 keyboardType: TextInputType.phone,
+                errorText: _phoneErrorText,
               ),
               const SizedBox(height: 16),
 

@@ -87,9 +87,11 @@ class NotificationRepositoryImpl implements NotificationRepository {
     const String query = r'''
       query GetNotificationDetails($id: Int!) {
         getNotificationDetails(id: $id) {
+          notificationId
           notificationTypeBadge
           statusBadge
           purpose
+          responseRequired
           createdBy {
             name
             role
@@ -101,13 +103,37 @@ class NotificationRepositoryImpl implements NotificationRepository {
             area
             street
           }
-           emergency {
+          event {
+            id
+            title
+            description
+            date
+            status
+            location {
+              name
+            }
+          }
+          broadcast {
+            id
+            title
+            message
+            image
+          }
+          emergency {
             id
             title
             description
             type
             contactName
             contactPhone
+            bloodGroup
+            unitsRequired
+            hospitalName
+            patientCondition
+            disasterType
+            affectedArea
+            requiredSupport
+            volunteerType
             responses {
               status
               note
@@ -119,6 +145,9 @@ class NotificationRepositoryImpl implements NotificationRepository {
             }
             stats {
               total
+              going
+              maybe
+              notGoing
               coming
               onTheWay
               reached
@@ -226,8 +255,20 @@ class NotificationRepositoryImpl implements NotificationRepository {
 
   @override
   Future<void> deleteNotification(int notificationId) async {
-    // Mock API Call
-    await Future.delayed(const Duration(milliseconds: 300));
+    const String mutation = r'''
+      mutation DeleteNotification($id: Int!) {
+        deleteNotification(id: $id)
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {'id': notificationId},
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to delete notification: ${result.exception.toString()}');
+    }
   }
 
   @override

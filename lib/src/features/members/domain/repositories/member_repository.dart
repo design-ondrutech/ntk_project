@@ -36,6 +36,8 @@ abstract class MemberRepository {
     String? role,
     String? professionName,
     int? locationId,
+    String? dateOfBirth,
+    String? gender,
     String? image,
   });
 
@@ -55,6 +57,8 @@ abstract class MemberRepository {
     int? areaId,
     int? talukId,
     int? districtId,
+    String? dateOfBirth,
+    String? gender,
   });
 
   Future<List<String>> getProfessions();

@@ -1,0 +1,21 @@
+{
+  "@@locale": "en",
+  "appTitle": "Naam Tamilar Katchi",
+  "dashboard": "Dashboard",
+  "users": "Users",
+  "announcements": "Announcements",
+  "community": "Community",
+  "me": "Me",
+  "settings": "Settings",
+  "notifications": "Notifications",
+  "privacySettings": "Privacy Settings",
+  "language": "Language",
+  "helpSupport": "Help & Support",
+  "logout": "Logout",
+  "editProfile": "Edit Profile",
+  "changePassword": "Change Password",
+  "viewLocation": "View Location",
+  "contactAdmin": "Contact Admin",
+  "selectLanguage": "Select Language",
+  "languageChanged": "Language changed"
+}

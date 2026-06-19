@@ -11,6 +11,7 @@ import 'package:ntk_project/src/features/auth/presentation/bloc/auth_state.dart'
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/data/repositories/location_repository_impl.dart';
 import 'package:ntk_project/src/injection_container.dart';
+import 'package:ntk_project/src/core/utils/validators.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -25,6 +26,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  String? _phoneErrorText;
+  final _dobController = TextEditingController();
+  String? _selectedGender;
 
   LocationModel? _selectedDistrict;
   LocationModel? _selectedThoguthi;
@@ -76,6 +80,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.initState();
     _locationRepo = LocationRepositoryImpl(sl());
     _loadDistricts();
+    _phoneController.addListener(() {
+      if (_phoneErrorText != null) {
+        setState(() {
+          _phoneErrorText = null;
+        });
+      }
+    });
   }
 
   @override
@@ -85,6 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _dobController.dispose();
     super.dispose();
   }
 
@@ -185,9 +197,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  Future<void> _selectDateOfBirth(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2000, 1, 1),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF004D2A),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1F2937),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
+  }
+
   void _onSubmit() {
     if (_nameController.text.trim().isEmpty) {
       _showSnack('முழு பெயரை உள்ளிடவும்');
+      return;
+    }
+    if (!Validators.isValidName(_nameController.text)) {
+      _showSnack('முழு பெயர் ஆங்கிலம் மற்றும் தமிழ் எழுத்துக்களை மட்டுமே கொண்டிருக்க வேண்டும்');
+      return;
+    }
+    if (_surnameController.text.trim().isNotEmpty && !Validators.isValidName(_surnameController.text)) {
+      _showSnack('குடும்ப பெயர் ஆங்கிலம் மற்றும் தமிழ் எழுத்துக்களை மட்டுமே கொண்டிருக்க வேண்டும்');
       return;
     }
     if (_phoneController.text.trim().length < 10) {
@@ -208,6 +254,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
     if (_selectedStreet == null) {
       _showSnack('தெருவைத் தேர்ந்தெடுக்கவும்');
+      return;
+    }
+    if (_selectedBloodGroup == null) {
+      _showSnack('Please select Blood Group');
+      return;
+    }
+    if (_selectedProfession == null) {
+      _showSnack('Please select Profession');
       return;
     }
     if (_passwordController.text.length < 6) {
@@ -233,6 +287,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         streetId: _selectedStreet!.id,
         bloodGroup: _selectedBloodGroup,
         professionName: _selectedProfession,
+        dateOfBirth: _dobController.text.trim().isEmpty
+            ? null
+            : _dobController.text.trim(),
+        gender: _selectedGender,
       ),
     );
   }
@@ -250,7 +308,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
             if (state.error != null) {
-              _showSnack(state.error!);
+              final errMsg = state.error!;
+              if (errMsg.contains('USER_PHONE_ALREADY_EXISTS') ||
+                  errMsg.contains('This phone number is already registered') ||
+                  errMsg.contains('already registered')) {
+                setState(() {
+                  _phoneErrorText = 'This mobile number is already registered';
+                });
+              } else {
+                _showSnack(errMsg);
+              }
             } else if (state.registrationSuccess) {
               Navigator.pushReplacementNamed(context, '/verification');
             }
@@ -339,6 +406,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         controller: _phoneController,
                         icon: CupertinoIcons.phone,
                         keyboardType: TextInputType.phone,
+                        errorText: _phoneErrorText,
                       ),
                       const SizedBox(height: 16),
 
@@ -429,6 +497,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               hintText: 'Select',
                               onChanged: (val) =>
                                   setState(() => _selectedProfession = val),
+                              itemLabel: (item) => item,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _selectDateOfBirth(context),
+                              child: AbsorbPointer(
+                                child: NTKTextField(
+                                  label: 'Date of Birth',
+                                  hintText: 'YYYY-MM-DD',
+                                  controller: _dobController,
+                                  icon: CupertinoIcons.calendar,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: NTKDropdownField<String>(
+                              label: 'Gender',
+                              items: const ['Male', 'Female', 'Other'],
+                              selectedValue: _selectedGender,
+                              hintText: 'Select Gender',
+                              onChanged: (val) => setState(() => _selectedGender = val),
                               itemLabel: (item) => item,
                             ),
                           ),

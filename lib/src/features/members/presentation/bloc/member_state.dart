@@ -8,6 +8,9 @@ class MemberState extends Equatable {
   final bool isLoadingDetails;
   final MemberModel? selectedMember;
   final String? detailsError;
+  final int offset;
+  final int limit;
+  final bool hasReachedMax;
 
   const MemberState({
     this.isLoading = false,
@@ -16,6 +19,9 @@ class MemberState extends Equatable {
     this.isLoadingDetails = false,
     this.selectedMember,
     this.detailsError,
+    this.offset = 0,
+    this.limit = 20,
+    this.hasReachedMax = false,
   });
 
   MemberState copyWith({
@@ -25,6 +31,9 @@ class MemberState extends Equatable {
     bool? isLoadingDetails,
     MemberModel? selectedMember,
     String? detailsError,
+    int? offset,
+    int? limit,
+    bool? hasReachedMax,
   }) {
     return MemberState(
       isLoading: isLoading ?? this.isLoading,
@@ -33,6 +42,9 @@ class MemberState extends Equatable {
       isLoadingDetails: isLoadingDetails ?? this.isLoadingDetails,
       selectedMember: selectedMember ?? this.selectedMember,
       detailsError: detailsError ?? this.detailsError,
+      offset: offset ?? this.offset,
+      limit: limit ?? this.limit,
+      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
     );
   }
 
@@ -44,5 +56,8 @@ class MemberState extends Equatable {
         isLoadingDetails,
         selectedMember,
         detailsError,
+        offset,
+        limit,
+        hasReachedMax,
       ];
 }

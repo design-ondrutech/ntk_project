@@ -15,7 +15,7 @@ class NotificationSocketService {
     if (_socket != null && _socket!.connected) return;
 
     _socket = IO.io(
-      'https://naam-tamilar-katchi.onrender.com',
+      'https://naam-tamilar-katchi-5.onrender.com',
       IO.OptionBuilder().setTransports(['websocket']).setExtraHeaders({
         'Authorization': 'Bearer $token',
       }).build(),

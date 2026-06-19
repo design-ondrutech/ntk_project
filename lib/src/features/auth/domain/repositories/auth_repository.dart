@@ -24,6 +24,8 @@ abstract class AuthRepository {
     required int streetId,
     String? bloodGroup,
     String? professionName,
+    String? dateOfBirth,
+    String? gender,
   });
 
   Future<AdminLoginModel?> getPersistedSession();

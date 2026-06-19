@@ -3,13 +3,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
 import 'package:ntk_project/src/features/community/data/models/community_message_model.dart';
 import 'package:ntk_project/src/features/community/data/models/post_model.dart';
+import 'package:ntk_project/src/features/community/data/community_socket_service.dart';
+import 'dart:async';
 import 'community_event.dart';
 import 'community_state.dart';
 
 class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
   final CommunityRepository _repository;
+  final CommunitySocketService _socketService;
+  final Set<int> _processingLikes = {};
+  
+  StreamSubscription? _postDeletedSub;
+  StreamSubscription? _pollDeletedSub;
 
-  CommunityBloc(this._repository) : super(const CommunityState()) {
+  CommunityBloc(this._repository, this._socketService) : super(const CommunityState()) {
     on<FetchCommunities>(_onFetchCommunities);
     on<FetchCommunityFeed>(_onFetchCommunityFeed);
     on<FetchCommunityPosts>(_onFetchCommunityPosts);
@@ -20,6 +27,7 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
     on<CreateCommunityPost>(_onCreateCommunityPost);
     on<EditPost>(_onEditPost);
     on<DeletePost>(_onDeletePost);
+    on<ReportPost>(_onReportPost);
     on<CreateCommunity>(_onCreateCommunity);
     on<JoinCommunity>(_onJoinCommunity);
     on<ReactToMessage>(_onReactToMessage);
@@ -37,6 +45,27 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
     on<ClearCommunityError>(
       (event, emit) => emit(state.copyWith(clearError: true)),
     );
+    
+    // Listen to global socket events for moderation/deletion
+    _postDeletedSub = _socketService.onPostDeletedGlobal.listen((data) {
+      if (data['postId'] != null) {
+        add(DeletePost(data['postId']));
+      }
+    });
+    
+    _pollDeletedSub = _socketService.onPollDeletedGlobal.listen((data) {
+      if (data['pollId'] != null) {
+        // Here we simulate post deletion since feedPosts contains both posts and polls
+        add(DeletePost(data['pollId']));
+      }
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _postDeletedSub?.cancel();
+    _pollDeletedSub?.cancel();
+    return super.close();
   }
 
   Future<void> _onFetchCommunities(
@@ -135,31 +164,116 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
   }
 
   Future<void> _onLikePost(LikePost event, Emitter<CommunityState> emit) async {
+    if (_processingLikes.contains(event.postId)) return;
+    _processingLikes.add(event.postId);
+
     try {
-      final newLikes = await _repository.likePost(id: event.postId);
-      final updatedPosts = state.posts.map((post) {
+      PostModel? postToToggle;
+      try {
+        postToToggle = state.posts.firstWhere((p) => p.id == event.postId);
+      } catch (_) {
+        try {
+          postToToggle = state.feedPosts.firstWhere((p) => p.id == event.postId);
+        } catch (_) {}
+      }
+
+      if (postToToggle == null) return;
+      final isCurrentlyLiked = postToToggle.isLiked;
+
+      // 1. Optimistic update
+      final optimisticPosts = state.posts.map((post) {
         if (post.id == event.postId) {
-          return post.copyWith(likes: newLikes, isLiked: !post.isLiked);
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
         }
         return post;
       }).toList();
-      final updatedFeedPosts = state.feedPosts.map((post) {
+
+      final optimisticFeedPosts = state.feedPosts.map((post) {
         if (post.id == event.postId) {
-          return post.copyWith(likes: newLikes, isLiked: !post.isLiked);
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
         }
         return post;
       }).toList();
+
       emit(
         state.copyWith(
-          posts: updatedPosts,
-          feedPosts: updatedFeedPosts,
+          posts: optimisticPosts,
+          feedPosts: optimisticFeedPosts,
+          clearError: true,
+        ),
+      );
+
+      try {
+        // 2. Call API
+        final newLikesFromServer = isCurrentlyLiked 
+            ? await _repository.unlikePost(id: event.postId)
+            : await _repository.likePost(id: event.postId);
+
+      // 3. Sync with server (only update likes count)
+      final syncedPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          return post.copyWith(likes: newLikesFromServer);
+        }
+        return post;
+      }).toList();
+
+      final syncedFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          return post.copyWith(likes: newLikesFromServer);
+        }
+        return post;
+      }).toList();
+
+      emit(
+        state.copyWith(
+          posts: syncedPosts,
+          feedPosts: syncedFeedPosts,
           clearError: true,
         ),
       );
     } catch (e) {
+      // 4. Rollback on failure
+      final rollbackPosts = state.posts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
+      }).toList();
+
+      final rollbackFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          final newLikes = post.isLiked ? post.likes - 1 : post.likes + 1;
+          return post.copyWith(
+            likes: newLikes < 0 ? 0 : newLikes,
+            isLiked: !post.isLiked,
+          );
+        }
+        return post;
+      }).toList();
+
       emit(
-        state.copyWith(error: 'லைக் செய்ய முடியவில்லை: $e', clearMessage: true),
+        state.copyWith(
+          posts: rollbackPosts,
+          feedPosts: rollbackFeedPosts,
+          error: 'செயல்பாட்டை நிறைவு செய்ய முடியவில்லை. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.',
+          clearMessage: true,
+        ),
       );
+    }
+    } finally {
+      _processingLikes.remove(event.postId);
     }
   }
 
@@ -186,9 +300,21 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
         return post;
       }).toList();
 
+      final updatedFeedPosts = state.feedPosts.map((post) {
+        if (post.id == event.postId) {
+          final newComments = [...post.comments, comment];
+          return post.copyWith(
+            commentCount: post.commentCount + 1,
+            comments: newComments,
+          );
+        }
+        return post;
+      }).toList();
+
       emit(
         state.copyWith(
           posts: updatedPosts,
+          feedPosts: updatedFeedPosts,
           message: 'கமெண்ட் சேர்க்கப்பட்டது',
           clearError: true,
         ),
@@ -209,7 +335,7 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
-      final newPost = await _repository.createCommunityPost(
+      final newPost = await _repository.createFeedPost(
         title: event.title,
         content: event.content,
         category: event.category,
@@ -223,6 +349,7 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
         state.copyWith(
           isLoading: false,
           posts: [newPost, ...state.posts],
+          feedPosts: [newPost, ...state.feedPosts],
           message: 'போஸ்ட் வெற்றிகரமாக சேர்க்கப்பட்டது',
           clearError: true,
         ),
@@ -304,6 +431,31 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
     }
   }
 
+  Future<void> _onReportPost(
+    ReportPost event,
+    Emitter<CommunityState> emit,
+  ) async {
+    emit(state.copyWith(isReportingPost: true, clearError: true));
+    try {
+      await _repository.reportPost(postId: event.postId, reason: event.reason);
+      emit(
+        state.copyWith(
+          isReportingPost: false,
+          message: 'Post reported successfully.',
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isReportingPost: false,
+          error: e.toString().replaceFirst('Exception: ', ''),
+          clearMessage: true,
+        ),
+      );
+    }
+  }
+
   Future<void> _onCreateCommunity(
     CreateCommunity event,
     Emitter<CommunityState> emit,
@@ -344,7 +496,6 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
     try {
       await _repository.joinCommunity(
         communityId: event.communityId,
-        memberId: event.memberId,
       );
       emit(
         state.copyWith(

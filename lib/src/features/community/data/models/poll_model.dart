@@ -15,8 +15,12 @@ class PollOptionModel extends Equatable {
 
   factory PollOptionModel.fromJson(Map<String, dynamic> json) {
     return PollOptionModel(
-      id: json['id'] as int? ?? 0,
-      pollId: json['pollId'] as int?,
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      pollId: json['pollId'] is int
+          ? json['pollId'] as int
+          : int.tryParse(json['pollId']?.toString() ?? ''),
       text: json['text'] as String? ?? '',
       votesCount: json['votesCount'] as int? ?? 0,
     );
@@ -39,6 +43,9 @@ class PollModel extends Equatable {
   final int? userVoteOptionId;
   final Map<String, dynamic>? createdBy;
   final Map<String, dynamic>? member;
+  final int likes;
+  final int commentCount;
+  final bool isLiked;
 
   const PollModel({
     required this.id,
@@ -53,26 +60,76 @@ class PollModel extends Equatable {
     this.userVoteOptionId,
     this.createdBy,
     this.member,
+    this.likes = 0,
+    this.commentCount = 0,
+    this.isLiked = false,
   });
 
   factory PollModel.fromJson(Map<String, dynamic> json) {
     final optionsJson = json['options'] as List? ?? [];
 
     return PollModel(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       question: json['question'] as String? ?? '',
-      locationId: json['locationId'] as int?,
+      locationId: json['locationId'] is int
+          ? json['locationId'] as int
+          : int.tryParse(json['locationId']?.toString() ?? ''),
       location: json['location'] as Map<String, dynamic>?,
-      communityId: json['communityId'] as int?,
+      communityId: json['communityId'] is int
+          ? json['communityId'] as int
+          : int.tryParse(json['communityId']?.toString() ?? ''),
       expiresAt: json['expiresAt'] as String?,
       createdAt: json['createdAt'] as String?,
       options: optionsJson
           .map((o) => PollOptionModel.fromJson(o as Map<String, dynamic>))
           .toList(),
       votesCount: json['votesCount'] as int? ?? 0,
-      userVoteOptionId: json['userVoteOptionId'] as int?,
+      userVoteOptionId: json['userVoteOptionId'] is int
+          ? json['userVoteOptionId'] as int
+          : int.tryParse(json['userVoteOptionId']?.toString() ?? ''),
       createdBy: json['createdBy'] as Map<String, dynamic>?,
       member: json['member'] as Map<String, dynamic>?,
+      likes: json['likes'] as int? ?? 0,
+      commentCount: json['commentCount'] as int? ?? 0,
+      isLiked: json['isLiked'] as bool? ?? false,
+    );
+  }
+
+  PollModel copyWith({
+    int? id,
+    String? question,
+    int? locationId,
+    Map<String, dynamic>? location,
+    int? communityId,
+    String? expiresAt,
+    String? createdAt,
+    List<PollOptionModel>? options,
+    int? votesCount,
+    int? userVoteOptionId,
+    Map<String, dynamic>? createdBy,
+    Map<String, dynamic>? member,
+    int? likes,
+    int? commentCount,
+    bool? isLiked,
+  }) {
+    return PollModel(
+      id: id ?? this.id,
+      question: question ?? this.question,
+      locationId: locationId ?? this.locationId,
+      location: location ?? this.location,
+      communityId: communityId ?? this.communityId,
+      expiresAt: expiresAt ?? this.expiresAt,
+      createdAt: createdAt ?? this.createdAt,
+      options: options ?? this.options,
+      votesCount: votesCount ?? this.votesCount,
+      userVoteOptionId: userVoteOptionId ?? this.userVoteOptionId,
+      createdBy: createdBy ?? this.createdBy,
+      member: member ?? this.member,
+      likes: likes ?? this.likes,
+      commentCount: commentCount ?? this.commentCount,
+      isLiked: isLiked ?? this.isLiked,
     );
   }
 
@@ -90,5 +147,8 @@ class PollModel extends Equatable {
     userVoteOptionId,
     createdBy,
     member,
+    likes,
+    commentCount,
+    isLiked,
   ];
 }

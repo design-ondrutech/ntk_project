@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
-import 'package:ntk_project/src/features/events/presentation/bloc/event_bloc.dart';
-import 'package:ntk_project/src/features/events/presentation/bloc/event_event.dart';
-import 'package:ntk_project/src/features/events/presentation/bloc/event_state.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/features/notifications/data/models/notification_model.dart';
 import 'package:ntk_project/src/features/notifications/domain/repositories/notification_repository.dart';
-import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/injection_container.dart';
 import 'package:intl/intl.dart';
 
@@ -22,12 +18,11 @@ class NotificationDetailsScreen extends StatefulWidget {
 }
 
 class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
-  String? _submittedActionKey;
 
   String _formatDateTime(String? value) {
     if (value == null || value.isEmpty) return '';
     try {
-      final date = DateTime.parse(value).toLocal();
+      final date = DateHelper.parseUtcToLocal(value);
       return DateFormat('dd MMM yyyy, hh:mm a').format(date);
     } catch (_) {
       return value;
@@ -82,76 +77,6 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
     return value is List ? value : const [];
   }
 
-  /// Maps action key to RSVPStatus expected by the backend
-  String _toRsvpStatus(String key) {
-    switch (key.toUpperCase()) {
-      case 'COMING':
-        return 'COMING';
-      case 'ON_THE_WAY':
-        return 'ON_THE_WAY';
-      case 'REACHED':
-        return 'REACHED';
-      case 'UNABLE':
-        return 'UNABLE';
-      case 'CONTACT_REQUESTED':
-        return 'CONTACT_REQUESTED';
-      default:
-        return key.toUpperCase();
-    }
-  }
-
-  Color _actionColor(String? style) {
-    switch (style?.toUpperCase()) {
-      case 'PRIMARY':
-        return NTKColors.primary;
-      case 'DANGER':
-        return Colors.red;
-      case 'WARNING':
-        return Colors.orange;
-      case 'INFO':
-        return Colors.blue;
-      case 'SUCCESS':
-        return NTKColors.primary;
-      default:
-        return NTKColors.primary;
-    }
-  }
-
-  void _handleAction(String key, String? emergencyId) {
-    final resolvedId = emergencyId ?? widget.notification.relatedEntityId?.toString();
-    if (resolvedId == null || resolvedId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot process action: missing entity ID')),
-      );
-      return;
-    }
-
-    final status = _toRsvpStatus(key);
-    setState(() => _submittedActionKey = key);
-
-    if (widget.notification.type?.toUpperCase() == 'EVENT') {
-      final authState = context.read<AuthBloc>().state;
-      final memberId = authState.loginData?.id;
-      if (memberId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User not logged in')),
-        );
-        setState(() => _submittedActionKey = null);
-        return;
-      }
-      context.read<EventBloc>().add(
-        RespondToEvent(
-          eventId: resolvedId,
-          memberId: memberId,
-          status: status,
-        ),
-      );
-    } else {
-      context.read<EventBloc>().add(
-        RespondToEmergency(emergencyRequestId: resolvedId, status: status),
-      );
-    }
-  }
 
   Widget _buildBasicDetails(BuildContext context, Color color) {
     return Column(
@@ -199,11 +124,7 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
   Widget _buildApiDetails(BuildContext context, Map<String, dynamic> details) {
     final locationScope = _asMap(details['locationScope']);
     final emergency = _asMap(details['emergency']);
-    final actions = _asList(details['availableActions']);
     final history = _asList(details['activityHistory']);
-
-    // Try to get emergency ID — could be stored in the relatedEntityId or inside the emergency details
-    final emergencyId = emergency?['id']?.toString() ?? widget.notification.relatedEntityId?.toString();
 
     // Resolve sender: prefer createdBy field, fallback to first activityHistory actorName
     final createdBy = _asMap(details['createdBy']);
@@ -365,96 +286,6 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
                 ],
               ],
             ),
-          ),
-        ],
-
-        // Action buttons — fully interactive
-        if (actions.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          BlocConsumer<EventBloc, EventState>(
-            listener: (context, state) {
-              if (state.message != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message!),
-                    backgroundColor: NTKColors.primary,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-              if (state.error != null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.error!),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                setState(() => _submittedActionKey = null);
-              }
-            },
-            builder: (context, state) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Actions',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: NTKColors.textSecondary,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: actions.map((action) {
-                      final actionMap = _asMap(action);
-                      final key = actionMap?['key']?.toString() ?? '';
-                      final label = actionMap?['label']?.toString() ?? 'Action';
-                      final style = actionMap?['style']?.toString();
-                      final color = _actionColor(style);
-                      final isSubmitted = _submittedActionKey == key;
-                      final isLoading = state.isLoading && isSubmitted;
-
-                      return GestureDetector(
-                        onTap: state.isLoading ? null : () => _handleAction(key, emergencyId),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSubmitted ? color : color.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: color.withOpacity(0.4)),
-                          ),
-                          child: isLoading
-                              ? SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation(
-                                      isSubmitted ? Colors.white : color,
-                                    ),
-                                  ),
-                                )
-                              : Text(
-                                  label,
-                                  style: TextStyle(
-                                    color: isSubmitted ? Colors.white : color,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              );
-            },
           ),
         ],
 

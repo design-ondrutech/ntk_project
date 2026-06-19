@@ -3,9 +3,98 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/data/models/pending_request_model.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/main_screen.dart';
+import 'package:ntk_project/src/core/widgets/async_base64_image.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_state.dart';
+
+Widget buildDashboardAvatar(BuildContext context) {
+  return BlocBuilder<AuthBloc, AuthState>(
+    builder: (context, authState) {
+      final loginData = authState.loginData;
+      final imagePath = loginData?.image;
+      final name = loginData?.name ?? '';
+      final initial = name.trim().isEmpty ? 'U' : name.trim()[0].toUpperCase();
+
+      Widget avatarChild;
+      if (imagePath != null && imagePath.trim().isNotEmpty) {
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+          avatarChild = Image.network(
+            imagePath,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Center(
+              child: Text(
+                initial,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          );
+        } else {
+          try {
+            final clean = imagePath.contains('base64,')
+                ? imagePath.substring(imagePath.indexOf('base64,') + 7)
+                : imagePath;
+            avatarChild = AsyncBase64Image(
+              base64String: clean,
+              fit: BoxFit.cover,
+              placeholderBuilder: (_) => Center(
+                child: Text(
+                  initial,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+              errorBuilder: (_, __, ___) => Center(
+                child: Text(
+                  initial,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            );
+          } catch (_) {
+            avatarChild = Center(
+              child: Text(
+                initial,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            );
+          }
+        }
+      } else {
+        avatarChild = Center(
+          child: Text(
+            initial,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        );
+      }
+
+      return Container(
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white24,
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: avatarChild,
+      );
+    },
+  );
+}
+
+Widget _buildInitialsText(String name) {
+  return Center(
+    child: Text(
+      name.isNotEmpty ? name[0].toUpperCase() : '?',
+      style: const TextStyle(
+        color: Color(0xFF059669),
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+      ),
+    ),
+  );
+}
 
 PreferredSizeWidget buildFigmaAppBar(BuildContext context, String subtitle) {
   return AppBar(
@@ -14,13 +103,7 @@ PreferredSizeWidget buildFigmaAppBar(BuildContext context, String subtitle) {
     centerTitle: false,
     leading: Padding(
       padding: const EdgeInsets.all(8.0),
-      child: Container(
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white24,
-        ),
-        child: const Icon(Icons.person, color: Colors.white, size: 20),
-      ),
+      child: buildDashboardAvatar(context),
     ),
     title: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,23 +413,7 @@ Widget buildActionCardGrid(
 String _formatActivityTime(String? value) {
   if (value == null || value.isEmpty) return '';
   try {
-    if (!value.contains('-') && !value.contains(':')) return value;
-    final parsedInt = int.tryParse(value);
-    DateTime date;
-    if (parsedInt != null) {
-      date = DateTime.fromMillisecondsSinceEpoch(
-        parsedInt > 9999999999 ? parsedInt : parsedInt * 1000,
-      ).toLocal();
-    } else {
-      String normalized = value;
-      if (!normalized.endsWith('Z') && !normalized.contains('+') && !normalized.contains(RegExp(r'-\d{2}:?\d{2}$'))) {
-        normalized = normalized.replaceAll(' ', 'T');
-        if (!normalized.endsWith('Z')) {
-          normalized = '${normalized}Z';
-        }
-      }
-      date = DateTime.parse(normalized).toLocal();
-    }
+    final date = DateHelper.parseUtcToLocal(value);
     final diff = DateTime.now().difference(date);
     if (diff.inDays > 0) return '${diff.inDays}d ago';
     if (diff.inHours > 0) return '${diff.inHours}h ago';
@@ -390,23 +457,34 @@ Widget buildRecentActivitiesList(BuildContext context, List<dynamic> activities)
 
       if (activity is RecentActivityModel) {
         isEmergency = activity.action == 'EMERGENCY' || activity.typename == 'EmergencyRequest';
-        title = activity.title != null && activity.title!.isNotEmpty
-            ? activity.title!
-            : activity.details;
-        if (title.isEmpty) {
-          title = activity.action;
-        }
-        
-        if (activity.action == 'EVENT') {
-          subtitle = 'Event Activity';
-        } else if (activity.action == 'EMERGENCY') {
-          subtitle = 'Emergency Request';
-        } else if (activity.action == 'MEMBER') {
-          subtitle = 'Member Approval';
-        } else if (activity.action == 'BROADCAST') {
-          subtitle = 'Broadcast Notification';
+        if (activity.details.isNotEmpty) {
+          title = activity.details;
+          subtitle = activity.title != null && activity.title!.isNotEmpty
+              ? activity.title!
+              : (activity.action == 'EVENT'
+                  ? 'Event Activity'
+                  : activity.action == 'EMERGENCY'
+                      ? 'Emergency Request'
+                      : activity.action == 'MEMBER'
+                          ? 'Member Approval'
+                          : activity.action == 'BROADCAST'
+                              ? 'Broadcast Notification'
+                              : activity.action.toUpperCase());
         } else {
-          subtitle = activity.action.toUpperCase();
+          title = activity.title != null && activity.title!.isNotEmpty
+              ? activity.title!
+              : activity.action;
+          if (activity.action == 'EVENT') {
+            subtitle = 'Event Activity';
+          } else if (activity.action == 'EMERGENCY') {
+            subtitle = 'Emergency Request';
+          } else if (activity.action == 'MEMBER') {
+            subtitle = 'Member Approval';
+          } else if (activity.action == 'BROADCAST') {
+            subtitle = 'Broadcast Notification';
+          } else {
+            subtitle = activity.action.toUpperCase();
+          }
         }
 
         status = activity.status ?? 'COMPLETED';
@@ -502,14 +580,20 @@ Widget buildActivityItem(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     time,
                     style: TextStyle(color: Colors.grey[500], fontSize: 11),
@@ -520,6 +604,8 @@ Widget buildActivityItem(
               Text(
                 subtitle,
                 style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               if (showStatus) ...[
                 const SizedBox(height: 6),
@@ -580,7 +666,7 @@ Widget buildPendingApprovalSection(BuildContext context) {
               ),
               TextButton(
                 onPressed: () {
-                  MainScreen.of(context)?.setSelectedIndex(2);
+                  Navigator.pushNamed(context, '/pending_requests');
                 },
                 child: const Text(
                   'View Queue',
@@ -628,11 +714,26 @@ Widget buildRequestCardCompact(BuildContext context, PendingRequestModel request
             CircleAvatar(
               radius: 20,
               backgroundColor: const Color(0xFFDCFCE7),
-              child: Text(
-                name.isNotEmpty ? name[0] : '?',
-                style: const TextStyle(
-                  color: Color(0xFF059669),
-                  fontWeight: FontWeight.bold,
+              child: ClipOval(
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: request.image != null && request.image!.trim().isNotEmpty
+                      ? (request.image!.startsWith('http://') || request.image!.startsWith('https://')
+                          ? Image.network(
+                              request.image!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => _buildInitialsText(name),
+                            )
+                          : AsyncBase64Image(
+                              base64String: request.image!.contains('base64,')
+                                  ? request.image!.substring(request.image!.indexOf('base64,') + 7)
+                                  : request.image!,
+                              fit: BoxFit.cover,
+                              placeholderBuilder: (_) => _buildInitialsText(name),
+                              errorBuilder: (_, __, ___) => _buildInitialsText(name),
+                            ))
+                      : _buildInitialsText(name),
                 ),
               ),
             ),

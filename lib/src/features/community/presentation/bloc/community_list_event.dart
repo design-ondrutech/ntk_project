@@ -25,3 +25,25 @@ class CreateNewCommunity extends CommunityListEvent {
   @override
   List<Object?> get props => [name, description, image, allowMemberMessages];
 }
+
+class ResetCommunityList extends CommunityListEvent {
+  const ResetCommunityList();
+}
+
+class JoinCommunityGroup extends CommunityListEvent {
+  final int communityId;
+
+  const JoinCommunityGroup({required this.communityId});
+
+  @override
+  List<Object?> get props => [communityId];
+}
+
+class LeaveCommunityGroup extends CommunityListEvent {
+  final int communityId;
+
+  const LeaveCommunityGroup({required this.communityId});
+
+  @override
+  List<Object?> get props => [communityId];
+}

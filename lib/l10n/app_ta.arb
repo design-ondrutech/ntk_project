@@ -1,0 +1,21 @@
+{
+  "@@locale": "ta",
+  "appTitle": "நாம் தமிழர் கட்சி",
+  "dashboard": "Dashboard",
+  "users": "Users",
+  "announcements": "Announcements",
+  "community": "Community",
+  "me": "Me",
+  "settings": "அமைப்புகள்",
+  "notifications": "அறிவிப்புகள்",
+  "privacySettings": "தனியுரிமை அமைப்புகள்",
+  "language": "மொழி",
+  "helpSupport": "உதவி & ஆதரவு",
+  "logout": "வெளியேறு",
+  "editProfile": "சுயவிவரத்தைத் திருத்து",
+  "changePassword": "கடவுச்சொல்லை மாற்று",
+  "viewLocation": "இருப்பிடத்தைக் காண்",
+  "contactAdmin": "நிர்வாகியைத் தொடர்பு கொள்",
+  "selectLanguage": "மொழியைத் தேர்ந்தெடு",
+  "languageChanged": "மொழி மாற்றப்பட்டது"
+}

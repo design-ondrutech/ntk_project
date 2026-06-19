@@ -11,6 +11,7 @@ class NTKTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final bool obscureText;
   final Widget? suffixIcon;
+  final String? errorText;
 
   const NTKTextField({
     super.key,
@@ -21,6 +22,7 @@ class NTKTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.obscureText = false,
     this.suffixIcon,
+    this.errorText,
   });
 
   @override
@@ -42,12 +44,13 @@ class NTKTextField extends StatelessWidget {
               ? [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(10),
-                ]
+                  ]
               : null,
           decoration: InputDecoration(
             hintText: hintText,
             prefixIcon: Icon(icon, size: 20),
             suffixIcon: suffixIcon,
+            errorText: errorText,
           ),
         ),
       ],

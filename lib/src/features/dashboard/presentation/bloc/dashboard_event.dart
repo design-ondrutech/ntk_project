@@ -23,3 +23,15 @@ class UpdateGlobalLocation extends DashboardEvent {
   @override
   List<Object?> get props => [location];
 }
+
+class ResetDashboard extends DashboardEvent {
+  const ResetDashboard();
+}
+
+class LoadModerationStats extends DashboardEvent {
+  final int? locationId;
+  const LoadModerationStats(this.locationId);
+
+  @override
+  List<Object?> get props => [locationId];
+}

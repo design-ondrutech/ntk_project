@@ -6,6 +6,7 @@ class CommentModel extends Equatable {
   final String authorName;
   final String? authorRole;
   final String? createdAt;
+  final Map<String, dynamic>? createdBy;
 
   const CommentModel({
     required this.id,
@@ -13,6 +14,7 @@ class CommentModel extends Equatable {
     required this.authorName,
     this.authorRole,
     this.createdAt,
+    this.createdBy,
   });
 
   factory CommentModel.fromJson(Map<String, dynamic> json) {
@@ -24,9 +26,10 @@ class CommentModel extends Equatable {
       authorName: json['authorName'] as String? ?? 'Unknown',
       authorRole: json['authorRole'] as String?,
       createdAt: json['createdAt'] as String?,
+      createdBy: json['createdBy'] as Map<String, dynamic>?,
     );
   }
 
   @override
-  List<Object?> get props => [id, content, authorName, createdAt];
+  List<Object?> get props => [id, content, authorName, createdAt, createdBy];
 }

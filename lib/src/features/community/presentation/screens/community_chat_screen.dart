@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/features/community/data/models/community_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_message_model.dart';
@@ -75,7 +76,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
   String _formatTime(String? isoDate) {
     if (isoDate == null) return '';
     try {
-      final date = DateTime.parse(isoDate);
+      final date = DateHelper.parseUtcToLocal(isoDate);
       return DateFormat.jm().format(date);
     } catch (e) {
       return '';
@@ -85,6 +86,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
   @override
   Widget build(BuildContext context) {
     final myId = context.watch<AuthBloc>().state.loginData?.id;
+    final myName = context.watch<AuthBloc>().state.loginData?.name;
 
     return Scaffold(
       appBar: NTKAppBar(
@@ -125,7 +127,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                   itemCount: state.messages.length,
                   itemBuilder: (context, index) {
                     final message = state.messages[index];
-                    final isMe = message.senderId == myId || message.senderName == 'Me';
+                    final isMe = message.senderId == myId || message.senderName == 'Me' || message.senderName == myName;
                     return _buildMessageBubble(message, isMe);
                   },
                 );

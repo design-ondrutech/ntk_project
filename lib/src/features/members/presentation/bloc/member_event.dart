@@ -7,6 +7,10 @@ abstract class MemberEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+class ResetMembers extends MemberEvent {
+  const ResetMembers();
+}
+
 class LoadMembers extends MemberEvent {
   final int? locationId;
   final String? search;
@@ -14,8 +18,28 @@ class LoadMembers extends MemberEvent {
   final String? role;
 
   const LoadMembers({
-    this.locationId, 
-    this.search, 
+    this.locationId,
+    this.search,
+    this.bloodGroup,
+    this.role,
+    this.isRefresh = true,
+  });
+
+  final bool isRefresh;
+
+  @override
+  List<Object?> get props => [locationId, search, bloodGroup, role, isRefresh];
+}
+
+class LoadMoreMembers extends MemberEvent {
+  final int? locationId;
+  final String? search;
+  final String? bloodGroup;
+  final String? role;
+
+  const LoadMoreMembers({
+    this.locationId,
+    this.search,
     this.bloodGroup,
     this.role,
   });
@@ -42,6 +66,9 @@ class UpdateMemberDetails extends MemberEvent {
   final String? role;
   final String? professionName;
   final int? locationId;
+  final String? dateOfBirth;
+  final String? gender;
+  final String? image;
 
   const UpdateMemberDetails({
     required this.id,
@@ -52,6 +79,9 @@ class UpdateMemberDetails extends MemberEvent {
     this.role,
     this.professionName,
     this.locationId,
+    this.dateOfBirth,
+    this.gender,
+    this.image,
   });
 
   @override
@@ -64,6 +94,8 @@ class UpdateMemberDetails extends MemberEvent {
     role,
     professionName,
     locationId,
+    dateOfBirth,
+    gender,
+    image,
   ];
 }
-

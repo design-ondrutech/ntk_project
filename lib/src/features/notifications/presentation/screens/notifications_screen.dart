@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/features/notifications/data/models/notification_model.dart';
 import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_bloc.dart';
 import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_event.dart';
@@ -11,6 +12,14 @@ import 'package:ntk_project/src/features/notifications/presentation/screens/noti
 import 'package:ntk_project/src/features/notifications/presentation/screens/notification_settings_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
+import 'package:ntk_project/src/features/events/data/models/event_model.dart';
+import 'package:ntk_project/src/features/events/data/models/emergency_model.dart';
+import 'package:ntk_project/src/features/community/data/models/post_model.dart';
+import 'package:ntk_project/src/features/community/data/models/poll_model.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_post_details_screen.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_bloc.dart';
+import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
+import 'package:ntk_project/src/injection_container.dart';
 import 'package:intl/intl.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -53,7 +62,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   String _formatTime(String? value) {
     if (value == null || value.isEmpty) return '';
     try {
-      final date = DateTime.parse(value).toLocal();
+      final date = DateHelper.parseUtcToLocal(value);
       final diff = DateTime.now().difference(date);
       if (diff.inDays > 1) return DateFormat('dd MMM, yyyy').format(date);
       if (diff.inDays == 1) return 'Yesterday';
@@ -301,6 +310,116 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  void _navigateForNotification(BuildContext context, NotificationModel item) {
+    final type = item.type?.toUpperCase() ?? '';
+    final id = item.relatedEntityId;
+
+    switch (type) {
+      case 'EVENT':
+        // Navigate to Event Details — only if we have a valid entity ID
+        if (id != null) {
+          final event = EventModel(
+            id: id.toString(),
+            title: item.title,
+            description: item.message,
+            date: '',
+            locationName: '',
+            going: 0,
+            maybe: 0,
+            notGoing: 0,
+          );
+          Navigator.pushNamed(context, '/event_details', arguments: event);
+        } else {
+          _fallbackToNotificationDetails(context, item);
+        }
+        break;
+
+      case 'EMERGENCY':
+      case 'ALERT':
+        // Navigate to Emergency Details — only if we have a valid entity ID
+        if (id != null) {
+          Navigator.pushNamed(
+            context,
+            '/emergency_details',
+            arguments: EmergencyModel(
+              id: id.toString(),
+              title: item.title,
+              description: item.message,
+              type: type,
+              contactName: '',
+              contactPhone: '',
+              expiryDate: '',
+              collectResponse: false,
+              locationName: '',
+              going: 0,
+              maybe: 0,
+              notGoing: 0,
+            ),
+          );
+        } else {
+          _fallbackToNotificationDetails(context, item);
+        }
+        break;
+
+      case 'POLL':
+        // Navigate to Poll Details — show a full-screen poll detail page
+        if (id != null) {
+          _showPollDetails(context, id, item);
+        } else {
+          _fallbackToNotificationDetails(context, item);
+        }
+        break;
+
+      case 'POST':
+      case 'COMMUNITY':
+        // Navigate to Community Post Details
+        if (id != null) {
+          final post = PostModel(
+            id: id,
+            title: item.title,
+            content: item.message,
+            likes: 0,
+            authorName: '',
+            createdAt: item.createdAt,
+          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BlocProvider.value(
+                value: sl<CommunityPostsBloc>(),
+                child: CommunityPostDetailsScreen(post: post),
+              ),
+            ),
+          );
+        } else {
+          _fallbackToNotificationDetails(context, item);
+        }
+        break;
+
+      default:
+        _fallbackToNotificationDetails(context, item);
+    }
+  }
+
+  void _fallbackToNotificationDetails(BuildContext context, NotificationModel item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NotificationDetailsScreen(notification: item),
+      ),
+    );
+  }
+
+  void _showPollDetails(BuildContext context, int pollId, NotificationModel item) {
+    // Show a loading bottom sheet that fetches and displays poll details
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PollDetailSheet(pollId: pollId, title: item.title),
+    );
+  }
+
   Widget _buildDismissibleCard(NotificationModel item) {
     return Dismissible(
       key: Key(item.id.toString()),
@@ -321,13 +440,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               MarkNotificationAsRead(item.id),
             );
           }
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  NotificationDetailsScreen(notification: item),
-            ),
-          );
+          _navigateForNotification(context, item);
         },
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -420,6 +533,199 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Poll Detail Sheet — shown when tapping a POLL notification
+// ---------------------------------------------------------------------------
+class _PollDetailSheet extends StatefulWidget {
+  final int pollId;
+  final String title;
+
+  const _PollDetailSheet({required this.pollId, required this.title});
+
+  @override
+  State<_PollDetailSheet> createState() => _PollDetailSheetState();
+}
+
+class _PollDetailSheetState extends State<_PollDetailSheet> {
+  PollModel? _poll;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPoll();
+  }
+
+  Future<void> _loadPoll() async {
+    try {
+      final poll = await sl<CommunityRepository>().getPollDetails(id: widget.pollId);
+      if (mounted) setState(() { _poll = poll; _isLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.poll, color: Colors.purple, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: NTKColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.error_outline, color: Colors.red[300], size: 48),
+                                const SizedBox(height: 12),
+                                const Text('Failed to load poll details',
+                                    style: TextStyle(color: NTKColors.textSecondary)),
+                              ],
+                            ),
+                          ),
+                        )
+                      : _buildPollContent(controller),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPollContent(ScrollController controller) {
+    final poll = _poll!;
+    final totalVotes = poll.options.fold<int>(0, (sum, o) => sum + o.votesCount);
+
+    return ListView(
+      controller: controller,
+      padding: const EdgeInsets.all(20),
+      children: [
+        Text(
+          poll.question,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: NTKColors.textPrimary,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 20),
+        ...poll.options.map((option) {
+          final percent = totalVotes > 0 ? option.votesCount / totalVotes : 0.0;
+          final isVoted = poll.userVoteOptionId == option.id;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isVoted ? NTKColors.primary.withOpacity(0.08) : Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isVoted ? NTKColors.primary.withOpacity(0.4) : Colors.grey.withOpacity(0.2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        option.text,
+                        style: TextStyle(
+                          fontWeight: isVoted ? FontWeight.bold : FontWeight.normal,
+                          color: isVoted ? NTKColors.primary : NTKColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${(percent * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        color: isVoted ? NTKColors.primary : NTKColors.textSecondary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: percent,
+                    backgroundColor: Colors.grey[200],
+                    color: isVoted ? NTKColors.primary : Colors.purple,
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 8),
+        Text(
+          '$totalVotes vote${totalVotes != 1 ? 's' : ''} total',
+          style: const TextStyle(color: NTKColors.textSecondary, fontSize: 13),
+          textAlign: TextAlign.center,
+        ),
+      ],
     );
   }
 }

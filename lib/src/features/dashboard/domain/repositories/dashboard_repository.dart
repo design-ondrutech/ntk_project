@@ -1,4 +1,5 @@
 import 'package:ntk_project/src/features/dashboard/data/models/dashboard_stats_model.dart';
+import 'package:ntk_project/src/features/dashboard/data/models/moderation_stats_model.dart';
 import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
 
 abstract class DashboardRepository {
@@ -12,4 +13,6 @@ abstract class DashboardRepository {
     String? fromDate,
     String? toDate,
   });
+
+  Future<ModerationStatsModel> getModerationDashboardStats(int? locationId);
 }

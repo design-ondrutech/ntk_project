@@ -1,12 +1,20 @@
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
+import 'package:ntk_project/src/core/widgets/async_base64_image.dart';
 import 'package:ntk_project/src/features/auth/data/models/admin_login_model.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_event.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ntk_project/src/core/network/graphql_service.dart';
+import 'package:ntk_project/src/injection_container.dart' as di;
+import 'package:ntk_project/l10n/app_localizations.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/language_cubit.dart';
 
 // ─── Role color helpers ───────────────────────────────────────────────────────
 Color _roleColor(String role) {
@@ -69,12 +77,7 @@ String _formatStatus(String s) => s
 String _formatDate(String? raw) {
   if (raw == null || raw.isEmpty) return '—';
   try {
-    final epoch = int.tryParse(raw);
-    final dt = epoch != null
-        ? (epoch > 9999999999
-              ? DateTime.fromMillisecondsSinceEpoch(epoch)
-              : DateTime.fromMillisecondsSinceEpoch(epoch * 1000))
-        : DateTime.parse(raw);
+    final dt = DateHelper.parseUtcToLocal(raw);
     final months = [
       'Jan',
       'Feb',
@@ -288,6 +291,32 @@ class _ProfileHeroSection extends StatelessWidget {
   final AdminLoginModel profile;
   const _ProfileHeroSection({required this.profile});
 
+  Widget _buildProfileImage(String? imagePath, String initial) {
+    if (imagePath == null || imagePath.isEmpty) {
+      return _InitialAvatar(initial: initial);
+    }
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _InitialAvatar(initial: initial),
+      );
+    }
+    try {
+      final clean = imagePath.contains('base64,')
+          ? imagePath.substring(imagePath.indexOf('base64,') + 7)
+          : imagePath;
+      return AsyncBase64Image(
+        base64String: clean,
+        fit: BoxFit.cover,
+        placeholderBuilder: (_) => _InitialAvatar(initial: initial),
+        errorBuilder: (_, __, ___) => _InitialAvatar(initial: initial),
+      );
+    } catch (e) {
+      return _InitialAvatar(initial: initial);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fullName = [
@@ -327,14 +356,7 @@ class _ProfileHeroSection extends StatelessWidget {
                     ],
                   ),
                   child: ClipOval(
-                    child: profile.image != null && profile.image!.isNotEmpty
-                        ? Image.network(
-                            profile.image!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                _InitialAvatar(initial: initial),
-                          )
-                        : _InitialAvatar(initial: initial),
+                    child: _buildProfileImage(profile.image, initial),
                   ),
                 ),
                 // Role icon badge
@@ -938,38 +960,39 @@ class _QuickActionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     final actions = [
       _ActionItem(
         icon: Icons.edit_outlined,
-        label: 'Edit Profile',
+        label: loc.editProfile,
         iconBg: NTKColors.emerald50,
         iconColor: NTKColors.primary,
-        onTap: () => onSnack('Edit Profile coming soon'),
+        onTap: () => onSnack('${loc.editProfile} coming soon'),
       ),
       _ActionItem(
         icon: Icons.lock_outline_rounded,
-        label: 'Change Password',
+        label: loc.changePassword,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        onTap: () => onSnack('Change Password coming soon'),
+        onTap: () => onSnack('${loc.changePassword} coming soon'),
       ),
       _ActionItem(
         icon: Icons.location_on_outlined,
-        label: 'View Location',
+        label: loc.viewLocation,
         iconBg: const Color(0xFFFFF7ED),
         iconColor: const Color(0xFFF97316),
-        onTap: () => onSnack('View Location coming soon'),
+        onTap: () => onSnack('${loc.viewLocation} coming soon'),
       ),
       _ActionItem(
         icon: Icons.support_agent_rounded,
-        label: 'Contact Admin',
+        label: loc.contactAdmin,
         iconBg: const Color(0xFFF5F3FF),
         iconColor: const Color(0xFF7C3AED),
-        onTap: () => onSnack('Contact Admin coming soon'),
+        onTap: () => onSnack('${loc.contactAdmin} coming soon'),
       ),
       _ActionItem(
         icon: Icons.logout_rounded,
-        label: 'Logout',
+        label: loc.logout,
         iconBg: const Color(0xFFFEF2F2),
         iconColor: const Color(0xFFDC2626),
         onTap: onLogout,
@@ -1094,9 +1117,68 @@ class _SettingsCard extends StatefulWidget {
 
 class _SettingsCardState extends State<_SettingsCard> {
   bool _notifications = true;
+  String _languageCode = 'en';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _languageCode = prefs.getString('languageCode') ?? 'en';
+    });
+  }
+
+  void _showLanguagePicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        final loc = AppLocalizations.of(context)!;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(loc.selectLanguage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              ListTile(
+                title: const Text('English'),
+                trailing: _languageCode == 'en' ? const Icon(Icons.check, color: NTKColors.primary) : null,
+                onTap: () => _setLanguage('en'),
+              ),
+              ListTile(
+                title: const Text('தமிழ்'),
+                trailing: _languageCode == 'ta' ? const Icon(Icons.check, color: NTKColors.primary) : null,
+                onTap: () => _setLanguage('ta'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _setLanguage(String code) async {
+    Navigator.pop(context);
+    context.read<LanguageCubit>().changeLanguage(code);
+    di.sl<GraphQLService>().setLanguage(code);
+    setState(() {
+      _languageCode = code;
+    });
+    NTKSnackbar.showSuccess(context,
+        message: code == 'ta' ? 'மொழி மாற்றப்பட்டது' : 'Language changed');
+  }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1137,10 +1219,10 @@ class _SettingsCardState extends State<_SettingsCard> {
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Notifications',
-                    style: TextStyle(
+                    loc.notifications,
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: NTKColors.textPrimary,
@@ -1159,37 +1241,37 @@ class _SettingsCardState extends State<_SettingsCard> {
             icon: Icons.privacy_tip_outlined,
             iconBg: const Color(0xFFEFF6FF),
             iconColor: const Color(0xFF2563EB),
-            label: 'Privacy Settings',
-            onTap: () => widget.onSnack('Privacy Settings coming soon'),
+            label: loc.privacySettings,
+            onTap: () => widget.onSnack('${loc.privacySettings} coming soon'),
           ),
           _SettingsTile(
             icon: Icons.language_rounded,
             iconBg: const Color(0xFFF5F3FF),
             iconColor: const Color(0xFF7C3AED),
-            label: 'Language',
+            label: loc.language,
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: NTKColors.slate100,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                'English',
-                style: TextStyle(
+              child: Text(
+                _languageCode == 'ta' ? 'தமிழ்' : 'English',
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: NTKColors.textSecondary,
                 ),
               ),
             ),
-            onTap: () => widget.onSnack('Language selection coming soon'),
+            onTap: _showLanguagePicker,
           ),
           _SettingsTile(
             icon: Icons.help_outline_rounded,
             iconBg: const Color(0xFFFFF7ED),
             iconColor: const Color(0xFFF97316),
-            label: 'Help & Support',
-            onTap: () => widget.onSnack('Help & Support coming soon'),
+            label: loc.helpSupport,
+            onTap: () => widget.onSnack('${loc.helpSupport} coming soon'),
             isLast: true,
           ),
         ],

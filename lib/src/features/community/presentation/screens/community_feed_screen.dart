@@ -4,11 +4,14 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
+import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
+import 'package:ntk_project/src/core/widgets/async_base64_image.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/community/data/models/comment_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_model.dart';
@@ -21,6 +24,7 @@ import 'package:ntk_project/src/features/community/presentation/bloc/community_p
 import 'package:ntk_project/src/features/community/presentation/bloc/community_polls_state.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_state.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_chat_screen.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_details_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
@@ -51,7 +55,6 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, initialIndex: 1, vsync: this);
-    _tabController.addListener(() => setState(() {}));
     context.read<CommunityBloc>().add(const FetchCommunities());
     _fetchFeed();
     _fetchPolls();
@@ -82,7 +85,9 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
       );
       return;
     }
-    context.read<CommunityBloc>().add(FetchCommunityFeed(locationId: _locationId));
+    context.read<CommunityBloc>().add(
+      FetchCommunityFeed(locationId: _locationId),
+    );
   }
 
   void _fetchPolls() {
@@ -110,6 +115,8 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
         ),
       ),
     );
+    // Refresh feed to sync from server after create
+    if (mounted) _fetchFeed();
   }
 
   Future<void> _openCreatePoll() async {
@@ -133,7 +140,71 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
   void _openChat(CommunityModel community) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CommunityChatScreen(community: community)),
+      MaterialPageRoute(
+        builder: (_) => CommunityChatScreen(community: community),
+      ),
+    );
+  }
+
+  void _showCreateGroupDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Create Community Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Group Name',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isNotEmpty) {
+                  context.read<CommunityBloc>().add(
+                        CreateCommunity(
+                          name: nameController.text,
+                          description: descriptionController.text,
+                          allowMemberMessages: true,
+                        ),
+                      );
+                  Navigator.pop(context);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -148,7 +219,11 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
               context.read<CommunityBloc>().add(const ClearCommunityMessage());
             }
             if (state.error != null) {
-              NTKSnackbar.showError(context, message: state.error!);
+              String msg = state.error!;
+              if (msg.toLowerCase().contains('already reported') || msg.toLowerCase().contains('already resolved')) {
+                msg = 'You have already reported this post / நீங்கள் ஏற்கனவே இந்த பதிவைப் பற்றி புகார் அளித்துள்ளீர்கள்.';
+              }
+              NTKSnackbar.showError(context, message: msg);
               context.read<CommunityBloc>().add(const ClearCommunityError());
             }
           },
@@ -180,6 +255,18 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
           title: _selectedCommunity?.name ?? 'Community',
           subtitle: _locationName,
           actions: [
+            AnimatedBuilder(
+              animation: _tabController,
+              builder: (context, _) {
+                if (_tabController.index == 0) {
+                  return IconButton(
+                    icon: const Icon(CupertinoIcons.add, color: Colors.white),
+                    onPressed: () => _showCreateGroupDialog(context),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
             IconButton(
               icon: const Icon(CupertinoIcons.bell, color: Colors.white),
               onPressed: () => Navigator.pushNamed(context, '/notifications'),
@@ -189,18 +276,18 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
         body: Column(
           children: [
             _Tabs(controller: _tabController),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildGroupsTab(),
-                    _buildFeedTab(),
-                    _buildPollsTab(),
-                  ],
-                ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildGroupsTab(),
+                  _buildFeedTab(),
+                  _buildPollsTab(),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -237,7 +324,9 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                   _fetchPolls();
                 },
               ),
-              ...communities.take(8).map(
+              ...communities
+                  .take(8)
+                  .map(
                     (community) => _CommunityOption(
                       icon: _groupIcon(community.name),
                       title: community.name,
@@ -266,33 +355,130 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
         _fetchPolls();
       },
       child: BlocBuilder<CommunityBloc, CommunityState>(
+        buildWhen: (prev, curr) {
+          // Prevent full list rebuild just because likes changed
+          return prev.isFeedLoading != curr.isFeedLoading ||
+                 prev.isLoading != curr.isLoading ||
+                 prev.posts.length != curr.posts.length ||
+                 prev.feedPosts.length != curr.feedPosts.length ||
+                 prev.posts.firstOrNull?.id != curr.posts.firstOrNull?.id ||
+                 prev.feedPosts.firstOrNull?.id != curr.feedPosts.firstOrNull?.id;
+        },
         builder: (context, state) {
-          final source = _selectedCommunity == null ? state.feedPosts : state.posts;
-          final posts = source.isEmpty ? _samplePosts : source;
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-            children: [
-              _CreatePostCard(
-                onPhoto: () => _openCreatePost('Information'),
-                onVideo: () => _openCreatePost('Information'),
-                onPoll: _openCreatePoll,
-                onPost: () => _openCreatePost('Discussion'),
-              ),
-              const SizedBox(height: 14),
-              if (state.isFeedLoading || state.isLoading)
+          final posts = _selectedCommunity == null ? state.feedPosts : state.posts;
+
+          if (state.isFeedLoading || state.isLoading) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+              children: [
+                _CreatePostCard(
+                  onPhoto: () => _openCreatePost('Information'),
+                  onVideo: () => _openCreatePost('Information'),
+                  onPoll: _openCreatePoll,
+                  onPost: () => _openCreatePost('Discussion'),
+                ),
+                const SizedBox(height: 14),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
                   child: Center(child: CupertinoActivityIndicator()),
                 ),
-              ...posts.map(
-                (post) => _PostCard(
-                  post: post,
-                  onLike: () => context.read<CommunityBloc>().add(LikePost(post.id)),
-                  onComment: () => _openPostDetails(post),
-                  onOpen: () => _openPostDetails(post),
+              ],
+            );
+          }
+
+          if (posts.isEmpty) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+              children: [
+                _CreatePostCard(
+                  onPhoto: () => _openCreatePost('Information'),
+                  onVideo: () => _openCreatePost('Information'),
+                  onPoll: _openCreatePoll,
+                  onPost: () => _openCreatePost('Discussion'),
                 ),
-              ),
-            ],
+                const SizedBox(height: 14),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Text(
+                      'No posts yet. Be the first to post!',
+                      style: TextStyle(color: _muted, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+            itemCount: posts.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Column(
+                  children: [
+                    _CreatePostCard(
+                      onPhoto: () => _openCreatePost('Information'),
+                      onVideo: () => _openCreatePost('Information'),
+                      onPoll: _openCreatePoll,
+                      onPost: () => _openCreatePost('Discussion'),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                );
+              }
+              final post = posts[index - 1];
+              return _PostCard(
+                key: ValueKey('${post.id}_$index'),
+                post: post,
+                onLike: () => context.read<CommunityBloc>().add(LikePost(post.id)),
+                onComment: () => _openPostDetails(post, autoFocusComment: true),
+                onOpen: () => _openPostDetails(post),
+                onDelete: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      title: const Text(
+                        'Delete Post',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      content: const Text(
+                        'This post will be permanently deleted. Are you sure?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            context.read<CommunityBloc>().add(
+                              DeletePost(post.id),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEF4444),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
           );
         },
       ),
@@ -306,57 +492,152 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
           return const Center(child: CupertinoActivityIndicator());
         }
 
-        final communities = state.communities.isEmpty
-            ? _sampleCommunities
-            : state.communities;
+        final communities = state.communities;
 
-        if (communities.isEmpty) {
-          return const Center(child: Text('No groups found.', style: TextStyle(color: _muted)));
+        if (communities.isEmpty && !state.isLoading) {
+          return const Center(
+            child: Text('No groups found.', style: TextStyle(color: _muted)),
+          );
         }
 
-        final yourGroups = communities.take(3).toList();
-        final moreGroups = communities.skip(3).take(8).toList();
+        final myGroups = communities.where((c) => c.isJoined).toList();
+        final availableGroups = communities.where((c) => !c.isJoined).toList();
 
         return RefreshIndicator(
           color: _primary,
           onRefresh: () async => context.read<CommunityBloc>().add(const FetchCommunities()),
-          child: ListView(
+          child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-            children: [
-              _SearchField(hint: 'Search groups'),
-              const SizedBox(height: 18),
-              if (yourGroups.isNotEmpty) ...[
-                _SectionHeader(title: 'Your Groups', action: 'View All'),
-                const SizedBox(height: 10),
-                ...yourGroups.map(
-                  (community) => _GroupRow(
-                    community: community,
-                    joined: true,
-                    onTap: () => _openChat(community),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 1. Community Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Community',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: _text,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on_outlined, size: 14, color: _muted),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _locationName,
+                                    style: const TextStyle(fontSize: 13, color: _muted, fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.search_rounded, color: _text),
+                                onPressed: () {},
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.filter_list_rounded, color: _text),
+                                onPressed: () {},
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      // 2. Search Section
+                      TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search Communities',
+                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF9CA3AF)),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(99),
+                            borderSide: const BorderSide(color: _line),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(99),
+                            borderSide: const BorderSide(color: _line),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(99),
+                            borderSide: const BorderSide(color: _primary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // 3. My Groups Section
+                      if (myGroups.isNotEmpty) ...[
+                        const Text(
+                          'My Groups',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _text),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
                   ),
                 ),
-                const SizedBox(height: 18),
-              ],
-              if (moreGroups.isNotEmpty) ...[
-                const _SectionHeader(title: 'More Groups'),
-                const SizedBox(height: 10),
-                ...moreGroups.map(
-                  (community) => _GroupRow(
-                    community: community,
-                    joined: false,
-                    onTap: () => _openChat(community),
-                    onJoin: () {
-                      final user = context.read<AuthBloc>().state.loginData;
-                      if (user != null) {
-                        context.read<CommunityBloc>().add(
-                          JoinCommunity(communityId: community.id, memberId: user.id),
-                        );
-                      }
+              ),
+              if (myGroups.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList.builder(
+                    itemCount: myGroups.length,
+                    itemBuilder: (context, index) {
+                      return _CommunityCard(
+                        community: myGroups[index],
+                        isJoined: true,
+                      );
                     },
                   ),
                 ),
-              ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (availableGroups.isNotEmpty) ...[
+                        const Text(
+                          'Available Groups',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _text),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (availableGroups.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverList.builder(
+                    itemCount: availableGroups.length,
+                    itemBuilder: (context, index) {
+                      return _CommunityCard(
+                        community: availableGroups[index],
+                        isJoined: false,
+                      );
+                    },
+                  ),
+                ),
+              const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
             ],
           ),
         );
@@ -370,54 +651,78 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
         return RefreshIndicator(
           color: _primary,
           onRefresh: () async => _fetchPolls(),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-            children: [
-              _CreatePollPrompt(onTap: _openCreatePoll),
-              const SizedBox(height: 14),
-              if (state.isLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(child: CupertinoActivityIndicator()),
-                )
-              else if (state.polls.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 60),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Icon(Icons.poll_outlined, size: 56, color: Color(0xFFCBD5E1)),
-                        SizedBox(height: 12),
-                        Text(
-                          'No polls yet',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Be the first to create a poll for your community',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+          child: Builder(
+            builder: (context) {
+              if (state.isLoading) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+                  children: [
+                    _CreatePollPrompt(onTap: _openCreatePoll),
+                    const SizedBox(height: 14),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(child: CupertinoActivityIndicator()),
                     ),
-                  ),
-                )
-              else
-                ...state.polls.map(
-                  (poll) => _PollCard(
+                  ],
+                );
+              }
+              if (state.polls.isEmpty) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+                  children: [
+                    _CreatePollPrompt(onTap: _openCreatePoll),
+                    const SizedBox(height: 14),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 60),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.poll_outlined, size: 56, color: Color(0xFFCBD5E1)),
+                            SizedBox(height: 12),
+                            Text('No polls yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                            SizedBox(height: 6),
+                            Text('Be the first to create a poll', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
+                itemCount: state.polls.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Column(
+                      children: [
+                        _CreatePollPrompt(onTap: _openCreatePoll),
+                        const SizedBox(height: 14),
+                      ],
+                    );
+                  }
+                  final poll = state.polls[index - 1];
+                  return _PollCard(
+                    key: ValueKey('${poll.id}_$index'),
                     poll: poll,
                     onTap: () => _openPollDetails(poll),
-                    onVote: (optionId) => context.read<CommunityPollsBloc>().add(
-                      VoteInPollEvent(pollId: poll.id, optionId: optionId),
-                    ),
-                  ),
-                ),
-            ],
+                    onVote: (optionId) =>
+                        context.read<CommunityPollsBloc>().add(
+                          VoteInPollEvent(pollId: poll.id, optionId: optionId),
+                        ),
+                    onLike: () =>
+                        context.read<CommunityPollsBloc>().add(
+                          LikePollEvent(pollId: poll.id),
+                        ),
+                    onComment: () => _openPollDetails(poll), // Can open details for full comments
+                  );
+                },
+              );
+            },
           ),
         );
       },
@@ -431,10 +736,15 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
     );
   }
 
-  void _openPostDetails(PostModel post) {
+  void _openPostDetails(PostModel post, {bool autoFocusComment = false}) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => _PostDetailsScreen(post: post)),
+      MaterialPageRoute(
+        builder: (_) => _PostDetailsScreen(
+          post: post,
+          autoFocusComment: autoFocusComment,
+        ),
+      ),
     );
   }
 }
@@ -455,7 +765,7 @@ class _CreatePostScreen extends StatefulWidget {
 }
 
 class _CreatePostScreenState extends State<_CreatePostScreen> {
-  late String _category = widget.initialCategory;
+  late String _category = widget.initialCategory.isEmpty ? 'General' : widget.initialCategory;
   final _content = TextEditingController();
   final _picker = ImagePicker();
   final List<File> _images = [];
@@ -629,19 +939,13 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
     if (userRole == 'SUB_ADMIN') {
       eventLocationId = _selectedStreet?.id ?? widget.locationId;
     } else {
+      // Use manual selection if available, else fall back to user's registered location
       final finalLocation =
           _selectedStreet ??
           _selectedArea ??
           _selectedConstituency ??
           _selectedDistrict;
-      if (finalLocation == null) {
-        NTKSnackbar.showError(
-          context,
-          message: 'Please select a target location',
-        );
-        return;
-      }
-      eventLocationId = finalLocation.id;
+      eventLocationId = finalLocation?.id ?? widget.locationId;
     }
 
     final auth = authState.loginData;
@@ -666,7 +970,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
   Widget _buildDropdownField<T>({
     required List<T> items,
     required T? value,
-    required ValueChanged<T?> onChanged,
+    required ValueChanged<T?>? onChanged,
     required String Function(T) itemLabel,
     required String hintText,
   }) {
@@ -763,6 +1067,13 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role ?? 'MEMBER';
+    
+    final canChangeDistrict = role == 'ADMIN' || role == 'SUPER_ADMIN';
+    final canChangeTaluk = canChangeDistrict || role == 'DISTRICT_ADMIN';
+    final canChangeArea = role != 'MEMBER';
+
     final remaining = 500 - _content.text.length;
     return Scaffold(
       backgroundColor: _bg,
@@ -792,10 +1103,36 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                     spacing: 10,
                     runSpacing: 10,
                     children: [
-                      _CategoryChip(label: 'Discussion', icon: Icons.forum_outlined, active: _category == 'Discussion', onTap: () => setState(() => _category = 'Discussion')),
-                      _CategoryChip(label: 'Suggestion', icon: Icons.lightbulb_outline, active: _category == 'Suggestion', onTap: () => setState(() => _category = 'Suggestion')),
-                      _CategoryChip(label: 'Complaint', icon: Icons.warning_amber_rounded, active: _category == 'Complaint', onTap: () => setState(() => _category = 'Complaint')),
-                      _CategoryChip(label: 'Information', icon: Icons.info_outline_rounded, active: _category == 'Information', onTap: () => setState(() => _category = 'Information')),
+                      _CategoryChip(
+                        label: 'General',
+                        icon: Icons.public_rounded,
+                        active: _category == 'General',
+                        onTap: () => setState(() => _category = 'General'),
+                      ),
+                      _CategoryChip(
+                        label: 'Discussion',
+                        icon: Icons.forum_outlined,
+                        active: _category == 'Discussion',
+                        onTap: () => setState(() => _category = 'Discussion'),
+                      ),
+                      _CategoryChip(
+                        label: 'Suggestion',
+                        icon: Icons.lightbulb_outline,
+                        active: _category == 'Suggestion',
+                        onTap: () => setState(() => _category = 'Suggestion'),
+                      ),
+                      _CategoryChip(
+                        label: 'Complaint',
+                        icon: Icons.warning_amber_rounded,
+                        active: _category == 'Complaint',
+                        onTap: () => setState(() => _category = 'Complaint'),
+                      ),
+                      _CategoryChip(
+                        label: 'Information',
+                        icon: Icons.info_outline_rounded,
+                        active: _category == 'Information',
+                        onTap: () => setState(() => _category = 'Information'),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 22),
@@ -820,11 +1157,64 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const _FormLabel('Add Photos / Videos'),
+                  const _FormLabel('Add Photos'),
                   const SizedBox(height: 10),
-                  _ImagePreviewGrid(images: _images, onAdd: _pickImages, onRemove: (index) => setState(() => _images.removeAt(index))),
+                  _ImagePreviewGrid(
+                    images: _images,
+                    onAdd: _pickImages,
+                    onRemove: (index) =>
+                        setState(() => _images.removeAt(index)),
+                  ),
                   const SizedBox(height: 20),
                   const _FormLabel('Location'),
+                  const SizedBox(height: 8),
+                  // Show user's registered location as default
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF6EF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF004D2A).withOpacity(0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_rounded,
+                          color: Color(0xFF004D2A),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Default: ${widget.locationName}',
+                            style: const TextStyle(
+                              color: Color(0xFF004D2A),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          'Auto',
+                          style: TextStyle(
+                            color: Color(0xFF004D2A),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Or select a specific location:',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+                  ),
                   const SizedBox(height: 10),
                   Builder(
                     builder: (context) {
@@ -869,16 +1259,16 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                           const SizedBox(height: 16),
 
                           // 2. District
-                          const _FormLabel('District *'),
+                          const _FormLabel('District'),
                           const SizedBox(height: 6),
                           _loadingDistricts
                               ? _buildLoadingField('District')
                               : _buildDropdownField<LocationModel>(
                                   items: _districts,
                                   value: _selectedDistrict,
-                                  onChanged: _onDistrictChanged,
+                                  onChanged: canChangeDistrict ? _onDistrictChanged : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select District',
+                                  hintText: 'Select District (Optional)',
                                 ),
                           const SizedBox(height: 16),
 
@@ -892,7 +1282,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _constituencies,
                                   value: _selectedConstituency,
-                                  onChanged: _onConstituencyChanged,
+                                  onChanged: canChangeTaluk ? _onConstituencyChanged : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Constituency',
                                 ),
@@ -908,7 +1298,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _areas,
                                   value: _selectedArea,
-                                  onChanged: _onAreaChanged,
+                                  onChanged: canChangeArea ? _onAreaChanged : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Area',
                                 ),
@@ -924,8 +1314,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _streets,
                                   value: _selectedStreet,
-                                  onChanged: (val) =>
-                                      setState(() => _selectedStreet = val),
+                                  onChanged: canChangeArea ? (val) => setState(() => _selectedStreet = val) : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Street',
                                 ),
@@ -992,12 +1381,143 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
   void initState() {
     super.initState();
     _locationRepo = sl<LocationRepository>();
+    _initLocationForRole();
+  }
+
+  Future<void> _initLocationForRole() async {
     final authState = context.read<AuthBloc>().state;
-    final role = authState.loginData?.role ?? '';
+    final role = authState.loginData?.role ?? 'MEMBER';
     final locationId = authState.loginData?.locationId;
 
-    if (role == 'SUB_ADMIN' && locationId != null) {
-      _loadStreetsForSubAdmin(locationId);
+    if (role == 'ADMIN' || role == 'SUPER_ADMIN') {
+      _loadDistricts();
+      return;
+    }
+
+    if (locationId != null) {
+      setState(() {
+        _loadingDistricts = true;
+        _loadingConstituencies = true;
+        _loadingAreas = true;
+      });
+      try {
+        final districts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        bool found = false;
+
+        if (districts.any((d) => d.id == locationId)) {
+          final district = districts.firstWhere((d) => d.id == locationId);
+          if (mounted) {
+            setState(() {
+              _selectedDistrict = district;
+              _districts = [district];
+              _loadingDistricts = false;
+              _loadingConstituencies = false;
+              _loadingAreas = false;
+            });
+          }
+          found = true;
+        }
+
+        if (!found) {
+          for (final district in districts) {
+            final taluks = await _locationRepo.getLocationList(
+              parentId: district.id,
+              type: 'TALUK',
+            );
+
+            if (taluks.any((t) => t.id == locationId)) {
+              final taluk = taluks.firstWhere((t) => t.id == locationId);
+              if (mounted) {
+                setState(() {
+                  _selectedDistrict = district;
+                  _districts = [district];
+                  _selectedConstituency = taluk;
+                  _constituencies = [taluk];
+                  _loadingDistricts = false;
+                  _loadingConstituencies = false;
+                  _loadingAreas = false;
+                });
+              }
+              found = true;
+              break;
+            }
+
+            for (final taluk in taluks) {
+            final areas = await _locationRepo.getLocationList(
+              parentId: taluk.id,
+              type: 'AREA',
+            );
+            if (areas.any((a) => a.id == locationId)) {
+              final area = areas.firstWhere((a) => a.id == locationId);
+              if (mounted) {
+                setState(() {
+                  _selectedDistrict = district;
+                  _districts = [district];
+                  _selectedConstituency = taluk;
+                  _constituencies = [taluk];
+                  _selectedArea = area;
+                  _areas = [area];
+                  _loadingDistricts = false;
+                  _loadingConstituencies = false;
+                  _loadingAreas = false;
+                });
+                _loadStreetsForSubAdmin(area.id);
+              }
+              found = true;
+              break;
+            }
+            // Check streets
+            for (final area in areas) {
+              final streets = await _locationRepo.getLocationList(
+                parentId: area.id,
+                type: 'STREET',
+              );
+              if (streets.any((s) => s.id == locationId)) {
+                final street = streets.firstWhere((s) => s.id == locationId);
+                if (mounted) {
+                  setState(() {
+                    _selectedDistrict = district;
+                    _districts = [district];
+                    _selectedConstituency = taluk;
+                    _constituencies = [taluk];
+                    _selectedArea = area;
+                    _areas = [area];
+                    _selectedStreet = street;
+                    _streets = [street];
+                    _loadingDistricts = false;
+                    _loadingConstituencies = false;
+                    _loadingAreas = false;
+                    _loadingStreets = false;
+                  });
+                }
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+          if (found) break;
+        }
+        } // Close if (!found)
+        if (!found && mounted) {
+          setState(() {
+            _loadingDistricts = false;
+            _loadingConstituencies = false;
+            _loadingAreas = false;
+          });
+          _loadDistricts();
+        }
+      } catch (e) {
+        debugPrint('Error finding location hierarchy: $e');
+        if (mounted) {
+          setState(() {
+            _loadingDistricts = false;
+            _loadingConstituencies = false;
+            _loadingAreas = false;
+          });
+          _loadDistricts();
+        }
+      }
     } else {
       _loadDistricts();
     }
@@ -1042,6 +1562,11 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
   }
 
   Future<void> _onDistrictChanged(LocationModel? district) async {
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role ?? 'MEMBER';
+    if (role != 'ADMIN' && role != 'SUPER_ADMIN') {
+      return; // Lock changes for non-admins
+    }
     setState(() {
       _selectedDistrict = district;
       _selectedConstituency = null;
@@ -1068,6 +1593,11 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
   }
 
   Future<void> _onConstituencyChanged(LocationModel? taluk) async {
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role ?? 'MEMBER';
+    if (role != 'ADMIN' && role != 'SUPER_ADMIN' && role != 'DISTRICT_ADMIN') {
+      return; // District Admin and above can change Taluk
+    }
     setState(() {
       _selectedConstituency = taluk;
       _selectedArea = null;
@@ -1092,6 +1622,11 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
   }
 
   Future<void> _onAreaChanged(LocationModel? area) async {
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role ?? 'MEMBER';
+    if (role == 'MEMBER') {
+      return; // Members cannot change Area
+    }
     setState(() {
       _selectedArea = area;
       _selectedStreet = null;
@@ -1115,9 +1650,15 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
 
   void _createPoll() {
     final question = _question.text.trim();
-    final options = _options.map((x) => x.text.trim()).where((x) => x.isNotEmpty).toList();
+    final options = _options
+        .map((x) => x.text.trim())
+        .where((x) => x.isNotEmpty)
+        .toList();
     if (question.isEmpty || options.length < 2) {
-      NTKSnackbar.showError(context, message: 'Add a question and at least two options');
+      NTKSnackbar.showError(
+        context,
+        message: 'Add a question and at least two options',
+      );
       return;
     }
 
@@ -1128,19 +1669,13 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
     if (userRole == 'SUB_ADMIN') {
       eventLocationId = _selectedStreet?.id ?? widget.locationId;
     } else {
+      // Use manual selection if available, else fall back to user's registered location
       final finalLocation =
           _selectedStreet ??
           _selectedArea ??
           _selectedConstituency ??
           _selectedDistrict;
-      if (finalLocation == null) {
-        NTKSnackbar.showError(
-          context,
-          message: 'Please select a target location',
-        );
-        return;
-      }
-      eventLocationId = finalLocation.id;
+      eventLocationId = finalLocation?.id ?? widget.locationId;
     }
 
     context.read<CommunityPollsBloc>().add(
@@ -1158,7 +1693,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
   Widget _buildDropdownField<T>({
     required List<T> items,
     required T? value,
-    required ValueChanged<T?> onChanged,
+    required ValueChanged<T?>? onChanged,
     required String Function(T) itemLabel,
     required String hintText,
   }) {
@@ -1255,6 +1790,13 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role ?? 'MEMBER';
+    
+    final canChangeDistrict = role == 'ADMIN' || role == 'SUPER_ADMIN';
+    final canChangeTaluk = canChangeDistrict || role == 'DISTRICT_ADMIN';
+    final canChangeArea = role != 'MEMBER';
+
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -1300,13 +1842,16 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                           Expanded(
                             child: TextField(
                               controller: _options[index],
-                              decoration: InputDecoration(hintText: 'Option ${index + 1}'),
+                              decoration: InputDecoration(
+                                hintText: 'Option ${index + 1}',
+                              ),
                             ),
                           ),
                           if (_options.length > 2)
                             IconButton(
                               icon: const Icon(Icons.delete_outline_rounded),
-                              onPressed: () => setState(() => _options.removeAt(index)),
+                              onPressed: () =>
+                                  setState(() => _options.removeAt(index)),
                             ),
                         ],
                       ),
@@ -1315,14 +1860,19 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                   TextButton.icon(
                     onPressed: _options.length >= 6
                         ? null
-                        : () => setState(() => _options.add(TextEditingController())),
+                        : () => setState(
+                            () => _options.add(TextEditingController()),
+                          ),
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Add Option'),
                   ),
                   const SizedBox(height: 18),
                   const _FormLabel('Poll Duration'),
                   const SizedBox(height: 8),
-                  _DurationRadios(value: _duration, onChanged: (value) => setState(() => _duration = value)),
+                  _DurationRadios(
+                    value: _duration,
+                    onChanged: (value) => setState(() => _duration = value),
+                  ),
                   const SizedBox(height: 18),
                   const _FormLabel('Target Location'),
                   const SizedBox(height: 10),
@@ -1376,7 +1926,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _districts,
                                   value: _selectedDistrict,
-                                  onChanged: _onDistrictChanged,
+                                  onChanged: canChangeDistrict ? _onDistrictChanged : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select District',
                                 ),
@@ -1392,7 +1942,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _constituencies,
                                   value: _selectedConstituency,
-                                  onChanged: _onConstituencyChanged,
+                                  onChanged: canChangeTaluk ? _onConstituencyChanged : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Constituency',
                                 ),
@@ -1408,7 +1958,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _areas,
                                   value: _selectedArea,
-                                  onChanged: _onAreaChanged,
+                                  onChanged: canChangeArea ? _onAreaChanged : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Area',
                                 ),
@@ -1424,8 +1974,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _streets,
                                   value: _selectedStreet,
-                                  onChanged: (val) =>
-                                      setState(() => _selectedStreet = val),
+                                  onChanged: canChangeArea ? (val) => setState(() => _selectedStreet = val) : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Street',
                                 ),
@@ -1451,61 +2000,138 @@ class _PollDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = poll.votesCount == 0
-        ? poll.options.fold<int>(0, (sum, option) => sum + option.votesCount)
-        : poll.votesCount;
     return Scaffold(
       backgroundColor: _bg,
       body: Column(
         children: [
           Container(
             color: _primary,
-            child: const SafeArea(
-              bottom: false,
-              child: SizedBox.shrink(),
-            ),
+            child: const SafeArea(bottom: false, child: SizedBox.shrink()),
           ),
           const _PageHeader(title: 'Poll Details'),
           Expanded(
             child: SafeArea(
               top: false,
-              child: ListView(
-                padding: const EdgeInsets.all(18),
-                children: [
-                  _AuthorLine(
-                    name: poll.createdBy?['name']?.toString() ?? 'Kumar M',
-                    location: poll.location?['name']?.toString() ?? 'Pushpavanam Street',
-                    time: _timeAgo(poll.createdAt),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    poll.question,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: _text),
-                  ),
-                  const SizedBox(height: 18),
-                  ...poll.options.map((option) {
-                    final pct = total == 0 ? 0.0 : option.votesCount / total;
-                    return _ResultBar(label: option.text, percent: pct, votes: option.votesCount);
-                  }),
-                  const SizedBox(height: 18),
-                  Row(
+              child: BlocBuilder<CommunityPollsBloc, CommunityPollsState>(
+                builder: (context, state) {
+                  final livePoll = state.polls.firstWhere(
+                    (p) => p.id == poll.id,
+                    orElse: () => poll,
+                  );
+                  final liveTotal = livePoll.votesCount == 0
+                      ? livePoll.options.fold<int>(
+                          0,
+                          (sum, o) => sum + o.votesCount,
+                        )
+                      : livePoll.votesCount;
+                  final liveHasVoted = livePoll.userVoteOptionId != null;
+
+                  bool isExpired = false;
+                  if (livePoll.expiresAt != null && livePoll.expiresAt!.isNotEmpty) {
+                    try {
+                      final parsed = DateHelper.parseUtcToLocal(livePoll.expiresAt!);
+                      isExpired = parsed.isBefore(DateTime.now());
+                    } catch (_) {}
+                  }
+
+                  return ListView(
+                    padding: const EdgeInsets.all(18),
                     children: [
-                      Expanded(child: _MetricCard(title: 'Total Votes', value: '$total')),
-                      const SizedBox(width: 10),
-                      Expanded(child: _MetricCard(title: 'Ends in', value: _remainingTime(poll.expiresAt))),
+                      _AuthorLine(
+                        name: livePoll.createdBy?['name']?.toString() ?? 'Community Poll',
+                        location: livePoll.location?['name']?.toString() ?? '',
+                        time: _timeAgo(livePoll.createdAt),
+                        image: livePoll.createdBy?['image']?.toString(),
+                        category: isExpired ? 'Expired' : (liveHasVoted ? 'Voted' : 'Active'),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        livePoll.question,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: _text,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Column(
+                        children: livePoll.options.map((option) {
+                          final pct = liveTotal == 0 ? 0.0 : option.votesCount / liveTotal;
+                          if (liveHasVoted || isExpired) {
+                            return _ResultBar(
+                              label: option.text,
+                              percent: pct,
+                              votes: option.votesCount,
+                              highlighted: livePoll.userVoteOptionId == option.id,
+                            );
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: OutlinedButton(
+                              onPressed: () => context
+                                  .read<CommunityPollsBloc>()
+                                  .add(VoteInPollEvent(
+                                      pollId: livePoll.id,
+                                      optionId: option.id)),
+                              style: OutlinedButton.styleFrom(
+                                alignment: Alignment.centerLeft,
+                                minimumSize: const Size(double.infinity, 48),
+                                side: const BorderSide(
+                                  color: _primary,
+                                  width: 1.5,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                foregroundColor: _text,
+                              ),
+                              child: Text(
+                                option.text,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _MetricCard(
+                              title: 'Total Votes',
+                              value: '$liveTotal',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _MetricCard(
+                              title: 'Ends in',
+                              value: _remainingTime(livePoll.expiresAt),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _SocialActions(
+                        postId: livePoll.id,
+                        likes: livePoll.likes,
+                        comments: livePoll.commentCount,
+                        isLiked: livePoll.isLiked,
+                        onLike: () {
+                          context.read<CommunityPollsBloc>().add(LikePollEvent(pollId: livePoll.id));
+                        },
+                        onComment: () {
+                          // The actual app might have a bottom sheet, for now we will assume the post details has it
+                        },
+                        onShare: () {
+                          Share.share('${livePoll.question}\n\nShared via NTK App');
+                        },
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  _SocialActions(
-                    likes: 12,
-                    comments: 5,
-                    onLike: () {},
-                    onComment: () {},
-                    onShare: () {
-                      Share.share('${poll.question}\n\nShared via NTK App');
-                    },
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
@@ -1516,9 +2142,10 @@ class _PollDetailsScreen extends StatelessWidget {
 }
 
 class _PostDetailsScreen extends StatefulWidget {
-  const _PostDetailsScreen({required this.post});
+  const _PostDetailsScreen({required this.post, this.autoFocusComment = false});
 
   final PostModel post;
+  final bool autoFocusComment;
 
   @override
   State<_PostDetailsScreen> createState() => _PostDetailsScreenState();
@@ -1526,31 +2153,60 @@ class _PostDetailsScreen extends StatefulWidget {
 
 class _PostDetailsScreenState extends State<_PostDetailsScreen> {
   final _comment = TextEditingController();
+  final _focusNode = FocusNode();
+  final _scrollController = ScrollController();
 
   @override
   void dispose() {
     _comment.dispose();
+    _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  void _addComment() {
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent + 150,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _addComment(int postId) {
     final text = _comment.text.trim();
     if (text.isEmpty) return;
     final auth = context.read<AuthBloc>().state.loginData;
     context.read<CommunityBloc>().add(
       AddComment(
-        postId: widget.post.id,
+        postId: postId,
         content: text,
         authorName: auth?.name ?? 'Community Member',
         authorRole: auth?.role ?? 'MEMBER',
       ),
     );
     _comment.clear();
+    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+  }
+
+  /// Find the live post from bloc state, falling back to the original snapshot.
+  PostModel _livePost(CommunityState state) {
+    final fromFeed = state.feedPosts.cast<PostModel?>().firstWhere(
+      (p) => p?.id == widget.post.id,
+      orElse: () => null,
+    );
+    if (fromFeed != null) return fromFeed;
+    final fromPosts = state.posts.cast<PostModel?>().firstWhere(
+      (p) => p?.id == widget.post.id,
+      orElse: () => null,
+    );
+    return fromPosts ?? widget.post;
   }
 
   @override
   Widget build(BuildContext context) {
-    final comments = widget.post.comments.isEmpty ? _sampleComments : widget.post.comments;
+
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -1571,25 +2227,102 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
         child: Column(
           children: [
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(14),
-                children: [
-                  _PostCard(post: widget.post, onLike: () => context.read<CommunityBloc>().add(LikePost(widget.post.id)), onComment: () {}, onOpen: () {}),
-                  const SizedBox(height: 12),
-                  const _SectionHeader(title: 'Comments'),
-                  const SizedBox(height: 8),
-                  ...comments.map((comment) => _CommentTile(comment: comment)),
-                ],
+              child: BlocBuilder<CommunityBloc, CommunityState>(
+                buildWhen: (prev, curr) {
+                  return _livePost(prev) != _livePost(curr);
+                },
+                builder: (context, state) {
+                  final post = _livePost(state);
+                  final comments = post.comments;
+                  return ListView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(14),
+                    children: [
+                      _PostCard(
+                        post: post,
+                        onLike: () => context.read<CommunityBloc>().add(
+                          LikePost(post.id),
+                        ),
+                        onComment: () {
+                          _focusNode.requestFocus();
+                        },
+                        onOpen: () {},
+                        onDelete: () {
+                          showDialog(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              title: const Text(
+                                'Delete Post',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              content: const Text(
+                                'This post will be permanently deleted. Are you sure?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    context.read<CommunityBloc>().add(
+                                      DeletePost(post.id),
+                                    );
+                                    Navigator.pop(context); // back to feed
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFEF4444),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      const _SectionHeader(title: 'Comments'),
+                      const SizedBox(height: 8),
+                      if (comments.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'No comments yet. Be the first to comment!',
+                              style: TextStyle(color: _muted, fontSize: 13),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      else
+                        ...comments.map(
+                          (comment) => _CommentTile(comment: comment),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
-            _CommentComposer(controller: _comment, onSend: _addComment),
+            _CommentComposer(
+              controller: _comment,
+              focusNode: _focusNode,
+              autofocus: widget.autoFocusComment,
+              onSend: () => _addComment(widget.post.id),
+            ),
           ],
         ),
       ),
     );
   }
 }
-
 
 class _Tabs extends StatelessWidget {
   const _Tabs({required this.controller});
@@ -1656,7 +2389,11 @@ class _QuickFilters extends StatelessWidget {
                       color: selected ? item.$3 : item.$3.withOpacity(0.14),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(item.$2, color: selected ? Colors.white : item.$3, size: 22),
+                    child: Icon(
+                      item.$2,
+                      color: selected ? Colors.white : item.$3,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(height: 7),
                   Text(
@@ -1699,12 +2436,19 @@ class _CreatePostCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const CircleAvatar(radius: 16, backgroundColor: Color(0xFFEAF6EF), child: Icon(Icons.person_rounded, color: _primary, size: 18)),
+              const CircleAvatar(
+                radius: 16,
+                backgroundColor: Color(0xFFEAF6EF),
+                child: Icon(Icons.person_rounded, color: _primary, size: 18),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: InkWell(
                   onTap: onPost,
-                  child: const Text('What is happening in your area?', style: TextStyle(color: _muted, fontSize: 14)),
+                  child: const Text(
+                    'What is happening in your area?',
+                    style: TextStyle(color: _muted, fontSize: 14),
+                  ),
                 ),
               ),
             ],
@@ -1712,9 +2456,20 @@ class _CreatePostCard extends StatelessWidget {
           const Divider(height: 22, color: _line),
           Row(
             children: [
-              Expanded(child: _InlineAction(icon: Icons.image_outlined, label: 'Photo', onTap: onPhoto)),
-              Expanded(child: _InlineAction(icon: Icons.video_library_outlined, label: 'Video', onTap: onVideo)),
-              Expanded(child: _InlineAction(icon: Icons.poll_outlined, label: 'Poll', onTap: onPoll)),
+              Expanded(
+                child: _InlineAction(
+                  icon: Icons.image_outlined,
+                  label: 'Photo',
+                  onTap: onPhoto,
+                ),
+              ),
+              Expanded(
+                child: _InlineAction(
+                  icon: Icons.poll_outlined,
+                  label: 'Poll',
+                  onTap: onPoll,
+                ),
+              ),
               SizedBox(
                 height: 36,
                 child: ElevatedButton.icon(
@@ -1726,7 +2481,9 @@ class _CreatePostCard extends StatelessWidget {
                     foregroundColor: Colors.white,
                     minimumSize: const Size(80, 36),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -1740,19 +2497,119 @@ class _CreatePostCard extends StatelessWidget {
 
 class _PostCard extends StatelessWidget {
   const _PostCard({
+    super.key,
     required this.post,
     required this.onLike,
     required this.onComment,
     required this.onOpen,
+    this.onDelete,
   });
 
   final PostModel post;
   final VoidCallback onLike;
   final VoidCallback onComment;
   final VoidCallback onOpen;
+  final VoidCallback? onDelete;
+
+
+  void _showReportDialog(BuildContext context) {
+    final reasons = [
+      'Spam or irrelevant content',
+      'Misinformation / Fake news',
+      'Offensive or inappropriate',
+      'Harassment or bullying',
+      'Other',
+    ];
+    String? selectedReason;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.flag_rounded, color: Color(0xFFF59E0B), size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Report Post',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Select a reason:',
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              ...reasons.map(
+                (reason) => RadioListTile<String>(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(reason, style: const TextStyle(fontSize: 13)),
+                  value: reason,
+                  groupValue: selectedReason,
+                  activeColor: _primary,
+                  onChanged: (v) => setState(() => selectedReason = v),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF64748B)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: selectedReason == null
+                  ? null
+                  : () {
+                      String apiReason = 'Other';
+                      if (selectedReason == 'Spam or irrelevant content') {
+                        apiReason = 'Spam';
+                      } else if (selectedReason == 'Misinformation / Fake news') {
+                        apiReason = 'Fake Information';
+                      } else if (selectedReason == 'Offensive or inappropriate') {
+                        apiReason = 'Inappropriate Content';
+                      } else if (selectedReason == 'Harassment or bullying') {
+                        apiReason = 'Abuse/Harassment';
+                      }
+
+                      context.read<CommunityBloc>().add(
+                        ReportPost(postId: post.id, reason: apiReason),
+                      );
+                      Navigator.pop(ctx);
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Submit Report'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final myId = context.watch<AuthBloc>().state.loginData?.id;
+    final isOwner =
+        myId != null && post.createdById != null && myId == post.createdById;
+
     return InkWell(
       onTap: onOpen,
       borderRadius: BorderRadius.circular(16),
@@ -1761,7 +2618,64 @@ class _PostCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _AuthorLine(name: post.authorName, location: _postLocation(post), time: _timeAgo(post.createdAt)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _AuthorLine(
+                    name: post.authorName,
+                    location: _postLocation(post),
+                    time: _timeAgo(post.createdAt),
+                    image: post.createdBy?['image']?.toString(),
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: _muted,
+                    size: 20,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      onDelete?.call();
+                    } else if (value == 'report') {
+                      _showReportDialog(context);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (isOwner)
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline_rounded,
+                              color: Color(0xFFEF4444),
+                              size: 18,
+                            ),
+                            SizedBox(width: 10),
+                            Text('Delete Post', style: TextStyle(color: Color(0xFFEF4444))),
+                          ],
+                        ),
+                      ),
+                    const PopupMenuItem<String>(
+                      value: 'report',
+                      child: Row(
+                        children: [
+                          Icon(Icons.flag_outlined, color: Color(0xFFF59E0B), size: 18),
+                          SizedBox(width: 10),
+                          Text('Report Post'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
             if (post.category != null && post.category!.isNotEmpty) ...[
               const SizedBox(height: 12),
               _CategoryBadge(category: post.category!),
@@ -1769,28 +2683,54 @@ class _PostCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               _cleanContent(post.content),
-              style: const TextStyle(color: _text, fontWeight: FontWeight.w700, fontSize: 15, height: 1.45),
+              style: const TextStyle(
+                color: _text,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                height: 1.45,
+              ),
             ),
             const SizedBox(height: 12),
-            _PostImageGrid(images: post.images.isNotEmpty ? post.images : (post.image == null ? const [] : [post.image!])),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.location_on_rounded, color: _secondary, size: 16),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(_postLocation(post), style: const TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                ),
-              ],
+            _PostImageGrid(
+              images: post.images.isNotEmpty
+                  ? post.images
+                  : (post.image == null ? const [] : [post.image!]),
             ),
+            if (_postLocation(post).isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.location_on_rounded,
+                    color: _secondary,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      _postLocation(post),
+                      style: const TextStyle(
+                        color: _muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const Divider(height: 22, color: _line),
             _SocialActions(
+              postId: post.id,
               likes: post.likes,
               comments: post.commentCount,
+              isLiked: post.isLiked,
               onLike: onLike,
               onComment: onComment,
               onShare: () {
-                Share.share('${_cleanContent(post.content)}\n\nShared via NTK App');
+                Share.share(
+                  '${_cleanContent(post.content)}\n\nShared via NTK App',
+                );
               },
             ),
           ],
@@ -1801,11 +2741,20 @@ class _PostCard extends StatelessWidget {
 }
 
 class _PollCard extends StatelessWidget {
-  const _PollCard({required this.poll, required this.onTap, required this.onVote});
+  const _PollCard({
+    super.key,
+    required this.poll,
+    required this.onTap,
+    required this.onVote,
+    this.onLike,
+    this.onComment,
+  });
 
   final PollModel poll;
   final VoidCallback onTap;
   final ValueChanged<int> onVote;
+  final VoidCallback? onLike;
+  final VoidCallback? onComment;
 
   @override
   Widget build(BuildContext context) {
@@ -1813,6 +2762,15 @@ class _PollCard extends StatelessWidget {
         ? poll.options.fold<int>(0, (sum, option) => sum + option.votesCount)
         : poll.votesCount;
     final hasVoted = poll.userVoteOptionId != null;
+    
+    bool isExpired = false;
+    if (poll.expiresAt != null && poll.expiresAt!.isNotEmpty) {
+      try {
+        final parsed = DateHelper.parseUtcToLocal(poll.expiresAt!);
+        isExpired = parsed.isBefore(DateTime.now());
+      } catch (_) {}
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -1823,17 +2781,31 @@ class _PollCard extends StatelessWidget {
           children: [
             _AuthorLine(
               name: poll.createdBy?['name']?.toString() ?? 'Community Poll',
-              location: poll.location?['name']?.toString() ?? 'Nagapattinam',
+              location: poll.location?['name']?.toString() ?? '',
               time: _timeAgo(poll.createdAt),
-              category: hasVoted ? 'Voted' : 'Active',
+              category: isExpired ? 'Expired' : (hasVoted ? 'Voted' : 'Active'),
+              image: poll.createdBy?['image']?.toString(),
             ),
             const SizedBox(height: 14),
-            Text(poll.question, style: const TextStyle(color: _text, fontSize: 17, fontWeight: FontWeight.w900, height: 1.35)),
+            Text(
+              poll.question,
+              style: const TextStyle(
+                color: _text,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                height: 1.35,
+              ),
+            ),
             const SizedBox(height: 14),
             ...poll.options.map((option) {
               final pct = total == 0 ? 0.0 : option.votesCount / total;
-              if (hasVoted || total > 0) {
-                return _ResultBar(label: option.text, percent: pct, votes: option.votesCount);
+              if (hasVoted || isExpired) {
+                return _ResultBar(
+                  label: option.text,
+                  percent: pct,
+                  votes: option.votesCount,
+                  highlighted: poll.userVoteOptionId == option.id,
+                );
               }
               return Padding(
                 padding: const EdgeInsets.only(bottom: 9),
@@ -1843,7 +2815,9 @@ class _PollCard extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     minimumSize: const Size(double.infinity, 44),
                     side: const BorderSide(color: _line),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(option.text),
                 ),
@@ -1852,10 +2826,36 @@ class _PollCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Text('$total votes', style: const TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w700)),
+                Text(
+                  '$total votes',
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const Spacer(),
-                Text(_remainingTime(poll.expiresAt), style: const TextStyle(color: _secondary, fontSize: 12, fontWeight: FontWeight.w800)),
+                Text(
+                  _remainingTime(poll.expiresAt),
+                  style: const TextStyle(
+                    color: _secondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
+            ),
+            const Divider(height: 22, color: _line),
+            _SocialActions(
+              postId: poll.id,
+              likes: poll.likes,
+              comments: poll.commentCount,
+              isLiked: poll.isLiked,
+              onLike: onLike ?? () {},
+              onComment: onComment ?? () {},
+              onShare: () {
+                Share.share('${poll.question}\n\nShared via NTK App');
+              },
             ),
           ],
         ),
@@ -1898,12 +2898,14 @@ class _AuthorLine extends StatelessWidget {
     required this.location,
     required this.time,
     this.category,
+    this.image,
   });
 
   final String name;
   final String location;
   final String time;
   final String? category;
+  final String? image;
 
   @override
   Widget build(BuildContext context) {
@@ -1912,20 +2914,99 @@ class _AuthorLine extends StatelessWidget {
         CircleAvatar(
           radius: 19,
           backgroundColor: const Color(0xFFEAF6EF),
-          child: Text(name.isEmpty ? 'C' : name.characters.first.toUpperCase(), style: const TextStyle(color: _primary, fontWeight: FontWeight.w900)),
+          child: ClipOval(
+            child: SizedBox(
+              width: 38,
+              height: 38,
+              child: image != null && image!.trim().isNotEmpty
+                  ? (image!.startsWith('http://') || image!.startsWith('https://')
+                      ? Image.network(
+                          image!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              name.isEmpty ? 'C' : name.characters.first.toUpperCase(),
+                              style: const TextStyle(
+                                color: _primary,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        )
+                      : AsyncBase64Image(
+                          base64String: image!.contains('base64,')
+                              ? image!.substring(image!.indexOf('base64,') + 7)
+                              : image!,
+                          fit: BoxFit.cover,
+                          placeholderBuilder: (_) => Center(
+                            child: Text(
+                              name.isEmpty ? 'C' : name.characters.first.toUpperCase(),
+                              style: const TextStyle(
+                                color: _primary,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          errorBuilder: (_, __, ___) => Center(
+                            child: Text(
+                              name.isEmpty ? 'C' : name.characters.first.toUpperCase(),
+                              style: const TextStyle(
+                                color: _primary,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ))
+                  : Center(
+                      child: Text(
+                        name.isEmpty ? 'C' : name.characters.first.toUpperCase(),
+                        style: const TextStyle(
+                          color: _primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontWeight: FontWeight.w900, fontSize: 14)),
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _text,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
               Row(
                 children: [
-                  const Icon(Icons.location_on_rounded, color: _secondary, size: 13),
-                  const SizedBox(width: 2),
-                  Expanded(child: Text(location, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 11))),
-                  if (time.isNotEmpty) Text('  -  $time', style: const TextStyle(color: _muted, fontSize: 11)),
+                  if (location.isNotEmpty) ...[
+                    const Icon(
+                      Icons.location_on_rounded,
+                      color: _secondary,
+                      size: 13,
+                    ),
+                    const SizedBox(width: 2),
+                    Expanded(
+                      child: Text(
+                        location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: _muted, fontSize: 11),
+                      ),
+                    ),
+                  ],
+                  if (time.isNotEmpty)
+                    Text(
+                      location.isNotEmpty ? '  -  $time' : time,
+                      style: const TextStyle(color: _muted, fontSize: 11),
+                    ),
                 ],
               ),
             ],
@@ -1939,15 +3020,19 @@ class _AuthorLine extends StatelessWidget {
 
 class _SocialActions extends StatelessWidget {
   const _SocialActions({
+    required this.postId,
     required this.likes,
     required this.comments,
+    this.isLiked = false,
     required this.onLike,
     required this.onComment,
     required this.onShare,
   });
 
+  final int postId;
   final int likes;
   final int comments;
+  final bool isLiked;
   final VoidCallback onLike;
   final VoidCallback onComment;
   final VoidCallback onShare;
@@ -1956,25 +3041,182 @@ class _SocialActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _InlineAction(icon: Icons.thumb_up_outlined, label: '$likes', onTap: onLike),
+        _AnimatedLikeButton(
+          postId: postId,
+          initialLikes: likes,
+          initialIsLiked: isLiked,
+          onLike: onLike,
+        ),
         const SizedBox(width: 18),
-        _InlineAction(icon: Icons.chat_bubble_outline_rounded, label: '$comments', onTap: onComment),
+        _InlineAction(
+          icon: Icons.chat_bubble_outline_rounded,
+          label: '$comments',
+          onTap: onComment,
+        ),
         const Spacer(),
-        _InlineAction(icon: Icons.share_outlined, label: 'Share', onTap: onShare),
+        _InlineAction(
+          icon: Icons.share_outlined,
+          label: 'Share',
+          onTap: onShare,
+        ),
       ],
     );
   }
 }
 
+class _AnimatedLikeButton extends StatefulWidget {
+  const _AnimatedLikeButton({
+    required this.postId,
+    required this.initialLikes,
+    required this.initialIsLiked,
+    required this.onLike,
+  });
+
+  final int postId;
+  final int initialLikes;
+  final bool initialIsLiked;
+  final VoidCallback onLike;
+
+  @override
+  State<_AnimatedLikeButton> createState() => _AnimatedLikeButtonState();
+}
+
+class _AnimatedLikeButtonState extends State<_AnimatedLikeButton>
+    with SingleTickerProviderStateMixin {
+  late bool _isLiked;
+  late int _likes;
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLiked = widget.initialIsLiked;
+    _likes = widget.initialLikes;
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 1.35)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 50,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.35, end: 1.0)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 50,
+      ),
+    ]).animate(_controller);
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedLikeButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.postId != widget.postId) {
+      _isLiked = widget.initialIsLiked;
+      _likes = widget.initialLikes;
+    } else {
+      // If parent rebuilds but post is same, we ONLY sync if the server 
+      // updated the like count. We don't overwrite our optimistic state
+      // if it's currently running an animation.
+      if (!_controller.isAnimating) {
+        _isLiked = widget.initialIsLiked;
+        _likes = widget.initialLikes;
+      }
+    }
+  }
+
+  void _handleLike() {
+    setState(() {
+      _isLiked = !_isLiked;
+      if (_isLiked) {
+        _likes += 1;
+        _controller.forward(from: 0.0);
+      } else {
+        _likes -= 1;
+        if (_likes < 0) _likes = 0;
+      }
+    });
+    // Trigger bloc action in background
+    widget.onLike();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _handleLike,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ScaleTransition(
+              scale: _scaleAnimation,
+              child: Icon(
+                _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: _isLiked ? const Color(0xFFE91E63) : _muted,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 6),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.0, -0.2),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: Text(
+                '$_likes',
+                key: ValueKey<int>(_likes),
+                style: TextStyle(
+                  color: _isLiked ? const Color(0xFFE91E63) : _text,
+                  fontSize: 14,
+                  fontWeight: _isLiked ? FontWeight.w800 : FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _InlineAction extends StatelessWidget {
-  const _InlineAction({required this.icon, required this.label, required this.onTap});
+  const _InlineAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = color ?? _muted;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -1983,9 +3225,16 @@ class _InlineAction extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: _muted, size: 18),
+            Icon(icon, color: effectiveColor, size: 18),
             const SizedBox(width: 6),
-            Text(label, style: const TextStyle(color: _muted, fontWeight: FontWeight.w700, fontSize: 12)),
+            Text(
+              label,
+              style: TextStyle(
+                color: effectiveColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
       ),
@@ -2000,11 +3249,21 @@ class _PostImageGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shown = images.isEmpty ? ['sample-light', 'sample-pole'] : images.take(4).toList();
+    if (images.isEmpty) return const SizedBox.shrink();
+    final shown = images.take(4).toList();
     if (shown.length == 1) {
+      // Single image: fixed height to prevent scroll layout shifts
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(height: 190, width: double.infinity, child: _ImageSource(value: shown.first)),
+        child: Container(
+          width: double.infinity,
+          height: 280,
+          color: const Color(0xFFF1F5F2),
+          child: _ImageSource(
+            value: shown.first,
+            fit: BoxFit.contain,
+          ),
+        ),
       );
     }
     return GridView.builder(
@@ -2015,30 +3274,60 @@ class _PostImageGrid extends StatelessWidget {
         crossAxisCount: 2,
         mainAxisSpacing: 6,
         crossAxisSpacing: 6,
-        childAspectRatio: 1.35,
+        childAspectRatio: 1.0,
       ),
       itemBuilder: (_, index) => ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: _ImageSource(value: shown[index]),
+        child: _ImageSource(
+          value: shown[index],
+          fit: BoxFit.contain,
+          backgroundColor: const Color(0xFFF1F5F2),
+        ),
       ),
     );
   }
 }
 
 class _ImageSource extends StatelessWidget {
-  const _ImageSource({required this.value});
+  const _ImageSource({
+    required this.value,
+    this.fit = BoxFit.contain,
+    this.backgroundColor,
+  });
 
   final String value;
+  final BoxFit fit;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
+    final bg = backgroundColor ?? Colors.transparent;
     if (value.startsWith('http://') || value.startsWith('https://')) {
-      return Image.network(value, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _SampleImage(seed: value));
+      return ColoredBox(
+        color: bg,
+        child: Image.network(
+          value,
+          fit: fit,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => _SampleImage(seed: value),
+        ),
+      );
     }
     if (value.startsWith('sample')) return _SampleImage(seed: value);
     try {
-      final clean = value.contains('base64,') ? value.substring(value.indexOf('base64,') + 7) : value;
-      return Image.memory(base64Decode(clean), fit: BoxFit.cover, errorBuilder: (_, __, ___) => _SampleImage(seed: value));
+      final clean = value.contains('base64,')
+          ? value.substring(value.indexOf('base64,') + 7)
+          : value;
+      return ColoredBox(
+        color: bg,
+        child: AsyncBase64Image(
+          base64String: clean,
+          fit: fit,
+          width: double.infinity,
+          placeholderBuilder: (_) => _SampleImage(seed: value),
+          errorBuilder: (_, __, ___) => _SampleImage(seed: value),
+        ),
+      );
     } catch (_) {
       return _SampleImage(seed: value);
     }
@@ -2074,46 +3363,131 @@ class _SampleImage extends StatelessWidget {
   }
 }
 
-class _GroupRow extends StatelessWidget {
-  const _GroupRow({required this.community, required this.joined, required this.onTap, this.onJoin});
+class _CommunityCard extends StatelessWidget {
+  const _CommunityCard({
+    required this.community,
+    required this.isJoined,
+  });
 
   final CommunityModel community;
-  final bool joined;
-  final VoidCallback onTap;
-  final VoidCallback? onJoin;
+  final bool isJoined;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Row(
-          children: [
-            Container(
-              height: 50,
-              width: 50,
-              decoration: BoxDecoration(
-                color: _avatarTint(community.name),
-                borderRadius: BorderRadius.circular(16),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _line),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  color: _avatarTint(community.name),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(_groupIcon(community.name), color: _primary, size: 24),
               ),
-              child: Icon(_groupIcon(community.name), color: _primary, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      community.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${community.memberCount} Members',
+                      style: const TextStyle(
+                        color: _muted,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isJoined)
+                SizedBox(
+                  height: 36,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CommunityDetailsScreen(community: community),
+                        ),
+                      );
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFEAF6EF),
+                      foregroundColor: _secondary,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('OPEN', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                  ),
+                )
+              else
+                SizedBox(
+                  height: 36,
+                  child: FilledButton(
+                    onPressed: () {
+                      context.read<CommunityBloc>().add(JoinCommunity(communityId: community.id));
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('JOIN', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                  ),
+                ),
+            ],
+          ),
+          if (!isJoined && community.description != null && community.description!.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.only(top: 12, bottom: 8),
+              child: Divider(color: _line, height: 1),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(community.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900, color: _text, fontSize: 14)),
-                  const SizedBox(height: 3),
-                  Text('${community.memberCount} Members', style: const TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                ],
+            Text(
+              community.description!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 13,
+                height: 1.4,
               ),
             ),
-            joined ? const _TinyBadge(label: 'Joined') : _JoinButton(onTap: onJoin ?? onTap),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -2132,9 +3506,18 @@ class _SearchField extends StatelessWidget {
         prefixIcon: const Icon(Icons.search_rounded),
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: _line)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: _line)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _line),
+        ),
       ),
     );
   }
@@ -2150,8 +3533,25 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(title, style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w900))),
-        if (action != null) Text(action!, style: const TextStyle(color: _secondary, fontWeight: FontWeight.w800, fontSize: 12)),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: _text,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        if (action != null)
+          Text(
+            action!,
+            style: const TextStyle(
+              color: _secondary,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          ),
       ],
     );
   }
@@ -2167,21 +3567,33 @@ class _CreatePollPrompt extends StatelessWidget {
     return _Card(
       child: Row(
         children: [
-          const CircleAvatar(backgroundColor: Color(0xFFEAF6EF), child: Icon(Icons.poll_outlined, color: _primary)),
+          const CircleAvatar(
+            backgroundColor: Color(0xFFEAF6EF),
+            child: Icon(Icons.poll_outlined, color: _primary),
+          ),
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Ask your community', style: TextStyle(color: _text, fontWeight: FontWeight.w900)),
-                Text('Create a poll for local decisions', style: TextStyle(color: _muted, fontSize: 12)),
+                Text(
+                  'Ask your community',
+                  style: TextStyle(color: _text, fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  'Create a poll for local decisions',
+                  style: TextStyle(color: _muted, fontSize: 12),
+                ),
               ],
             ),
           ),
           IconButton.filled(
             onPressed: onTap,
             icon: const Icon(Icons.add_rounded),
-            style: IconButton.styleFrom(backgroundColor: _secondary, foregroundColor: Colors.white),
+            style: IconButton.styleFrom(
+              backgroundColor: _secondary,
+              foregroundColor: Colors.white,
+            ),
           ),
         ],
       ),
@@ -2202,8 +3614,18 @@ class _PageHeader extends StatelessWidget {
       color: _primary,
       child: Row(
         children: [
-          IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back_rounded, color: Colors.white)),
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          ),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
@@ -2217,12 +3639,24 @@ class _FormLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(color: _text, fontWeight: FontWeight.w900, fontSize: 13));
+    return Text(
+      text,
+      style: const TextStyle(
+        color: _text,
+        fontWeight: FontWeight.w900,
+        fontSize: 13,
+      ),
+    );
   }
 }
 
 class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({required this.label, required this.icon, required this.active, required this.onTap});
+  const _CategoryChip({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
 
   final String label;
   final IconData icon;
@@ -2234,10 +3668,10 @@ class _CategoryChip extends StatelessWidget {
     final color = label == 'Complaint'
         ? const Color(0xFFE53935)
         : label == 'Suggestion'
-            ? const Color(0xFFE59F24)
-            : label == 'Information'
-                ? const Color(0xFF2F6DE0)
-                : _primary;
+        ? const Color(0xFFE59F24)
+        : label == 'Information'
+        ? const Color(0xFF2F6DE0)
+        : _primary;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -2247,13 +3681,23 @@ class _CategoryChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? color.withOpacity(0.08) : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: active ? color : _line, width: active ? 1.4 : 1),
+          border: Border.all(
+            color: active ? color : _line,
+            width: active ? 1.4 : 1,
+          ),
         ),
         child: Row(
           children: [
             Icon(icon, color: color, size: 18),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 12)),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
       ),
@@ -2262,7 +3706,11 @@ class _CategoryChip extends StatelessWidget {
 }
 
 class _ImagePreviewGrid extends StatelessWidget {
-  const _ImagePreviewGrid({required this.images, required this.onAdd, required this.onRemove});
+  const _ImagePreviewGrid({
+    required this.images,
+    required this.onAdd,
+    required this.onRemove,
+  });
 
   final List<File> images;
   final VoidCallback onAdd;
@@ -2285,20 +3733,40 @@ class _ImagePreviewGrid extends StatelessWidget {
             onTap: onAdd,
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _line)),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _line),
+              ),
               child: const Icon(Icons.add_rounded, color: _primary, size: 30),
             ),
           );
         }
         return Stack(
           children: [
-            ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(images[index], width: double.infinity, height: double.infinity, fit: BoxFit.cover)),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                images[index],
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
             Positioned(
               top: 4,
               right: 4,
               child: InkWell(
                 onTap: () => onRemove(index),
-                child: const CircleAvatar(radius: 11, backgroundColor: Colors.black54, child: Icon(Icons.close_rounded, color: Colors.white, size: 14)),
+                child: const CircleAvatar(
+                  radius: 11,
+                  backgroundColor: Colors.black54,
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
               ),
             ),
           ],
@@ -2317,12 +3785,25 @@ class _LocationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _line)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _line),
+      ),
       child: Row(
         children: [
           const Icon(Icons.location_on_outlined, color: _secondary, size: 20),
           const SizedBox(width: 8),
-          Expanded(child: Text(location, style: const TextStyle(color: _text, fontWeight: FontWeight.w700, fontSize: 13))),
+          Expanded(
+            child: Text(
+              location,
+              style: const TextStyle(
+                color: _text,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ),
           const Icon(Icons.chevron_right_rounded, color: _muted),
         ],
       ),
@@ -2346,7 +3827,10 @@ class _DurationRadios extends StatelessWidget {
           onChanged: (v) => onChanged(v ?? days),
           activeColor: _secondary,
           contentPadding: EdgeInsets.zero,
-          title: Text('$days Day${days == 1 ? '' : 's'}', style: const TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(
+            '$days Day${days == 1 ? '' : 's'}',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
         );
       }).toList(),
     );
@@ -2373,7 +3857,9 @@ class _BottomAction extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: _secondary,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text(label),
           ),
@@ -2384,11 +3870,17 @@ class _BottomAction extends StatelessWidget {
 }
 
 class _ResultBar extends StatelessWidget {
-  const _ResultBar({required this.label, required this.percent, required this.votes});
+  const _ResultBar({
+    required this.label,
+    required this.percent,
+    required this.votes,
+    this.highlighted = false,
+  });
 
   final String label;
   final double percent;
   final int votes;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -2398,8 +3890,31 @@ class _ResultBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text(label, style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w700))),
-              Text('${(percent * 100).round()}% ($votes votes)', style: const TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w700)),
+              if (highlighted)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: _primary,
+                  size: 15,
+                ),
+              if (highlighted) const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: highlighted ? _primary : _text,
+                    fontSize: 13,
+                    fontWeight: highlighted ? FontWeight.w900 : FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                '${(percent * 100).round()}% ($votes votes)',
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 7),
@@ -2408,7 +3923,7 @@ class _ResultBar extends StatelessWidget {
             child: LinearProgressIndicator(
               value: percent.clamp(0, 1),
               minHeight: 7,
-              color: _secondary,
+              color: highlighted ? _primary : _secondary,
               backgroundColor: const Color(0xFFE9ECEA),
             ),
           ),
@@ -2428,13 +3943,24 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _line)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _line),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title, style: const TextStyle(color: _muted, fontSize: 12)),
           const SizedBox(height: 5),
-          Text(value, style: const TextStyle(color: _text, fontWeight: FontWeight.w900, fontSize: 16)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: _text,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
@@ -2453,20 +3979,28 @@ class _CommentTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _AuthorLine(name: comment.authorName, location: comment.authorRole ?? 'Member', time: _timeAgo(comment.createdAt)),
+          _AuthorLine(
+            name: comment.authorName,
+            location: '',
+            time: _timeAgo(comment.createdAt),
+            category: comment.authorRole, // Shows Role as a Badge instead of Location
+            image: comment.createdBy?['image']?.toString(),
+          ),
           const SizedBox(height: 8),
-          Text(comment.content, style: const TextStyle(color: _text, fontWeight: FontWeight.w600, height: 1.4)),
+          _ExpandableText(text: comment.content),
           const SizedBox(height: 8),
+          // Action row for future implementation
+          // When backend provides likes and replies, bind them here.
           Row(
             children: [
-              const _InlineAction(icon: Icons.thumb_up_outlined, label: '3', onTap: _noop),
+              const _InlineAction(
+                icon: Icons.thumb_up_outlined,
+                label: '0', // Replaced dummy 3 with 0 since backend doesn't support comment likes yet
+                onTap: _noop,
+              ),
               const SizedBox(width: 12),
               TextButton(onPressed: () {}, child: const Text('Reply')),
             ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 30),
-            child: Text('Thanks, we will update the ward team.', style: TextStyle(color: _muted.withOpacity(0.9), fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -2474,11 +4008,80 @@ class _CommentTile extends StatelessWidget {
   }
 }
 
+class _ExpandableText extends StatefulWidget {
+  const _ExpandableText({required this.text});
+  final String text;
+
+  @override
+  State<_ExpandableText> createState() => _ExpandableTextState();
+}
+
+class _ExpandableTextState extends State<_ExpandableText> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, size) {
+        final span = TextSpan(
+          text: widget.text,
+          style: const TextStyle(
+            color: _text,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
+          ),
+        );
+        final tp = TextPainter(
+          maxLines: 4,
+          textAlign: TextAlign.left,
+          textDirection: TextDirection.ltr,
+          text: span,
+        );
+        tp.layout(maxWidth: size.maxWidth);
+
+        if (tp.didExceedMaxLines) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
+                span,
+                maxLines: _expanded ? null : 4,
+                overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Text(
+                  _expanded ? 'Read less' : 'Read more',
+                  style: const TextStyle(
+                    color: _secondary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          );
+        } else {
+          return Text.rich(span);
+        }
+      },
+    );
+  }
+}
+
 class _CommentComposer extends StatelessWidget {
-  const _CommentComposer({required this.controller, required this.onSend});
+  const _CommentComposer({
+    required this.controller,
+    required this.onSend,
+    this.focusNode,
+    this.autofocus = false,
+  });
 
   final TextEditingController controller;
   final VoidCallback onSend;
+  final FocusNode? focusNode;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -2492,14 +4095,21 @@ class _CommentComposer extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
-                decoration: const InputDecoration(hintText: 'Write a comment...'),
+                focusNode: focusNode,
+                autofocus: autofocus,
+                decoration: const InputDecoration(
+                  hintText: 'Write a comment...',
+                ),
               ),
             ),
             const SizedBox(width: 10),
             IconButton.filled(
               onPressed: onSend,
               icon: const Icon(Icons.send_rounded),
-              style: IconButton.styleFrom(backgroundColor: _secondary, foregroundColor: Colors.white),
+              style: IconButton.styleFrom(
+                backgroundColor: _secondary,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
@@ -2515,17 +4125,56 @@ class _CategoryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isComplaint = category == 'Complaint';
-    final color = isComplaint ? const Color(0xFFE53935) : category == 'Information' ? const Color(0xFF2F6DE0) : _secondary;
+    Color color;
+    IconData icon;
+
+    switch (category) {
+      case 'Complaint':
+        color = const Color(0xFFE53935);
+        icon = Icons.warning_amber_rounded;
+        break;
+      case 'Suggestion':
+        color = const Color(0xFFE59F24);
+        icon = Icons.lightbulb_outline;
+        break;
+      case 'Information':
+        color = const Color(0xFF2F6DE0);
+        icon = Icons.info_outline_rounded;
+        break;
+      case 'Discussion':
+        color = const Color(0xFF004D2A); // _primary
+        icon = Icons.forum_outlined;
+        break;
+      case 'General':
+      default:
+        color = const Color(0xFF0F8A4B); // _secondary
+        icon = Icons.public_rounded;
+        break;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(99)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(99),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(isComplaint ? Icons.warning_amber_rounded : Icons.info_outline_rounded, color: color, size: 14),
+          Icon(
+            icon,
+            color: color,
+            size: 14,
+          ),
           const SizedBox(width: 5),
-          Text(category, style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 11)),
+          Text(
+            category,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w900,
+              fontSize: 11,
+            ),
+          ),
         ],
       ),
     );
@@ -2541,8 +4190,18 @@ class _TinyBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: const Color(0xFFEAF6EF), borderRadius: BorderRadius.circular(99)),
-      child: Text(label, style: const TextStyle(color: _secondary, fontSize: 11, fontWeight: FontWeight.w900)),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF6EF),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: _secondary,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
@@ -2563,9 +4222,14 @@ class _JoinButton extends StatelessWidget {
           foregroundColor: _primary,
           side: const BorderSide(color: Color(0xFFB8C9C1)),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-        child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w900)),
+        child: const Text(
+          'Join',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
       ),
     );
   }
@@ -2590,10 +4254,15 @@ class _CommunityOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      leading: CircleAvatar(backgroundColor: const Color(0xFFEAF6EF), child: Icon(icon, color: _primary)),
+      leading: CircleAvatar(
+        backgroundColor: const Color(0xFFEAF6EF),
+        child: Icon(icon, color: _primary),
+      ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
       subtitle: Text(subtitle),
-      trailing: selected ? const Icon(Icons.check_circle_rounded, color: _secondary) : null,
+      trailing: selected
+          ? const Icon(Icons.check_circle_rounded, color: _secondary)
+          : null,
     );
   }
 }
@@ -2623,12 +4292,22 @@ Color _avatarTint(String name) {
 }
 
 String _postLocation(PostModel post) {
-  return post.location?['name']?.toString() ?? post.community?.name ?? 'Pushpavanam, Nagapattinam';
+  return post.location?['name']?.toString() ??
+      post.community?.name ??
+      '';
 }
 
 String _cleanContent(String content) {
   final parts = content.split('\n\n');
-  if (parts.length > 1 && ['Discussion', 'Suggestion', 'Complaint', 'Information', 'General Update', 'Community Post'].contains(parts.first.trim())) {
+  if (parts.length > 1 &&
+      [
+        'Discussion',
+        'Suggestion',
+        'Complaint',
+        'Information',
+        'General Update',
+        'Community Post',
+      ].contains(parts.first.trim())) {
     return parts.skip(1).join('\n\n').trim();
   }
   return content.trim();
@@ -2636,28 +4315,17 @@ String _cleanContent(String content) {
 
 String _categoryFromContent(String content) {
   final first = content.split('\n\n').first.trim();
-  if (['Discussion', 'Suggestion', 'Complaint', 'Information'].contains(first)) return first;
+  if (['Discussion', 'Suggestion', 'Complaint', 'Information'].contains(first))
+    return first;
   final lower = content.toLowerCase();
-  if (lower.contains('not working') || lower.contains('complaint')) return 'Complaint';
+  if (lower.contains('not working') || lower.contains('complaint'))
+    return 'Complaint';
   if (lower.contains('suggest')) return 'Suggestion';
   return 'Information';
 }
 
 DateTime _parseDateTime(String value) {
-  final parsedInt = int.tryParse(value);
-  if (parsedInt != null) {
-    return DateTime.fromMillisecondsSinceEpoch(
-      parsedInt > 9999999999 ? parsedInt : parsedInt * 1000,
-    ).toLocal();
-  }
-  String normalized = value;
-  if (!normalized.endsWith('Z') && !normalized.contains('+') && !normalized.contains(RegExp(r'-\d{2}:?\d{2}$'))) {
-    normalized = normalized.replaceAll(' ', 'T');
-    if (!normalized.endsWith('Z')) {
-      normalized = '${normalized}Z';
-    }
-  }
-  return DateTime.parse(normalized).toLocal();
+  return DateHelper.parseUtcToLocal(value);
 }
 
 String _timeAgo(String? value) {
@@ -2677,7 +4345,7 @@ String _timeAgo(String? value) {
 String _remainingTime(String? value) {
   if (value == null || value.isEmpty) return '2 Days';
   try {
-    final diff = DateTime.parse(value).difference(DateTime.now());
+    final diff = DateHelper.parseUtcToLocal(value).difference(DateTime.now());
     if (diff.isNegative) return 'Closed';
     if (diff.inDays > 0) return '${diff.inDays} Days';
     if (diff.inHours > 0) return '${diff.inHours} Hours';
@@ -2688,48 +4356,116 @@ String _remainingTime(String? value) {
 }
 
 final _sampleCommunities = [
-  CommunityModel(id: 1, name: 'Doctors - Nagapattinam', description: 'Medical support community', memberCount: 325, createdAt: ''),
-  CommunityModel(id: 2, name: 'Farmers - Nagapattinam', description: 'Agriculture updates', memberCount: 412, createdAt: ''),
-  CommunityModel(id: 3, name: 'Teachers - Nagapattinam', description: 'Education coordination', memberCount: 276, createdAt: ''),
-  CommunityModel(id: 4, name: 'Lawyers - Nagapattinam', description: 'Legal support', memberCount: 189, createdAt: ''),
-  CommunityModel(id: 5, name: 'Youth Wing - Nagapattinam', description: 'Volunteer team', memberCount: 358, createdAt: ''),
-  CommunityModel(id: 6, name: 'Business Owners - Nagapattinam', description: 'Local business group', memberCount: 156, createdAt: ''),
-  CommunityModel(id: 7, name: "Women's Forum - Nagapattinam", description: 'Community forum', memberCount: 198, createdAt: ''),
-  CommunityModel(id: 8, name: 'Police Support - Nagapattinam', description: 'Safety updates', memberCount: 221, createdAt: ''),
+  CommunityModel(
+    id: 1,
+    name: 'Doctors - Nagapattinam',
+    description: 'Medical support community',
+    memberCount: 325,
+    createdAt: '',
+  ),
+  CommunityModel(
+    id: 2,
+    name: 'Farmers - Nagapattinam',
+    description: 'Agriculture updates',
+    memberCount: 412,
+    createdAt: '',
+  ),
+  CommunityModel(
+    id: 3,
+    name: 'Teachers - Nagapattinam',
+    description: 'Education coordination',
+    memberCount: 276,
+    createdAt: '',
+  ),
+  CommunityModel(
+    id: 4,
+    name: 'Lawyers - Nagapattinam',
+    description: 'Legal support',
+    memberCount: 189,
+    createdAt: '',
+  ),
+  CommunityModel(
+    id: 5,
+    name: 'Youth Wing - Nagapattinam',
+    description: 'Volunteer team',
+    memberCount: 358,
+    createdAt: '',
+  ),
+  CommunityModel(
+    id: 6,
+    name: 'Business Owners - Nagapattinam',
+    description: 'Local business group',
+    memberCount: 156,
+    createdAt: '',
+  ),
+  CommunityModel(
+    id: 7,
+    name: "Women's Forum - Nagapattinam",
+    description: 'Community forum',
+    memberCount: 198,
+    createdAt: '',
+  ),
+  CommunityModel(
+    id: 8,
+    name: 'Police Support - Nagapattinam',
+    description: 'Safety updates',
+    memberCount: 221,
+    createdAt: '',
+  ),
 ];
 
 final _samplePosts = [
   PostModel(
     id: -1,
     title: 'Street light issue',
-    content: 'Street light not working near Pushpavanam Bus Stop for 3 days. Please fix it.',
+    content:
+        'Street light not working near Pushpavanam Bus Stop for 3 days. Please fix it.',
     category: 'Complaint',
     images: const ['sample-light', 'sample-pole'],
     likes: 28,
     authorName: 'Kumar M',
     authorRole: 'Member',
     commentCount: 6,
-    createdAt: DateTime.now().subtract(const Duration(minutes: 20)).toIso8601String(),
+    createdAt: DateTime.now()
+        .subtract(const Duration(minutes: 20))
+        .toIso8601String(),
     location: const {'name': 'Pushpavanam Street'},
   ),
   PostModel(
     id: -2,
     title: 'Water supply update',
-    content: 'Water supply will be closed tomorrow from 10 AM to 4 PM for maintenance.',
+    content:
+        'Water supply will be closed tomorrow from 10 AM to 4 PM for maintenance.',
     category: 'Information',
     images: const [],
     likes: 54,
     authorName: 'Selvam R',
     authorRole: 'Ward Coordinator',
     commentCount: 11,
-    createdAt: DateTime.now().subtract(const Duration(hours: 1)).toIso8601String(),
+    createdAt: DateTime.now()
+        .subtract(const Duration(hours: 1))
+        .toIso8601String(),
     location: const {'name': 'Vedaranyam'},
   ),
 ];
 
-
-
 final _sampleComments = [
-  CommentModel(id: -1, content: "Yes, it is not working. I also noticed.", authorName: 'Ravi S', authorRole: 'Member', createdAt: DateTime.now().subtract(const Duration(minutes: 15)).toIso8601String()),
-  CommentModel(id: -2, content: 'I have informed EB office. They will check and update.', authorName: 'Selvi P', authorRole: 'Area Coordinator', createdAt: DateTime.now().subtract(const Duration(minutes: 10)).toIso8601String()),
+  CommentModel(
+    id: -1,
+    content: "Yes, it is not working. I also noticed.",
+    authorName: 'Ravi S',
+    authorRole: 'Member',
+    createdAt: DateTime.now()
+        .subtract(const Duration(minutes: 15))
+        .toIso8601String(),
+  ),
+  CommentModel(
+    id: -2,
+    content: 'I have informed EB office. They will check and update.',
+    authorName: 'Selvi P',
+    authorRole: 'Area Coordinator',
+    createdAt: DateTime.now()
+        .subtract(const Duration(minutes: 10))
+        .toIso8601String(),
+  ),
 ];

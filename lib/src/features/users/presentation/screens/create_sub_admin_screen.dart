@@ -13,6 +13,7 @@ import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/injection_container.dart';
+import 'package:ntk_project/src/core/utils/validators.dart';
 
 class CreateSubAdminScreen extends StatefulWidget {
   const CreateSubAdminScreen({super.key});
@@ -46,6 +47,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
 
   final _dobController = TextEditingController();
   String? _selectedGender;
+  String? _phoneErrorText;
 
   late LocationRepositoryImpl _locationRepo;
 
@@ -70,7 +72,8 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
     );
     if (picked != null) {
       setState(() {
-        _dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+        _dobController.text =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       });
     }
   }
@@ -103,6 +106,13 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
     super.initState();
     _locationRepo = LocationRepositoryImpl(sl());
     _loadDistricts();
+    _phoneController.addListener(() {
+      if (_phoneErrorText != null) {
+        setState(() {
+          _phoneErrorText = null;
+        });
+      }
+    });
   }
 
   Future<void> _loadDistricts() async {
@@ -188,6 +198,19 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
       _showSnack('Please enter full name');
       return;
     }
+    if (!Validators.isValidName(_nameController.text)) {
+      _showSnack(
+        'Full Name can only contain English and Tamil alphabets and spaces',
+      );
+      return;
+    }
+    if (_surnameController.text.trim().isNotEmpty &&
+        !Validators.isValidName(_surnameController.text)) {
+      _showSnack(
+        'Surname can only contain English and Tamil alphabets and spaces',
+      );
+      return;
+    }
     if (_phoneController.text.trim().isEmpty) {
       _showSnack('Please enter mobile number');
       return;
@@ -204,6 +227,14 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
       _showSnack('Please select an Area');
       return;
     }
+    if (_selectedBloodGroup == null) {
+      _showSnack('Please select Blood Group');
+      return;
+    }
+    if (_selectedProfession == null) {
+      _showSnack('Please select Profession');
+      return;
+    }
     if (_passwordController.text != _confirmPasswordController.text) {
       _showSnack('Passwords do not match');
       return;
@@ -213,7 +244,9 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
       return;
     }
 
-    final dob = _dobController.text.trim().isEmpty ? null : _dobController.text.trim();
+    final dob = _dobController.text.trim().isEmpty
+        ? null
+        : _dobController.text.trim();
     final gender = _selectedGender;
 
     context.read<UserBloc>().add(
@@ -228,6 +261,8 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
         locationId: _selectedArea!.id,
         dateOfBirth: dob,
         gender: gender,
+        bloodGroup: _selectedBloodGroup,
+        professionName: _selectedProfession,
       ),
     );
   }
@@ -240,14 +275,25 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
           _showSnack('Sub Admin created successfully', isError: false);
           Navigator.pop(context);
         } else if (state is UserFailure) {
-          _showSnack(state.error);
+          final errMsg = state.error;
+          if (errMsg.contains('USER_PHONE_ALREADY_EXISTS') ||
+              errMsg.contains('This phone number is already registered') ||
+              errMsg.contains('already registered')) {
+            setState(() {
+              _phoneErrorText = 'This mobile number is already registered';
+            });
+          } else {
+            _showSnack(errMsg);
+          }
         }
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F4F8),
         appBar: NTKAppBar(
           title: 'Create Sub Admin',
-          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
+          subtitle:
+              context.read<AuthBloc>().state.loginData?.locationName ??
+              'Admin Portal',
           showNotification: false,
         ),
         body: SingleChildScrollView(
@@ -294,6 +340,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
                 controller: _phoneController,
                 icon: CupertinoIcons.phone,
                 keyboardType: TextInputType.phone,
+                errorText: _phoneErrorText,
               ),
               const SizedBox(height: 16),
 

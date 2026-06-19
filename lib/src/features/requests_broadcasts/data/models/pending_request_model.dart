@@ -8,6 +8,7 @@ class PendingRequestModel {
   final LocationModel? location;
   final String? createdAt;
   final String type; // 'USER' or 'MEMBER'
+  final String? image;
 
   PendingRequestModel({
     required this.id,
@@ -17,6 +18,7 @@ class PendingRequestModel {
     this.location,
     this.createdAt,
     required this.type,
+    this.image,
   });
 
   factory PendingRequestModel.fromJson(Map<String, dynamic> json) {
@@ -44,6 +46,7 @@ class PendingRequestModel {
           : null,
       createdAt: createdAt,
       type: json['type'] ?? 'MEMBER',
+      image: json['image'] as String?,
     );
   }
 }

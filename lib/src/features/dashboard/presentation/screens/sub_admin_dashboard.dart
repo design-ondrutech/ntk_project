@@ -12,6 +12,8 @@ import 'package:ntk_project/src/features/users/presentation/screens/user_managem
 import 'package:ntk_project/src/features/location/presentation/bloc/location_bloc.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
+import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_widgets.dart';
 
 class SubAdminDashboard extends StatelessWidget {
   const SubAdminDashboard({super.key, required this.authState});
@@ -42,6 +44,10 @@ class SubAdminDashboard extends StatelessWidget {
             elevation: 0,
             centerTitle: false,
             automaticallyImplyLeading: false,
+            leading: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: buildDashboardAvatar(context),
+            ),
             title: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -82,6 +88,9 @@ class SubAdminDashboard extends StatelessWidget {
                   onRefresh: () async {
                     context.read<DashboardBloc>().add(
                       LoadDashboardStats(state.globalLocation?.id ?? authLocationId),
+                    );
+                    context.read<DashboardBloc>().add(
+                      LoadModerationStats(state.globalLocation?.id ?? authLocationId),
                     );
                   },
                   child: SingleChildScrollView(
@@ -139,101 +148,6 @@ class SubAdminDashboard extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                ),
-                                // Location selector chip/dropdown on the right
-                                BlocBuilder<LocationBloc, LocationState>(
-                                  builder: (context, locationState) {
-                                    final currentSelectedId = state.globalLocation?.id;
-                                    final listToUse = locationState.constituencies.isNotEmpty
-                                        ? locationState.constituencies
-                                        : locationState.districts;
-                                    
-                                    final hasSelected = listToUse.any((item) => item.id == currentSelectedId);
-
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.15),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<int>(
-                                          dropdownColor: const Color(0xFF004D2A),
-                                          isExpanded: false,
-                                          icon: const Icon(
-                                            Icons.keyboard_arrow_down,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                          value: hasSelected ? currentSelectedId : null,
-                                          hint: const Icon(
-                                            Icons.location_on,
-                                            color: Colors.white,
-                                            size: 18,
-                                          ),
-                                          selectedItemBuilder: (context) {
-                                            return [
-                                              const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(Icons.location_on, color: Colors.white, size: 18),
-                                                  SizedBox(width: 4),
-                                                  Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 18),
-                                                ],
-                                              ),
-                                              ...listToUse.map((e) => const Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Icon(Icons.location_on, color: Colors.white, size: 18),
-                                                  SizedBox(width: 4),
-                                                  Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 18),
-                                                ],
-                                              )),
-                                            ];
-                                          },
-                                          items: [
-                                            DropdownMenuItem<int>(
-                                              value: null,
-                                              child: Text(
-                                                authState.loginData?.locationName ?? 'Default Region',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                            ...listToUse.map((c) => DropdownMenuItem<int>(
-                                              value: c.id,
-                                              child: Text(
-                                                c.name,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            )).toList(),
-                                          ],
-                                          onChanged: (val) {
-                                            final selectedLoc = val == null
-                                                ? null
-                                                : listToUse.firstWhere((c) => c.id == val);
-                                            
-                                            final targetLocName = selectedLoc?.name ?? authState.loginData?.locationName ?? 'Tamil Nadu';
-                                            context.read<AuthBloc>().add(
-                                              ChangeLocationRequested(
-                                                locationId: val ?? authLocationId ?? 1,
-                                                locationName: targetLocName,
-                                              ),
-                                            );
-                                            
-                                            context.read<DashboardBloc>().add(UpdateGlobalLocation(selectedLoc));
-                                            context.read<DashboardBloc>().add(LoadDashboardStats(val ?? authLocationId ?? 1));
-                                            context.read<PendingRequestsBloc>().add(LoadPendingRequests(locationId: val ?? authLocationId ?? 1));
-                                          },
-                                        ),
-                                      ),
-                                    );
-                                  },
                                 ),
                               ],
                             ),
@@ -304,7 +218,10 @@ class SubAdminDashboard extends StatelessWidget {
                               subtext: 'Upcoming events',
                               icon: Icons.calendar_today_outlined,
                               color: const Color(0xFF2563EB),
-                              onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                              onTap: () {
+                                MainScreen.of(context)?.setSelectedIndex(2);
+                                EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(1);
+                              },
                             ),
                             _buildActivityCard(
                               context: context,
@@ -313,7 +230,10 @@ class SubAdminDashboard extends StatelessWidget {
                               subtext: 'Active alerts',
                               icon: Icons.warning_amber_rounded,
                               color: const Color(0xFFEF4444),
-                              onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                              onTap: () {
+                                MainScreen.of(context)?.setSelectedIndex(2);
+                                EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 0);
+                              },
                             ),
                             _buildActivityCard(
                               context: context,
@@ -322,13 +242,126 @@ class SubAdminDashboard extends StatelessWidget {
                               subtext: 'Active broadcasts',
                               icon: Icons.campaign_outlined,
                               color: const Color(0xFF8B5CF6),
-                              onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                              onTap: () {
+                                MainScreen.of(context)?.setSelectedIndex(2);
+                                EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 1);
+                              },
                             ),
                           ],
                         ),
                         
                         const SizedBox(height: 28),
-                        
+
+                        // Moderation Section
+                        if (state.moderationStats != null) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Reported Posts',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ),
+                                if ((state.moderationStats?.highPriority ?? 0) > 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.warning_rounded, size: 14, color: Colors.red),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${state.moderationStats?.highPriority} High Priority',
+                                          style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: GestureDetector(
+                              onTap: () async {
+                                await Navigator.pushNamed(context, '/moderation_queue');
+                                if (context.mounted) {
+                                  context.read<DashboardBloc>().add(LoadModerationStats(state.globalLocation?.id ?? authLocationId));
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: const Color(0xFFF1F5F9)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Pending Reviews',
+                                              style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${state.moderationStats?.pendingReviews ?? 0}',
+                                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                                            ),
+                                          ],
+                                        ),
+                                        Container(
+                                          height: 40,
+                                          width: 1,
+                                          color: Colors.grey[200],
+                                        ),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Total Reports',
+                                              style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${state.moderationStats?.totalReported ?? 0}',
+                                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                                            ),
+                                          ],
+                                        ),
+                                        const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                        ],
+
+
                         // Quick Actions Section
                         const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16.0),
@@ -352,25 +385,39 @@ class SubAdminDashboard extends StatelessWidget {
                                 label: 'Add Member',
                                 icon: Icons.person_add_alt_1_outlined,
                                 color: const Color(0xFF2563EB),
-                                onTap: () => Navigator.pushNamed(context, '/add_member'),
+                                onTap: () async {
+                                  await Navigator.pushNamed(context, '/add_member');
+                                  if (context.mounted) {
+                                    context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authLocationId));
+                                  }
+                                },
                               ),
                               _buildQuickActionCard(
                                 label: 'Broadcast',
                                 icon: Icons.campaign_outlined,
                                 color: const Color(0xFF10B981),
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                                onTap: () {
+                                  MainScreen.of(context)?.setSelectedIndex(2);
+                                  EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 1);
+                                },
                               ),
                               _buildQuickActionCard(
                                 label: 'Event',
                                 icon: Icons.event_note_outlined,
                                 color: const Color(0xFF2563EB),
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                                onTap: () {
+                                  MainScreen.of(context)?.setSelectedIndex(2);
+                                  EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(1);
+                                },
                               ),
                               _buildQuickActionCard(
                                 label: 'Emergency',
                                 icon: Icons.warning_amber_rounded,
                                 color: const Color(0xFFEF4444),
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                                onTap: () {
+                                  MainScreen.of(context)?.setSelectedIndex(2);
+                                  EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 0);
+                                },
                               ),
                               _buildQuickActionCard(
                                 label: 'Community',
@@ -463,6 +510,39 @@ class SubAdminDashboard extends StatelessWidget {
                 color: isLink ? color : const Color(0xFF94A3B8),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModerationCard(String title, String value, IconData icon, Color color, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                  child: Icon(icon, color: color, size: 16),
+                ),
+                const Spacer(),
+                Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
           ],
         ),
       ),

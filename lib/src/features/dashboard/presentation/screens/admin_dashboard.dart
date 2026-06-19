@@ -14,6 +14,7 @@ import 'package:ntk_project/src/features/location/presentation/bloc/location_blo
 import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_event.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
+import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key, required this.authState});
@@ -87,65 +88,6 @@ class AdminDashboard extends StatelessWidget {
                                 ),
                               ],
                             ),
-                          ),
-                          // Small location selector button on the right
-                          BlocBuilder<LocationBloc, LocationState>(
-                            builder: (context, locationState) {
-                              final currentSelectedId = state.globalLocation?.type?.toUpperCase() == 'TALUK' 
-                                  ? state.globalLocation?.id 
-                                  : null;
-
-                              return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
-                                    dropdownColor: const Color(0xFF004D2A),
-                                    isExpanded: false,
-                                    icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 18),
-                                    value: currentSelectedId,
-                                    hint: const Icon(Icons.location_on, color: Colors.white, size: 18),
-                                    selectedItemBuilder: (context) {
-                                      return [
-                                        const Icon(Icons.location_on, color: Colors.white, size: 18),
-                                        ...locationState.constituencies.map((e) => const Icon(Icons.location_on, color: Colors.white, size: 18)),
-                                      ];
-                                    },
-                                    items: [
-                                      DropdownMenuItem<int>(
-                                        value: null,
-                                        child: Text(
-                                          authState.loginData?.locationName ?? 'All Constituencies',
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                      ...locationState.constituencies.map((c) => DropdownMenuItem<int>(
-                                        value: c.id,
-                                        child: Text(
-                                          c.name,
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                        ),
-                                      )).toList(),
-                                    ],
-                                    onChanged: (val) {
-                                      final selectedLoc = val == null 
-                                          ? null 
-                                          : locationState.constituencies.firstWhere((c) => c.id == val);
-                                      
-                                      final targetLocName = selectedLoc?.name ?? authState.loginData?.locationName ?? 'Tamil Nadu';
-                                      context.read<AuthBloc>().add(ChangeLocationRequested(locationId: val ?? authLocationId ?? 1, locationName: targetLocName));
-                                      
-                                      context.read<DashboardBloc>().add(UpdateGlobalLocation(selectedLoc));
-                                      context.read<DashboardBloc>().add(LoadDashboardStats(val ?? authLocationId ?? 1));
-                                      context.read<PendingRequestsBloc>().add(LoadPendingRequests(locationId: val ?? authLocationId ?? 1));
-                                    },
-                                  ),
-                                ),
-                              );
-                            },
                           ),
                         ],
                       ),
@@ -228,7 +170,10 @@ class AdminDashboard extends StatelessWidget {
                         subtext: 'Upcoming events',
                         icon: Icons.calendar_today_outlined,
                         color: const Color(0xFF2563EB),
-                        onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                        onTap: () {
+                          MainScreen.of(context)?.setSelectedIndex(2);
+                          EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(1);
+                        },
                       ),
                       _buildActivityCard(
                         title: 'Emergency Requests',
@@ -236,7 +181,10 @@ class AdminDashboard extends StatelessWidget {
                         subtext: 'Active alerts',
                         icon: Icons.warning_amber_rounded,
                         color: const Color(0xFFEF4444),
-                        onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                        onTap: () {
+                          MainScreen.of(context)?.setSelectedIndex(2);
+                          EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 0);
+                        },
                       ),
                       _buildActivityCard(
                         title: 'Active Broadcasts',
@@ -244,7 +192,10 @@ class AdminDashboard extends StatelessWidget {
                         subtext: 'Active broadcasts',
                         icon: Icons.campaign_outlined,
                         color: const Color(0xFF8B5CF6),
-                        onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                        onTap: () {
+                          MainScreen.of(context)?.setSelectedIndex(2);
+                          EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 1);
+                        },
                       ),
                     ],
                   ),
@@ -283,8 +234,11 @@ class AdminDashboard extends StatelessWidget {
                         icon: Icons.assignment_late_outlined,
                         color: const Color(0xFFD97706), // Amber
                         actionText: 'View queue',
-                        onTap: () {
-                          Navigator.pushNamed(context, '/pending_requests');
+                        onTap: () async {
+                          await Navigator.pushNamed(context, '/pending_requests');
+                          if (context.mounted) {
+                            context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authLocationId));
+                          }
                         },
                       ),
                     ],
@@ -319,31 +273,50 @@ class AdminDashboard extends StatelessWidget {
                           label: 'Add Sub Admin',
                           icon: Icons.person_add_alt_1_outlined,
                           color: const Color(0xFF059669),
-                          onTap: () => Navigator.pushNamed(context, '/create_sub_admin'),
+                          onTap: () async {
+                            await Navigator.pushNamed(context, '/create_sub_admin');
+                            if (context.mounted) {
+                              context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authLocationId));
+                            }
+                          },
                         ),
                         _buildCustomActionCard(
                           label: 'Add Member',
                           icon: Icons.person_add_outlined,
                           color: const Color(0xFF2563EB),
-                          onTap: () => Navigator.pushNamed(context, '/create_member'),
+                          onTap: () async {
+                            await Navigator.pushNamed(context, '/create_member');
+                            if (context.mounted) {
+                              context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authLocationId));
+                            }
+                          },
                         ),
                         _buildCustomActionCard(
                           label: 'Broadcast',
                           icon: Icons.campaign_outlined,
                           color: const Color(0xFF059669),
-                          onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                          onTap: () {
+                            MainScreen.of(context)?.setSelectedIndex(2);
+                            EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 1);
+                          },
                         ),
                         _buildCustomActionCard(
                           label: 'Event',
                           icon: Icons.event_note_outlined,
                           color: const Color(0xFF2563EB),
-                          onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                          onTap: () {
+                            MainScreen.of(context)?.setSelectedIndex(2);
+                            EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(1);
+                          },
                         ),
                         _buildCustomActionCard(
                           label: 'Emergency',
                           icon: Icons.warning_amber_rounded,
                           color: Colors.red,
-                          onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
+                          onTap: () {
+                            MainScreen.of(context)?.setSelectedIndex(2);
+                            EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 0);
+                          },
                         ),
                         _buildCustomActionCard(
                           label: 'Community',
@@ -356,6 +329,115 @@ class AdminDashboard extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 24),
+
+                  // Moderation Section
+                  if (state.moderationStats != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Reported Posts',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          if ((state.moderationStats?.highPriority ?? 0) > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.warning_rounded, size: 14, color: Colors.red),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${state.moderationStats?.highPriority} High Priority',
+                                    style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: GestureDetector(
+                        onTap: () async {
+                          await Navigator.pushNamed(context, '/moderation_queue');
+                          if (context.mounted) {
+                            context.read<DashboardBloc>().add(LoadModerationStats(state.globalLocation?.id ?? authLocationId));
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFF1F5F9)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Pending Reviews',
+                                        style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${state.moderationStats?.pendingReviews ?? 0}',
+                                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    height: 40,
+                                    width: 1,
+                                    color: Colors.grey[200],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Total Reports',
+                                        style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${state.moderationStats?.totalReported ?? 0}',
+                                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                                      ),
+                                    ],
+                                  ),
+                                  const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   // Recent Activities Section
                   Padding(

@@ -5,6 +5,7 @@ import 'package:ntk_project/src/features/community/presentation/bloc/community_l
 import 'package:ntk_project/src/features/community/presentation/bloc/community_list_event.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_list_state.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_chat_screen.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_details_screen.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 
 const _primary = Color(0xFF0A3D28);
@@ -42,30 +43,80 @@ class _CommunityGroupsScreenState extends State<CommunityGroupsScreen> {
             Expanded(
               child: BlocBuilder<CommunityListBloc, CommunityListState>(
                 builder: (context, state) {
-                  final communities = state.communities.isEmpty
-                      ? _sampleCommunities
-                      : state.communities;
-                  final yourGroups = communities.take(3).toList();
-                  final moreGroups = communities.skip(3).toList();
+                  if (state.isLoading && state.communities.isEmpty) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: _primary),
+                    );
+                  }
+                  final communities = state.communities;
                   return RefreshIndicator(
                     color: _primary,
                     onRefresh: () async {
-                      context.read<CommunityListBloc>().add(FetchCommunitiesList());
+                      context.read<CommunityListBloc>().add(
+                        FetchCommunitiesList(),
+                      );
                     },
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                      children: [
-                        const _SearchField(),
-                        const SizedBox(height: 18),
-                        const _SectionHeader(title: 'Your Groups', action: 'View All'),
-                        const SizedBox(height: 10),
-                        if (state.isLoading && state.communities.isEmpty)
-                          const Center(child: CircularProgressIndicator(color: _primary)),
-                        ...yourGroups.map((group) => _GroupCard(group: group, joined: true)),
-                        const SizedBox(height: 20),
-                        const _SectionHeader(title: 'More Groups'),
-                        const SizedBox(height: 10),
-                        ...moreGroups.map((group) => _GroupCard(group: group, joined: false)),
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          sliver: SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _SearchField(),
+                                const SizedBox(height: 18),
+                                if (communities.isEmpty) ...[
+                                  const SizedBox(height: 40),
+                                  const Center(
+                                    child: Text('No groups found.', style: TextStyle(color: _muted)),
+                                  ),
+                                ] else if (communities.where((c) => c.isJoined).isNotEmpty) ...[
+                                  const _SectionHeader(title: 'Your Groups', action: 'View All'),
+                                  const SizedBox(height: 10),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (communities.where((c) => c.isJoined).isNotEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverList.builder(
+                              itemCount: communities.where((c) => c.isJoined).length,
+                              itemBuilder: (context, index) {
+                                final group = communities.where((c) => c.isJoined).elementAt(index);
+                                return _GroupCard(group: group, joined: true);
+                              },
+                            ),
+                          ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                          sliver: SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (communities.where((c) => !c.isJoined).isNotEmpty) ...[
+                                  const _SectionHeader(title: 'More Groups'),
+                                  const SizedBox(height: 10),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (communities.where((c) => !c.isJoined).isNotEmpty)
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverList.builder(
+                              itemCount: communities.where((c) => !c.isJoined).length,
+                              itemBuilder: (context, index) {
+                                final group = communities.where((c) => !c.isJoined).elementAt(index);
+                                return _GroupCard(group: group, joined: false);
+                              },
+                            ),
+                          ),
+                        const SliverPadding(padding: EdgeInsets.only(bottom: 28)),
                       ],
                     ),
                   );
@@ -90,8 +141,14 @@ class _SearchField extends StatelessWidget {
         prefixIcon: const Icon(Icons.search_rounded),
         filled: true,
         fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: _line)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: _line)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: _line),
+        ),
       ),
     );
   }
@@ -107,8 +164,25 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(title, style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w900))),
-        if (action != null) Text(action!, style: const TextStyle(color: _secondary, fontWeight: FontWeight.w900, fontSize: 12)),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: _text,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        if (action != null)
+          Text(
+            action!,
+            style: const TextStyle(
+              color: _secondary,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+            ),
+          ),
       ],
     );
   }
@@ -130,19 +204,31 @@ class _GroupCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _line),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 16, offset: const Offset(0, 8)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: InkWell(
         onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => CommunityChatScreen(community: group)));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CommunityDetailsScreen(community: group),
+            ),
+          );
         },
         child: Row(
           children: [
             Container(
               height: 52,
               width: 52,
-              decoration: BoxDecoration(color: _avatarTint(group.name), borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(
+                color: _avatarTint(group.name),
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Icon(_groupIcon(group.name), color: _primary, size: 28),
             ),
             const SizedBox(width: 12),
@@ -150,13 +236,29 @@ class _GroupCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontWeight: FontWeight.w900, fontSize: 14)),
+                  Text(
+                    group.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _text,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 3),
-                  Text('${group.memberCount} Members', style: const TextStyle(color: _muted, fontWeight: FontWeight.w600, fontSize: 12)),
+                  Text(
+                    '${group.memberCount} Members',
+                    style: const TextStyle(
+                      color: _muted,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
-            joined ? const _StatusBadge() : const _JoinButton(),
+            joined ? const _StatusBadge() : _JoinButton(communityId: group.id),
           ],
         ),
       ),
@@ -171,29 +273,50 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(color: const Color(0xFFEAF6EF), borderRadius: BorderRadius.circular(99)),
-      child: const Text('Joined', style: TextStyle(color: _secondary, fontWeight: FontWeight.w900, fontSize: 11)),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF6EF),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: const Text(
+        'Joined',
+        style: TextStyle(
+          color: _secondary,
+          fontWeight: FontWeight.w900,
+          fontSize: 11,
+        ),
+      ),
     );
   }
 }
 
 class _JoinButton extends StatelessWidget {
-  const _JoinButton();
+  const _JoinButton({required this.communityId});
+  
+  final int communityId;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 34,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: () {
+          context.read<CommunityListBloc>().add(
+            JoinCommunityGroup(communityId: communityId),
+          );
+        },
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 36),
           foregroundColor: _primary,
           side: const BorderSide(color: Color(0xFFB8C9C1)),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
-        child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w900)),
+        child: const Text(
+          'Join',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
       ),
     );
   }
@@ -221,13 +344,3 @@ Color _avatarTint(String name) {
   return colors[name.length % colors.length];
 }
 
-final _sampleCommunities = [
-  CommunityModel(id: 1, name: 'Doctors - Nagapattinam', description: 'Medical support community', memberCount: 325, createdAt: ''),
-  CommunityModel(id: 2, name: 'Farmers - Nagapattinam', description: 'Agriculture updates', memberCount: 412, createdAt: ''),
-  CommunityModel(id: 3, name: 'Teachers - Nagapattinam', description: 'Education coordination', memberCount: 276, createdAt: ''),
-  CommunityModel(id: 4, name: 'Lawyers - Nagapattinam', description: 'Legal support', memberCount: 189, createdAt: ''),
-  CommunityModel(id: 5, name: 'Youth Wing - Nagapattinam', description: 'Volunteer team', memberCount: 358, createdAt: ''),
-  CommunityModel(id: 6, name: 'Business Owners - Nagapattinam', description: 'Local business group', memberCount: 156, createdAt: ''),
-  CommunityModel(id: 7, name: "Women's Forum - Nagapattinam", description: 'Community forum', memberCount: 198, createdAt: ''),
-  CommunityModel(id: 8, name: 'Police Support - Nagapattinam', description: 'Safety updates', memberCount: 221, createdAt: ''),
-];

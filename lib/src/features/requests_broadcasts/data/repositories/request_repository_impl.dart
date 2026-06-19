@@ -109,6 +109,38 @@ class RequestRepositoryImpl implements RequestRepository {
     required int id,
     required String status,
   }) async {
+    if (status.toUpperCase() == 'CLOSED' || status.toUpperCase() == 'COMPLETED') {
+      const String mutation = r'''
+        mutation CompleteEmergencyRequest($id: Int!) {
+          completeEmergencyRequest(id: $id)
+        }
+      ''';
+
+      final result = await _graphQLService.performMutation(
+        mutation,
+        variables: {'id': id},
+      );
+
+      if (result.hasException) {
+        throw Exception('Failed to complete emergency request: ${result.exception}');
+      }
+
+      final success = result.data?['completeEmergencyRequest'] as bool? ?? false;
+      if (!success) {
+        throw Exception('Failed to complete emergency request');
+      }
+
+      return EmergencyRequestModel(
+        id: id,
+        title: '',
+        description: '',
+        type: '',
+        status: 'CLOSED',
+        audience: '',
+        createdAt: '',
+      );
+    }
+
     const String mutation = r'''
       mutation UpdateRequestStatus($id: Int!, $status: RequestStatus!) {
         updateRequestStatus(id: $id, status: $status) {
@@ -142,8 +174,8 @@ class RequestRepositoryImpl implements RequestRepository {
   @override
   Future<List<BroadcastModel>> getBroadcasts({int? locationId, String? scope}) async {
     const String query = r'''
-      query GetBroadcastList($locationId: Int, $isActive: Boolean) {
-        getBroadcastList(locationId: $locationId, isActive: $isActive) {
+      query GetBroadcastList($locationId: Int, $scope: BroadcastScope, $isActive: Boolean) {
+        getBroadcastList(locationId: $locationId, scope: $scope, isActive: $isActive) {
           id
           title
           message
@@ -170,7 +202,11 @@ class RequestRepositoryImpl implements RequestRepository {
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'locationId': locationId, 'isActive': true},
+      variables: {
+        'locationId': locationId,
+        if (scope != null) 'scope': scope,
+        'isActive': true,
+      },
     );
 
     if (result.hasException) {
@@ -188,8 +224,9 @@ class RequestRepositoryImpl implements RequestRepository {
         getBroadcastDetails(id: $id) {
           id
           title
-          scope
           message
+          image
+          scope
           updatedAt
           isActive
           createdAt

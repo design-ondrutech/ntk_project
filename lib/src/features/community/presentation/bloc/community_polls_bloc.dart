@@ -1,23 +1,45 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
 import 'package:ntk_project/src/features/community/data/models/poll_model.dart';
+import 'package:ntk_project/src/features/community/data/community_socket_service.dart';
+import 'dart:async';
 import 'community_polls_event.dart';
 import 'community_polls_state.dart';
 
 class CommunityPollsBloc
     extends Bloc<CommunityPollsEvent, CommunityPollsState> {
   final CommunityRepository _repository;
+  final CommunitySocketService _socketService;
+  StreamSubscription? _pollDeletedSub;
 
-  CommunityPollsBloc(this._repository) : super(const CommunityPollsState()) {
+  CommunityPollsBloc(this._repository, this._socketService) : super(const CommunityPollsState()) {
     on<FetchPollsEvent>(_onFetchPolls);
     on<CreatePollEvent>(_onCreatePoll);
     on<VoteInPollEvent>(_onVoteInPoll);
+    on<LikePollEvent>(_onLikePoll);
+    on<AddPollCommentEvent>(_onAddPollComment);
     on<ClearPollsMessage>(
       (event, emit) => emit(state.copyWith(clearSuccess: true)),
     );
     on<ClearPollsError>(
       (event, emit) => emit(state.copyWith(clearError: true)),
     );
+    on<DeletePollEvent>((event, emit) {
+      final updatedPolls = state.polls.where((p) => p.id != event.pollId).toList();
+      emit(state.copyWith(polls: updatedPolls));
+    });
+
+    _pollDeletedSub = _socketService.onPollDeletedGlobal.listen((data) {
+      if (data['pollId'] != null) {
+        add(DeletePollEvent(pollId: data['pollId']));
+      }
+    });
+  }
+
+  @override
+  Future<void> close() {
+    _pollDeletedSub?.cancel();
+    return super.close();
   }
 
   Future<void> _onFetchPolls(
@@ -128,6 +150,68 @@ class CommunityPollsBloc
           clearSuccess: true,
         ),
       );
+    }
+  }
+
+  Future<void> _onLikePoll(
+    LikePollEvent event,
+    Emitter<CommunityPollsState> emit,
+  ) async {
+    // Optimistic UI update
+    final updatedPolls = state.polls.map((p) {
+      if (p.id == event.pollId) {
+        final isLiked = p.isLiked;
+        return p.copyWith(
+          isLiked: !isLiked,
+          likes: isLiked ? (p.likes > 0 ? p.likes - 1 : 0) : p.likes + 1,
+        );
+      }
+      return p;
+    }).toList();
+    emit(state.copyWith(polls: updatedPolls));
+
+    try {
+      await _repository.likePoll(pollId: event.pollId);
+    } catch (e) {
+      // Revert on error
+      final revertedPolls = state.polls.map((p) {
+        if (p.id == event.pollId) {
+          final isLiked = !p.isLiked; // The optimistic state
+          return p.copyWith(
+            isLiked: !isLiked,
+            likes: isLiked ? (p.likes > 0 ? p.likes - 1 : 0) : p.likes + 1,
+          );
+        }
+        return p;
+      }).toList();
+      emit(state.copyWith(polls: revertedPolls, error: e.toString(), clearSuccess: true));
+    }
+  }
+
+  Future<void> _onAddPollComment(
+    AddPollCommentEvent event,
+    Emitter<CommunityPollsState> emit,
+  ) async {
+    // Optimistic UI update
+    final updatedPolls = state.polls.map((p) {
+      if (p.id == event.pollId) {
+        return p.copyWith(commentCount: p.commentCount + 1);
+      }
+      return p;
+    }).toList();
+    emit(state.copyWith(polls: updatedPolls));
+
+    try {
+      await _repository.addPollComment(pollId: event.pollId, content: event.content);
+    } catch (e) {
+      // Revert on error
+      final revertedPolls = state.polls.map((p) {
+        if (p.id == event.pollId) {
+          return p.copyWith(commentCount: p.commentCount > 0 ? p.commentCount - 1 : 0);
+        }
+        return p;
+      }).toList();
+      emit(state.copyWith(polls: revertedPolls, error: e.toString(), clearSuccess: true));
     }
   }
 }

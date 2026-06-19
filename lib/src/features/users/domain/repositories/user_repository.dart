@@ -8,5 +8,7 @@ abstract class UserRepository {
     int? locationId,
     String? dateOfBirth,
     String? gender,
+    String? bloodGroup,
+    String? professionName,
   });
 }

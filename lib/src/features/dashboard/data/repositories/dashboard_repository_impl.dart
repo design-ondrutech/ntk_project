@@ -1,5 +1,6 @@
 import 'package:ntk_project/src/core/network/graphql_service.dart';
 import 'package:ntk_project/src/features/dashboard/data/models/dashboard_stats_model.dart';
+import 'package:ntk_project/src/features/dashboard/data/models/moderation_stats_model.dart';
 import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
 import 'package:ntk_project/src/features/dashboard/domain/repositories/dashboard_repository.dart';
 
@@ -121,5 +122,38 @@ class DashboardRepositoryImpl implements DashboardRepository {
           (json) => RecentActivityModel.fromJson(json as Map<String, dynamic>),
         )
         .toList();
+  }
+
+  @override
+  Future<ModerationStatsModel> getModerationDashboardStats(int? locationId) async {
+    const String query = r'''
+      query ModerationDashboardStats($locationId: Int) {
+        moderationDashboardStats(locationId: $locationId) {
+          totalReported
+          pendingReviews
+          warningSent
+          deletedPosts
+          highPriority
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: locationId != null ? {'locationId': locationId} : {},
+    );
+
+    if (result.hasException) {
+      throw Exception(
+        'Failed to fetch moderation stats: ${result.exception.toString()}',
+      );
+    }
+
+    final data = result.data?['moderationDashboardStats'];
+    if (data == null) {
+      throw Exception('No moderation data received');
+    }
+
+    return ModerationStatsModel.fromJson(data);
   }
 }

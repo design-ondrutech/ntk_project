@@ -4,6 +4,11 @@ import 'package:ntk_project/src/features/events/data/models/emergency_model.dart
 
 class EventState extends Equatable {
   final bool isLoading;
+
+  /// Separate loading flag for fetching RSVP responses only.
+  /// Avoids disabling the RSVP UI when other event data is loading.
+  final bool isResponsesLoading;
+
   final List<EventModel> events;
   final List<EmergencyModel> emergencies;
   final List<EventResponseModel> eventResponses;
@@ -13,6 +18,7 @@ class EventState extends Equatable {
 
   const EventState({
     this.isLoading = false,
+    this.isResponsesLoading = false,
     this.events = const [],
     this.emergencies = const [],
     this.eventResponses = const [],
@@ -23,6 +29,7 @@ class EventState extends Equatable {
 
   EventState copyWith({
     bool? isLoading,
+    bool? isResponsesLoading,
     List<EventModel>? events,
     List<EmergencyModel>? emergencies,
     List<EventResponseModel>? eventResponses,
@@ -34,6 +41,7 @@ class EventState extends Equatable {
   }) {
     return EventState(
       isLoading: isLoading ?? this.isLoading,
+      isResponsesLoading: isResponsesLoading ?? this.isResponsesLoading,
       events: events ?? this.events,
       emergencies: emergencies ?? this.emergencies,
       eventResponses: eventResponses ?? this.eventResponses,
@@ -46,6 +54,7 @@ class EventState extends Equatable {
   @override
   List<Object?> get props => [
     isLoading,
+    isResponsesLoading,
     events,
     emergencies,
     eventResponses,

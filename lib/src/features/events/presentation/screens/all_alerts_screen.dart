@@ -8,6 +8,7 @@ import 'package:ntk_project/src/features/events/presentation/bloc/event_event.da
 import 'package:ntk_project/src/features/events/presentation/bloc/event_state.dart';
 import 'package:ntk_project/src/features/events/data/models/emergency_model.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/data/models/broadcast_model.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/request_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
@@ -43,27 +44,7 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
   }
 
   String _formatDateTime(String dt) {
-    try {
-      DateTime date;
-      final epoch = int.tryParse(dt);
-      if (epoch != null) {
-        date = epoch > 9999999999
-            ? DateTime.fromMillisecondsSinceEpoch(epoch)
-            : DateTime.fromMillisecondsSinceEpoch(epoch * 1000);
-      } else {
-        date = DateTime.parse(dt);
-      }
-      final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-      ];
-      final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-      final ampm = date.hour < 12 ? 'AM' : 'PM';
-      final minute = date.minute.toString().padLeft(2, '0');
-      return '${months[date.month - 1]} ${date.day}, ${date.year} • $hour:$minute $ampm';
-    } catch (_) {
-      return dt;
-    }
+    return DateHelper.formatDateTime(dt);
   }
 
   @override
@@ -97,17 +78,24 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
                 if (emergencies.isEmpty) {
                   return const Center(child: Text('No emergency alerts found'));
                 }
+                final flattenedEmergencies = _groupAndFlatten(emergencies, (item) => (item as EmergencyModel).createdAt);
                 return RefreshIndicator(
                   onRefresh: () async {
                     final locId = _effectiveLocationId;
                     context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
                   },
-                  child: ListView.separated(
+                  child: ListView.builder(
                     padding: const EdgeInsets.all(20),
-                    itemCount: emergencies.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemCount: flattenedEmergencies.length,
                     itemBuilder: (context, index) {
-                      return _buildEmergencyCard(emergencies[index]);
+                      final item = flattenedEmergencies[index];
+                      if (item is String) {
+                        return _buildDateHeader(item);
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: _buildEmergencyCard(item as EmergencyModel),
+                      );
                     },
                   ),
                 );
@@ -122,48 +110,55 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
                 if (broadcasts.isEmpty) {
                   return const Center(child: Text('No recent broadcasts found'));
                 }
+                final flattenedBroadcasts = _groupAndFlatten(broadcasts, (item) => (item as BroadcastModel).createdAt);
                 return RefreshIndicator(
                   onRefresh: () async {
                     final locId = _effectiveLocationId;
                     context.read<RequestBloc>().add(LoadRequests(locationId: locId));
                   },
-                  child: ListView.separated(
+                  child: ListView.builder(
                     padding: const EdgeInsets.all(20),
-                    itemCount: broadcasts.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemCount: flattenedBroadcasts.length,
                     itemBuilder: (context, index) {
-                      final broadcast = broadcasts[index];
-                      return _buildBroadcastItem(
-                        broadcast,
-                        onDelete: canCreate
-                            ? () {
-                                showCupertinoDialog(
-                                  context: context,
-                                  builder: (context) => CupertinoAlertDialog(
-                                    title: const Text('Recall Broadcast'),
-                                    content: const Text(
-                                      'Are you sure you want to recall this broadcast message? This action cannot be undone.',
+                      final item = flattenedBroadcasts[index];
+                      if (item is String) {
+                        return _buildDateHeader(item);
+                      }
+                      final broadcast = item as BroadcastModel;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: _buildBroadcastItem(
+                          broadcast,
+                          onDelete: canCreate
+                              ? () {
+                                  showCupertinoDialog(
+                                    context: context,
+                                    builder: (context) => CupertinoAlertDialog(
+                                      title: const Text('Recall Broadcast'),
+                                      content: const Text(
+                                        'Are you sure you want to recall this broadcast message? This action cannot be undone.',
+                                      ),
+                                      actions: [
+                                        CupertinoDialogAction(
+                                          child: const Text('Cancel'),
+                                          onPressed: () => Navigator.pop(context),
+                                        ),
+                                        CupertinoDialogAction(
+                                          isDestructiveAction: true,
+                                          child: const Text('Recall'),
+                                          onPressed: () {
+                                            context
+                                                .read<RequestBloc>()
+                                                .add(RecallBroadcast(id: broadcast.id));
+                                            Navigator.pop(context);
+                                          },
+                                        ),
+                                      ],
                                     ),
-                                    actions: [
-                                      CupertinoDialogAction(
-                                        child: const Text('Cancel'),
-                                        onPressed: () => Navigator.pop(context),
-                                      ),
-                                      CupertinoDialogAction(
-                                        isDestructiveAction: true,
-                                        child: const Text('Recall'),
-                                        onPressed: () {
-                                          context
-                                              .read<RequestBloc>()
-                                              .add(RecallBroadcast(id: broadcast.id));
-                                          Navigator.pop(context);
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-                            : null,
+                                  );
+                                }
+                              : null,
+                        ),
                       );
                     },
                   ),
@@ -174,42 +169,131 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
   }
 
   Widget _buildEmergencyCard(EmergencyModel alert) {
+    final isForwarded = alert.status?.toUpperCase() == 'FORWARDED' || alert.status?.toUpperCase() == 'FORWARD';
+    final isCompleted = alert.isCompleted;
+    final isExpired = alert.isExpired && !isCompleted;
+    final aud = alert.audience?.toUpperCase() ?? '';
+    final forwardBadgeText = (aud == 'STATE' || aud == 'SUPER_ADMIN')
+        ? 'Forwarded to Super Admin'
+        : 'Forwarded by Sub Admin';
+
+    Color cardBg = Colors.white;
+    Color cardBorder = const Color(0xFFFEE2E2);
+    double borderWidth = 1.0;
+
+    if (isCompleted) {
+      cardBg = const Color(0xFFF0F9FF);
+      cardBorder = const Color(0xFF7DD3FC);
+    } else if (isExpired) {
+      cardBg = const Color(0xFFF8F9FA);
+      cardBorder = const Color(0xFFD1D5DB);
+    } else if (isForwarded) {
+      cardBg = const Color(0xFFEFF6FF);
+      cardBorder = const Color(0xFF3B82F6);
+      borderWidth = 1.5;
+    }
+
     return InkWell(
-      onTap: () =>
-          Navigator.pushNamed(context, '/emergency_details', arguments: alert),
+      onTap: () async {
+        await Navigator.pushNamed(context, '/emergency_details', arguments: alert);
+        if (mounted) {
+          final locId = _effectiveLocationId;
+          context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
+        }
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFEE2E2)),
+          border: Border.all(color: cardBorder, width: borderWidth),
+          boxShadow: isForwarded
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6).withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFCE8E6), // light pink
+              decoration: BoxDecoration(
+                color: (isCompleted || isExpired) ? const Color(0xFFF3F4F6) : alert.typeBgColor,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.bloodtype_rounded, color: Color(0xFFC5221F), size: 24),
+              child: Icon(
+                isCompleted ? Icons.check_circle_rounded : (isExpired ? Icons.timer_off_rounded : alert.typeIcon),
+                color: isCompleted ? const Color(0xFF0369A1) : (isExpired ? const Color(0xFF9CA3AF) : alert.typeColor),
+                size: 24,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (isForwarded && !isCompleted && !isExpired) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDBEAFE),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFF93C5FD)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.forward_to_inbox_rounded, size: 12, color: Color(0xFF1E40AF)),
+                          const SizedBox(width: 4),
+                          Text(
+                            forwardBadgeText,
+                            style: const TextStyle(
+                              color: Color(0xFF1E40AF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isCompleted || isExpired) ? const Color(0xFFF3F4F6) : alert.typeBgColor,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: (isCompleted || isExpired) ? const Color(0xFFD1D5DB) : alert.typeColor.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          '${alert.typeEmoji} ${alert.typeLabel}',
+                          style: TextStyle(
+                            color: (isCompleted || isExpired) ? const Color(0xFF9CA3AF) : alert.typeColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
                         child: Text(
                           alert.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFFC5221F), // dark red
+                            color: (isCompleted || isExpired) ? const Color(0xFF9CA3AF) : alert.typeColor,
                             fontSize: 16,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -268,6 +352,29 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
                       ),
                     ],
                   ),
+                  if (alert.expiryDate.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.timer_outlined,
+                          size: 16,
+                          color: isExpired ? const Color(0xFF9CA3AF) : const Color(0xFFDC2626),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isExpired
+                              ? 'Expired: ${_formatDateTime(alert.expiryDate)}'
+                              : 'Expires: ${_formatDateTime(alert.expiryDate)}',
+                          style: TextStyle(
+                            color: isExpired ? const Color(0xFF9CA3AF) : const Color(0xFFDC2626),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -277,12 +384,19 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
     );
   }
 
+
   Widget _buildBroadcastItem(
     BroadcastModel broadcast, {
     VoidCallback? onDelete,
   }) {
     return InkWell(
-      onTap: () => _showBroadcastDetailsDialog(context, broadcast),
+      onTap: () async {
+        await Navigator.pushNamed(context, '/broadcast_details', arguments: broadcast);
+        if (mounted) {
+          final locId = _effectiveLocationId;
+          context.read<RequestBloc>().add(LoadRequests(locationId: locId));
+        }
+      },
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -401,207 +515,47 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
     );
   }
 
-  void _showBroadcastDetailsDialog(BuildContext context, BroadcastModel broadcast) {
-    final requestBloc = context.read<RequestBloc>();
-    requestBloc.add(LoadBroadcastDetails(broadcast.id));
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: BlocProvider.value(
-            value: requestBloc,
-            child: BlocBuilder<RequestBloc, RequestState>(
-              builder: (context, state) {
-                if (state.error != null) {
-                  return Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 40),
-                        const SizedBox(height: 12),
-                        Text('Failed to load details: ${state.error}', textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: const Text('Close'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
 
-                final isLoading = state.isLoading ||
-                    state.currentBroadcast == null ||
-                    state.currentBroadcast!.id != broadcast.id;
+  List<dynamic> _groupAndFlatten(List<dynamic> items, String? Function(dynamic) getCreatedAt) {
+    final Map<String, List<dynamic>> grouped = {};
+    for (final item in items) {
+      try {
+        final createdAt = getCreatedAt(item);
+        if (createdAt != null && createdAt.isNotEmpty) {
+          final date = DateHelper.parseUtcToLocal(createdAt);
+          final monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+          ];
+          final dateStr = '${date.day} ${monthNames[date.month - 1]} ${date.year}';
+          grouped.putIfAbsent(dateStr, () => []).add(item);
+        } else {
+          grouped.putIfAbsent('Unknown Date', () => []).add(item);
+        }
+      } catch (_) {
+        grouped.putIfAbsent('Unknown Date', () => []).add(item);
+      }
+    }
 
-                if (isLoading) {
-                  return const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                final details = state.currentBroadcast ?? broadcast;
-
-                return SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFE6F4EA),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.campaign_rounded, color: Color(0xFF0F5A29), size: 24),
-                            ),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                              child: Text(
-                                'Broadcast Details',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: Color(0xFF64748B)),
-                              onPressed: () => Navigator.pop(dialogContext),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                          ],
-                        ),
-                        const Divider(height: 24),
-                        
-                        Text(
-                          details.title,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE6F4EA),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text(
-                                'Active',
-                                style: TextStyle(
-                                  color: Color(0xFF0F5A29),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE0F2FE),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                details.type ?? 'AREA',
-                                style: const TextStyle(
-                                  color: Color(0xFF0369A1),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        const Text(
-                          'Message',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF64748B),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          details.message,
-                          style: const TextStyle(fontSize: 15, color: Color(0xFF334155), height: 1.5),
-                        ),
-                        const SizedBox(height: 20),
-
-                        _buildDetailRow('Created By', details.createdByName ?? 'Admin'),
-                        _buildDetailRow('Created Time', details.createdAt != null ? _formatDateTime(details.createdAt!) : 'N/A'),
-                        _buildDetailRow('Target Group', details.type ?? 'AREA'),
-                        _buildDetailRow('Location', details.locationName ?? 'N/A'),
-                        _buildDetailRow('Total Delivered', '${details.recipientCount} members'),
-                        const SizedBox(height: 24),
-
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pop(dialogContext),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF004D2A),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            child: const Text(
-                              'Close',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
-    );
+    final List<dynamic> flattened = [];
+    grouped.forEach((dateStr, groupItems) {
+      flattened.add(dateStr); // Header
+      flattened.addAll(groupItems); // Cards
+    });
+    return flattened;
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDateHeader(String dateStr) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(color: Color(0xFF1E293B), fontSize: 13, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
+      child: Text(
+        dateStr,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 15,
+          color: Color(0xFF1F2937),
+        ),
       ),
     );
   }

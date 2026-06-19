@@ -8,6 +8,7 @@ class CommunityMemberModel extends Equatable {
   final String? role;
   final bool isGroupAdmin;
   final bool isMuted;
+  final String? joinedAt;
 
   const CommunityMemberModel({
     required this.id,
@@ -17,17 +18,21 @@ class CommunityMemberModel extends Equatable {
     this.role,
     this.isGroupAdmin = false,
     this.isMuted = false,
+    this.joinedAt,
   });
 
   factory CommunityMemberModel.fromJson(Map<String, dynamic> json) {
     return CommunityMemberModel(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       name: json['name'] as String? ?? 'Unknown',
       phone: json['phone'] as String?,
       image: json['image'] as String?,
       role: json['role'] as String?,
       isGroupAdmin: json['isGroupAdmin'] as bool? ?? false,
       isMuted: json['isMuted'] as bool? ?? false,
+      joinedAt: json['joinedAt'] as String?,
     );
   }
 
@@ -40,5 +45,6 @@ class CommunityMemberModel extends Equatable {
     role,
     isGroupAdmin,
     isMuted,
+    joinedAt,
   ];
 }

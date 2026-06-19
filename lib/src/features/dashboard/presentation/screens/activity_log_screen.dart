@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
 import 'package:ntk_project/src/features/dashboard/domain/repositories/dashboard_repository.dart';
@@ -129,8 +130,9 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
     }
   }
 
-  Future<void> _loadConstituencies(int districtId) async {
+  Future<void> _loadConstituencies(int districtId, {VoidCallback? onDone}) async {
     if (mounted) setState(() => _loadingConstituencies = true);
+    if (onDone != null) onDone();
     try {
       final list = await sl<LocationRepository>().getLocationList(
         parentId: districtId,
@@ -141,14 +143,19 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
           _constituencies = list;
           _loadingConstituencies = false;
         });
+        if (onDone != null) onDone();
       }
     } catch (_) {
-      if (mounted) setState(() => _loadingConstituencies = false);
+      if (mounted) {
+        setState(() => _loadingConstituencies = false);
+        if (onDone != null) onDone();
+      }
     }
   }
 
-  Future<void> _loadAreas(int constituencyId) async {
+  Future<void> _loadAreas(int constituencyId, {VoidCallback? onDone}) async {
     if (mounted) setState(() => _loadingAreas = true);
+    if (onDone != null) onDone();
     try {
       final list = await sl<LocationRepository>().getLocationList(
         parentId: constituencyId,
@@ -159,14 +166,19 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
           _areas = list;
           _loadingAreas = false;
         });
+        if (onDone != null) onDone();
       }
     } catch (_) {
-      if (mounted) setState(() => _loadingAreas = false);
+      if (mounted) {
+        setState(() => _loadingAreas = false);
+        if (onDone != null) onDone();
+      }
     }
   }
 
-  Future<void> _loadStreets(int areaId) async {
+  Future<void> _loadStreets(int areaId, {VoidCallback? onDone}) async {
     if (mounted) setState(() => _loadingStreets = true);
+    if (onDone != null) onDone();
     try {
       final list = await sl<LocationRepository>().getLocationList(
         parentId: areaId,
@@ -177,13 +189,17 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
           _streets = list;
           _loadingStreets = false;
         });
+        if (onDone != null) onDone();
       }
     } catch (_) {
-      if (mounted) setState(() => _loadingStreets = false);
+      if (mounted) {
+        setState(() => _loadingStreets = false);
+        if (onDone != null) onDone();
+      }
     }
   }
 
-  void _onDistrictChanged(LocationModel? district) {
+  void _onDistrictChanged(LocationModel? district, {VoidCallback? onDone}) {
     setState(() {
       _selectedDistrict = district;
       _selectedConstituency = null;
@@ -193,12 +209,13 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
       _selectedStreet = null;
       _streets = [];
     });
+    if (onDone != null) onDone();
     if (district != null) {
-      _loadConstituencies(district.id);
+      _loadConstituencies(district.id, onDone: onDone);
     }
   }
 
-  void _onConstituencyChanged(LocationModel? constituency) {
+  void _onConstituencyChanged(LocationModel? constituency, {VoidCallback? onDone}) {
     setState(() {
       _selectedConstituency = constituency;
       _selectedArea = null;
@@ -206,19 +223,21 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
       _selectedStreet = null;
       _streets = [];
     });
+    if (onDone != null) onDone();
     if (constituency != null) {
-      _loadAreas(constituency.id);
+      _loadAreas(constituency.id, onDone: onDone);
     }
   }
 
-  void _onAreaChanged(LocationModel? area) {
+  void _onAreaChanged(LocationModel? area, {VoidCallback? onDone}) {
     setState(() {
       _selectedArea = area;
       _selectedStreet = null;
       _streets = [];
     });
+    if (onDone != null) onDone();
     if (area != null) {
-      _loadStreets(area.id);
+      _loadStreets(area.id, onDone: onDone);
     }
   }
 
@@ -274,9 +293,10 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                     items: _districts,
                     value: _selectedDistrict,
                     hint: 'Select District',
+                    isLoading: _loadingDistricts,
                     onChanged: (val) {
                       setModalState(() {
-                        _onDistrictChanged(val);
+                        _onDistrictChanged(val, onDone: () => setModalState(() {}));
                       });
                     },
                   ),
@@ -290,9 +310,10 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                     value: _selectedConstituency,
                     hint: _selectedDistrict == null ? 'Select District first' : 'Select Constituency',
                     isEnabled: _selectedDistrict != null,
+                    isLoading: _loadingConstituencies,
                     onChanged: (val) {
                       setModalState(() {
-                        _onConstituencyChanged(val);
+                        _onConstituencyChanged(val, onDone: () => setModalState(() {}));
                       });
                     },
                   ),
@@ -306,9 +327,10 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                     value: _selectedArea,
                     hint: _selectedConstituency == null ? 'Select Constituency first' : 'Select Area',
                     isEnabled: _selectedConstituency != null,
+                    isLoading: _loadingAreas,
                     onChanged: (val) {
                       setModalState(() {
-                        _onAreaChanged(val);
+                        _onAreaChanged(val, onDone: () => setModalState(() {}));
                       });
                     },
                   ),
@@ -322,6 +344,7 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                     value: _selectedStreet,
                     hint: _selectedArea == null ? 'Select Area first' : 'Select Street',
                     isEnabled: _selectedArea != null,
+                    isLoading: _loadingStreets,
                     onChanged: (val) {
                       setModalState(() {
                         _onStreetChanged(val);
@@ -388,8 +411,35 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
     required LocationModel? value,
     required String hint,
     bool isEnabled = true,
+    bool isLoading = false,
     required ValueChanged<LocationModel?> onChanged,
   }) {
+    if (isLoading) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Loading...', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0F5A29)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (!isEnabled) {
       return Container(
         width: double.infinity,
@@ -472,7 +522,7 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
   String _formatTimeOnly(String? dt) {
     if (dt == null) return '';
     try {
-      final date = DateTime.parse(dt);
+      final date = DateHelper.parseUtcToLocal(dt);
       final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
       final ampm = date.hour < 12 ? 'AM' : 'PM';
       final minute = date.minute.toString().padLeft(2, '0');
@@ -486,7 +536,7 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
     final Map<String, List<RecentActivityModel>> groups = {};
     for (final act in list) {
       try {
-        final date = DateTime.parse(act.createdAt);
+        final date = DateHelper.parseUtcToLocal(act.createdAt);
         final dateStr = _formatGroupDate(date);
         groups.putIfAbsent(dateStr, () => []).add(act);
       } catch (_) {

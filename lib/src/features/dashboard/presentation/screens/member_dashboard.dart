@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_state.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
+import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_bloc.dart';
+import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_state.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/main_screen.dart';
+import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 
 class MemberDashboard extends StatelessWidget {
   const MemberDashboard({super.key, required this.authState});
@@ -64,31 +68,37 @@ class MemberDashboard extends StatelessWidget {
               ],
             ),
             actions: [
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/notifications');
-                    },
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
+              BlocBuilder<NotificationBloc, NotificationState>(
+                builder: (context, notifState) {
+                  final unreadCount = notifState.notifications.where((n) => !n.isRead).length;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.notifications_none_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/notifications');
+                        },
                       ),
-                    ),
-                  ),
-                ],
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 12,
+                          top: 12,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -219,14 +229,20 @@ class MemberDashboard extends StatelessWidget {
                                 icon: Icons.campaign_outlined,
                                 color: const Color(0xFF8B5CF6),
                                 label: 'Broadcasts',
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(1),
+                                onTap: () {
+                                  MainScreen.of(context)?.setSelectedIndex(1);
+                                  EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 1);
+                                },
                               ),
                               _buildCircleActionButton(
                                 context: context,
                                 icon: Icons.calendar_today_outlined,
                                 color: const Color(0xFF2563EB),
                                 label: 'Events',
-                                onTap: () => MainScreen.of(context)?.setSelectedIndex(1),
+                                onTap: () {
+                                  MainScreen.of(context)?.setSelectedIndex(1);
+                                  EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(1);
+                                },
                               ),
                               _buildCircleActionButton(
                                 context: context,
@@ -479,22 +495,7 @@ class MemberDashboard extends StatelessWidget {
   String _formatActivityTime(String? value) {
     if (value == null || value.isEmpty) return 'Just now';
     try {
-      final parsedInt = int.tryParse(value);
-      DateTime date;
-      if (parsedInt != null) {
-        date = DateTime.fromMillisecondsSinceEpoch(
-          parsedInt > 9999999999 ? parsedInt : parsedInt * 1000,
-        ).toLocal();
-      } else {
-        String normalized = value;
-        if (!normalized.endsWith('Z') && !normalized.contains('+') && !normalized.contains(RegExp(r'-\d{2}:?\d{2}$'))) {
-          normalized = normalized.replaceAll(' ', 'T');
-          if (!normalized.endsWith('Z')) {
-            normalized = '${normalized}Z';
-          }
-        }
-        date = DateTime.parse(normalized).toLocal();
-      }
+      final date = DateHelper.parseUtcToLocal(value);
       final diff = DateTime.now().difference(date);
       if (diff.inDays > 0) return '${diff.inDays}d ago';
       if (diff.inHours > 0) return '${diff.inHours}h ago';

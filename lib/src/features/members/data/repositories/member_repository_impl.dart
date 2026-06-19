@@ -25,6 +25,7 @@ class MemberRepositoryImpl implements MemberRepository {
           phone
           role
           addedBy
+          image
           location {
             id
             name
@@ -78,6 +79,7 @@ class MemberRepositoryImpl implements MemberRepository {
           bloodGroup
           profession
           addedBy
+          image
           location {
             id
             name
@@ -119,6 +121,7 @@ class MemberRepositoryImpl implements MemberRepository {
           phone
           role
           addedBy
+          image
           location {
             id
             name
@@ -154,6 +157,7 @@ class MemberRepositoryImpl implements MemberRepository {
           approvalStatus
           isActive
           addedBy
+          image
           location {
             id
             name
@@ -198,9 +202,12 @@ class MemberRepositoryImpl implements MemberRepository {
           createdAt
           dateOfBirth
           gender
+          image
           location {
             id
             name
+            type
+            parentId
           }
         }
       }
@@ -231,11 +238,13 @@ class MemberRepositoryImpl implements MemberRepository {
     String? role,
     String? professionName,
     int? locationId,
+    String? dateOfBirth,
+    String? gender,
     String? image,
   }) async {
     const String mutation = r'''
-      mutation UpdateMember($id: Int!, $name: String, $surname: String, $phone: String, $bloodGroup: String, $role: String, $professionName: String, $locationId: Int) {
-        updateMember(id: $id, name: $name, surname: $surname, phone: $phone, bloodGroup: $bloodGroup, role: $role, professionName: $professionName, locationId: $locationId) {
+      mutation UpdateMember($id: Int!, $name: String, $surname: String, $phone: String, $bloodGroup: String, $role: String, $professionName: String, $locationId: Int, $dateOfBirth: String, $gender: String, $image: String) {
+        updateMember(id: $id, name: $name, surname: $surname, phone: $phone, bloodGroup: $bloodGroup, role: $role, professionName: $professionName, locationId: $locationId, dateOfBirth: $dateOfBirth, gender: $gender, image: $image) {
           id
           name
           surname
@@ -246,9 +255,14 @@ class MemberRepositoryImpl implements MemberRepository {
           bloodGroup
           addedBy
           createdAt
+          dateOfBirth
+          gender
+          image
           location {
             id
             name
+            type
+            parentId
           }
         }
       }
@@ -265,6 +279,9 @@ class MemberRepositoryImpl implements MemberRepository {
         'role': role,
         'professionName': professionName,
         'locationId': locationId,
+        'dateOfBirth': dateOfBirth,
+        'gender': gender,
+        'image': image,
       },
     );
 
@@ -295,6 +312,8 @@ class MemberRepositoryImpl implements MemberRepository {
           location {
             id
             name
+            type
+            parentId
           }
         }
       }
@@ -326,14 +345,38 @@ class MemberRepositoryImpl implements MemberRepository {
     int? areaId,
     int? talukId,
     int? districtId,
+    String? dateOfBirth,
+    String? gender,
   }) async {
     const String mutation = r'''
-      mutation AddMember($name: String!, $surname: String, $phone: String!, $password: String!, $bloodGroup: String, $professionName: String, $streetId: Int) {
-        addMember(name: $name, surname: $surname, phone: $phone, password: $password, bloodGroup: $bloodGroup, professionName: $professionName, streetId: $streetId) {
+      mutation AddMember(
+        $name: String!
+        $surname: String
+        $phone: String!
+        $password: String!
+        $bloodGroup: String
+        $professionName: String
+        $streetId: Int
+        $dateOfBirth: String
+        $gender: String
+      ) {
+        addMember(
+          name: $name
+          surname: $surname
+          phone: $phone
+          password: $password
+          bloodGroup: $bloodGroup
+          professionName: $professionName
+          streetId: $streetId
+          dateOfBirth: $dateOfBirth
+          gender: $gender
+        ) {
           id
           name
           surname
           phone
+          dateOfBirth
+          gender
         }
       }
     ''';
@@ -348,6 +391,8 @@ class MemberRepositoryImpl implements MemberRepository {
         'bloodGroup': bloodGroup,
         'professionName': professionName,
         'streetId': streetId,
+        'dateOfBirth': dateOfBirth,
+        'gender': gender,
       },
     );
 

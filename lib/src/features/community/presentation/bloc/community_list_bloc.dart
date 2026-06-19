@@ -9,6 +9,9 @@ class CommunityListBloc extends Bloc<CommunityListEvent, CommunityListState> {
   CommunityListBloc(this._repository) : super(const CommunityListState()) {
     on<FetchCommunitiesList>(_onFetchCommunities);
     on<CreateNewCommunity>(_onCreateNewCommunity);
+    on<JoinCommunityGroup>(_onJoinCommunity);
+    on<LeaveCommunityGroup>(_onLeaveCommunity);
+    on<ResetCommunityList>((event, emit) => emit(const CommunityListState()));
   }
 
   Future<void> _onFetchCommunities(
@@ -17,7 +20,7 @@ class CommunityListBloc extends Bloc<CommunityListEvent, CommunityListState> {
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
-      final communities = await _repository.getCommunities();
+      final communities = await _repository.getCommunities(joinedOnly: false);
       emit(state.copyWith(isLoading: false, communities: communities));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
@@ -51,6 +54,75 @@ class CommunityListBloc extends Bloc<CommunityListEvent, CommunityListState> {
           isLoading: false,
           error: 'Community creation failed: $e',
           clearSuccess: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onJoinCommunity(
+    JoinCommunityGroup event,
+    Emitter<CommunityListState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final success = await _repository.joinCommunity(communityId: event.communityId);
+      if (success) {
+        // Refresh the list after joining
+        final communities = await _repository.getCommunities(joinedOnly: false);
+        emit(
+          state.copyWith(
+            isLoading: false,
+            communities: communities,
+            successMessage: 'Successfully joined community',
+          ),
+        );
+      } else {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Failed to join community',
+          ),
+        );
+      }
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: e.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<void> _onLeaveCommunity(
+    LeaveCommunityGroup event,
+    Emitter<CommunityListState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final success = await _repository.leaveCommunity(communityId: event.communityId);
+      if (success) {
+        final communities = await _repository.getCommunities(joinedOnly: false);
+        emit(
+          state.copyWith(
+            isLoading: false,
+            communities: communities,
+            successMessage: 'Successfully left community',
+          ),
+        );
+      } else {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Failed to leave community',
+          ),
+        );
+      }
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: e.toString(),
         ),
       );
     }

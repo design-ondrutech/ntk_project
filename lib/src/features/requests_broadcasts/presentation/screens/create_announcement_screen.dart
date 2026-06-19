@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_bloc.dart';
@@ -37,6 +39,19 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   final TextEditingController _contactPersonController =
       TextEditingController();
   final TextEditingController _contactPhoneController = TextEditingController();
+  
+  // Type-specific field controllers
+  final TextEditingController _bloodGroupController = TextEditingController();
+  final TextEditingController _unitsRequiredController = TextEditingController();
+  final TextEditingController _hospitalNameController = TextEditingController();
+  final TextEditingController _patientConditionController = TextEditingController();
+  final TextEditingController _disasterTypeController = TextEditingController();
+  final TextEditingController _affectedAreaController = TextEditingController();
+  final TextEditingController _requiredSupportController = TextEditingController();
+  final TextEditingController _volunteerTypeController = TextEditingController();
+  final TextEditingController _volunteerLocationController = TextEditingController();
+  final TextEditingController _volunteerContactDetailsController = TextEditingController();
+
   DateTime? _selectedExpiryDateTime;
   bool _collectResponse = true;
 
@@ -68,6 +83,9 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   @override
   void initState() {
     super.initState();
+    context.read<RequestBloc>().add(ClearSubmitStatus());
+    context.read<EventBloc>().add(const ClearEventMessage());
+    context.read<EventBloc>().add(const ClearEventError());
     final authState = context.read<AuthBloc>().state;
     final userRole = authState.loginData?.role ?? 'MEMBER';
     if (userRole == 'MEMBER') {
@@ -86,6 +104,19 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     _emergencyDescriptionController.dispose();
     _contactPersonController.dispose();
     _contactPhoneController.dispose();
+    
+    // Dispose type-specific controllers
+    _bloodGroupController.dispose();
+    _unitsRequiredController.dispose();
+    _hospitalNameController.dispose();
+    _patientConditionController.dispose();
+    _disasterTypeController.dispose();
+    _affectedAreaController.dispose();
+    _requiredSupportController.dispose();
+    _volunteerTypeController.dispose();
+    _volunteerLocationController.dispose();
+    _volunteerContactDetailsController.dispose();
+
     _titleFocusNode.dispose();
     _messageFocusNode.dispose();
     _emergencyTitleFocusNode.dispose();
@@ -113,18 +144,42 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         await _loadConstituencies(globalLocation.id);
       }
     } else if (role == 'ADMIN' && authLocationId != null) {
-      final assignedDistrict = LocationModel(
+      final assignedConstituency = LocationModel(
         id: authLocationId,
-        name: authState.loginData?.locationName ?? 'Assigned District',
+        name: authState.loginData?.locationName ?? 'Assigned Constituency',
       );
       setState(() {
-        _selectedDistrict = assignedDistrict;
-        _districts = [assignedDistrict];
+        _selectedConstituency = assignedConstituency;
+        _constituencies = [assignedConstituency];
       });
-      await _loadConstituencies(authLocationId);
+      await _loadAreas(authLocationId);
       if (globalLocation != null) {
-        setState(() => _selectedConstituency = globalLocation);
-        await _loadAreas(globalLocation.id);
+        setState(() => _selectedArea = globalLocation);
+        await _loadStreets(globalLocation.id);
+      }
+
+      // Fetch parent district
+      try {
+        final districts = await sl<LocationRepository>().getLocationList(
+          type: 'DISTRICT',
+        );
+        for (final district in districts) {
+          final taluks = await sl<LocationRepository>().getLocationList(
+            parentId: district.id,
+            type: 'TALUK',
+          );
+          if (taluks.any((t) => t.id == authLocationId)) {
+            if (mounted) {
+              setState(() {
+                _selectedDistrict = district;
+                _districts = [district];
+              });
+            }
+            break;
+          }
+        }
+      } catch (e) {
+        debugPrint('Error finding parent district: $e');
       }
     } else if (role == 'SUB_ADMIN' && authLocationId != null) {
       final assignedArea = LocationModel(
@@ -173,6 +228,59 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         }
       } catch (e) {
         debugPrint('Error finding parent district/taluk: $e');
+      }
+    } else if (role == 'MEMBER' && authLocationId != null) {
+      final assignedStreet = LocationModel(
+        id: authLocationId,
+        name: authState.loginData?.locationName ?? 'Assigned Street',
+      );
+      setState(() {
+        _selectedStreet = assignedStreet;
+        _streets = [assignedStreet];
+      });
+
+      // Traverse up parent hierarchy for member (Street -> Area -> Taluk -> District)
+      try {
+        final districts = await sl<LocationRepository>().getLocationList(
+          type: 'DISTRICT',
+        );
+        bool found = false;
+        for (final district in districts) {
+          final taluks = await sl<LocationRepository>().getLocationList(
+            parentId: district.id,
+            type: 'TALUK',
+          );
+          for (final taluk in taluks) {
+            final areas = await sl<LocationRepository>().getLocationList(
+              parentId: taluk.id,
+              type: 'AREA',
+            );
+            for (final area in areas) {
+              final streets = await sl<LocationRepository>().getLocationList(
+                parentId: area.id,
+                type: 'STREET',
+              );
+              if (streets.any((s) => s.id == authLocationId)) {
+                if (mounted) {
+                  setState(() {
+                    _selectedDistrict = district;
+                    _districts = [district];
+                    _selectedConstituency = taluk;
+                    _constituencies = [taluk];
+                    _selectedArea = area;
+                    _areas = [area];
+                  });
+                }
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+          if (found) break;
+        }
+      } catch (e) {
+        debugPrint('Error finding parent hierarchy for member: $e');
       }
     }
   }
@@ -319,6 +427,10 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       NTKSnackbar.showError(context, message: 'Title and message are required');
       return;
     }
+    if (message.length > 500) {
+      NTKSnackbar.showError(context, message: 'Broadcast message cannot exceed 500 characters.');
+      return;
+    }
     if (locationId == null) {
       NTKSnackbar.showError(context, message: 'Please select a location');
       return;
@@ -338,7 +450,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
   void _sendEmergency() {
     final title = _emergencyTitleController.text.trim();
-    final description = _emergencyDescriptionController.text.trim();
     final contactName = _contactPersonController.text.trim();
     final contactPhone = _contactPhoneController.text.trim();
     final type = _selectedEmergencyType;
@@ -352,16 +463,124 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       NTKSnackbar.showError(context, message: 'Please select a location');
       return;
     }
+    final remarks = _emergencyDescriptionController.text.trim();
+    if (remarks.length > 500) {
+      NTKSnackbar.showError(context, message: 'Additional remarks cannot exceed 500 characters.');
+      return;
+    }
+
+    // Type-specific field validation & compilation
+    String? finalDescription;
+    final Map<String, String> customFields = {};
+
+    if (type == 'BLOOD_REQUIRED') {
+      final bloodGroup = _bloodGroupController.text.trim();
+      final units = _unitsRequiredController.text.trim();
+      final hospital = _hospitalNameController.text.trim();
+      
+      if (bloodGroup.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Blood Group is required');
+        return;
+      }
+      if (units.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Units Required is required');
+        return;
+      }
+      if (hospital.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Hospital Name is required');
+        return;
+      }
+      if (contactPhone.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Contact Number is required');
+        return;
+      }
+      customFields['bloodGroup'] = bloodGroup;
+      customFields['unitsRequired'] = units;
+      customFields['hospitalName'] = hospital;
+      customFields['contactNumber'] = contactPhone;
+    } else if (type == 'MEDICAL_HELP') {
+      final patientCondition = _patientConditionController.text.trim();
+      final hospital = _hospitalNameController.text.trim();
+      
+      if (patientCondition.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Patient Condition is required');
+        return;
+      }
+      if (hospital.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Hospital Name is required');
+        return;
+      }
+      if (contactPhone.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Contact Number is required');
+        return;
+      }
+      customFields['patientCondition'] = patientCondition;
+      customFields['hospitalName'] = hospital;
+      customFields['contactNumber'] = contactPhone;
+    } else if (type == 'DISASTER_SUPPORT') {
+      final disasterType = _disasterTypeController.text.trim();
+      final affectedArea = _affectedAreaController.text.trim();
+      final reqSupport = _requiredSupportController.text.trim();
+      
+      if (disasterType.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Disaster Type is required');
+        return;
+      }
+      if (affectedArea.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Affected Area is required');
+        return;
+      }
+      if (reqSupport.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Required Support is required');
+        return;
+      }
+      customFields['disasterType'] = disasterType;
+      customFields['affectedArea'] = affectedArea;
+      customFields['requiredSupport'] = reqSupport;
+    } else if (type == 'VOLUNTEER_NEEDED') {
+      final volunteerType = _volunteerTypeController.text.trim();
+      final location = _volunteerLocationController.text.trim();
+      final contactDetails = _volunteerContactDetailsController.text.trim();
+      
+      if (volunteerType.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Volunteer Type is required');
+        return;
+      }
+      if (location.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Location is required');
+        return;
+      }
+      if (contactDetails.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Contact Details are required');
+        return;
+      }
+      customFields['volunteerType'] = volunteerType;
+      customFields['location'] = location;
+      customFields['contactDetails'] = contactDetails;
+    }
+
+    if (type != 'OTHER') {
+      if (remarks.isNotEmpty) {
+        customFields['additionalInfo'] = remarks;
+      }
+      finalDescription = jsonEncode(customFields);
+    } else {
+      if (remarks.isEmpty) {
+        NTKSnackbar.showError(context, message: 'Description is required');
+        return;
+      }
+      finalDescription = remarks;
+    }
 
     context.read<EventBloc>().add(
       CreateEmergency(
         title: title,
-        description: description.isNotEmpty ? description : null,
+        description: finalDescription,
         type: type,
         locationId: locationId,
         contactName: contactName.isNotEmpty ? contactName : null,
         contactPhone: contactPhone.isNotEmpty ? contactPhone : null,
-        expiryDate: _selectedExpiryDateTime?.toIso8601String(),
+        expiryDate: _selectedExpiryDateTime?.toUtc().toIso8601String(), // UTC with 'Z'
         collectResponse: _collectResponse,
       ),
     );
@@ -406,6 +625,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     if (time == null) return;
 
     setState(() {
+      // Store as local DateTime for display, but we'll convert to UTC on submit.
       _selectedExpiryDateTime = DateTime(
         date.year, date.month, date.day, time.hour, time.minute,
       );
@@ -413,19 +633,21 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   }
 
   String _formatDateTime(String dt) {
-    try {
-      final date = DateTime.parse(dt);
-      final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-      ];
-      final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-      final ampm = date.hour < 12 ? 'AM' : 'PM';
-      final minute = date.minute.toString().padLeft(2, '0');
-      return '${months[date.month - 1]} ${date.day}, ${date.year} • $hour:$minute $ampm';
-    } catch (_) {
-      return dt;
-    }
+    return DateHelper.formatDateTime(dt);
+  }
+
+  /// Formats a local [DateTime] for display in the picker label.
+  /// Uses the local fields directly — no UTC conversion — so the
+  /// user always sees the exact time they picked.
+  String _formatExpiryForDisplay(DateTime dt) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final ampm = dt.hour < 12 ? 'AM' : 'PM';
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year} • $hour:$minute $ampm';
   }
 
   // ─── UI BUILDERS ───────────────────────────────────────────────
@@ -656,7 +878,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   Widget _buildExpiryPicker() {
     final String label = _selectedExpiryDateTime == null
         ? 'Select Expiry Date & Time'
-        : _formatDateTime(_selectedExpiryDateTime!.toIso8601String());
+        : _formatExpiryForDisplay(_selectedExpiryDateTime!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -822,7 +1044,6 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   }
 
   Widget _buildLocationSelectorsSection(String userRole) {
-    final isSubAdmin = userRole == 'SUB_ADMIN';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -831,52 +1052,50 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF111827)),
         ),
         const SizedBox(height: 16),
-        if (!isSubAdmin) ...[
-          _buildLocationSelectorField(
-            label: 'District *',
-            items: _districts,
-            selectedValue: _selectedDistrict,
-            onChanged: _onDistrictChanged,
-            isEnabled: userRole == 'SUPER_ADMIN',
-            isLoading: _loadingDistricts,
-            disabledHint: 'Select District',
-            allLabel: 'All Districts',
-            selectHint: 'Select District',
-          ),
-          _buildLocationSelectorField(
-            label: 'Constituency (Taluk)',
-            items: _constituencies,
-            selectedValue: _selectedConstituency,
-            onChanged: _onConstituencyChanged,
-            isEnabled: _selectedDistrict != null &&
-                (userRole == 'SUPER_ADMIN' || userRole == 'ADMIN'),
-            isLoading: _loadingConstituencies,
-            disabledHint: _selectedDistrict == null
-                ? 'Select District first'
-                : 'Select Constituency',
-            allLabel: 'All Constituencies',
-            selectHint: 'Select Constituency',
-          ),
-          _buildLocationSelectorField(
-            label: 'Area (Town)',
-            items: _areas,
-            selectedValue: _selectedArea,
-            onChanged: _onAreaChanged,
-            isEnabled: _selectedConstituency != null,
-            isLoading: _loadingAreas,
-            disabledHint: _selectedConstituency == null
-                ? 'Select Constituency first'
-                : 'Select Area',
-            allLabel: 'All Areas',
-            selectHint: 'Select Area',
-          ),
-        ],
+        _buildLocationSelectorField(
+          label: 'District *',
+          items: _districts,
+          selectedValue: _selectedDistrict,
+          onChanged: _onDistrictChanged,
+          isEnabled: userRole == 'SUPER_ADMIN',
+          isLoading: _loadingDistricts,
+          disabledHint: 'Select District',
+          allLabel: 'All Districts',
+          selectHint: 'Select District',
+        ),
+        _buildLocationSelectorField(
+          label: 'Constituency (Taluk)',
+          items: _constituencies,
+          selectedValue: _selectedConstituency,
+          onChanged: _onConstituencyChanged,
+          isEnabled: _selectedDistrict != null && userRole == 'SUPER_ADMIN',
+          isLoading: _loadingConstituencies,
+          disabledHint: _selectedDistrict == null
+              ? 'Select District first'
+              : 'Select Constituency',
+          allLabel: 'All Constituencies',
+          selectHint: 'Select Constituency',
+        ),
+        _buildLocationSelectorField(
+          label: 'Area (Town)',
+          items: _areas,
+          selectedValue: _selectedArea,
+          onChanged: _onAreaChanged,
+          isEnabled: _selectedConstituency != null &&
+              (userRole == 'SUPER_ADMIN' || userRole == 'ADMIN'),
+          isLoading: _loadingAreas,
+          disabledHint: _selectedConstituency == null
+              ? 'Select Constituency first'
+              : 'Select Area',
+          allLabel: 'All Areas',
+          selectHint: 'Select Area',
+        ),
         _buildLocationSelectorField(
           label: 'Street',
           items: _streets,
           selectedValue: _selectedStreet,
           onChanged: _onStreetChanged,
-          isEnabled: _selectedArea != null,
+          isEnabled: _selectedArea != null && userRole != 'MEMBER',
           isLoading: _loadingStreets,
           disabledHint: _selectedArea == null ? 'Select Area first' : 'Select Street',
           allLabel: 'All Streets',
@@ -938,22 +1157,35 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         const SizedBox(height: 20),
         const Text('Message *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
-          child: TextField(
-            key: const ValueKey('broadcast_message_field'),
-            controller: _messageController,
-            focusNode: _messageFocusNode,
-            maxLines: 5,
-            keyboardType: TextInputType.multiline,
-            textInputAction: TextInputAction.newline,
-            decoration: const InputDecoration(
-              hintText: 'Type your message here...',
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              filled: false,
-            ),
-          ),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _messageController,
+          builder: (context, value, child) {
+            final isExceeded = value.text.length > 500;
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(12), 
+                border: Border.all(color: isExceeded ? Colors.red : const Color(0xFFE5E7EB))
+              ),
+              child: TextField(
+                key: const ValueKey('broadcast_message_field'),
+                controller: _messageController,
+                focusNode: _messageFocusNode,
+                maxLines: 5,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.none,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  hintText: 'Type your message here...',
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  filled: false,
+                  errorText: isExceeded ? 'Broadcast message cannot exceed 500 characters.' : null,
+                ),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 20),
         _buildLocationSelectorsSection(userRole),
@@ -1007,7 +1239,215 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     );
   }
 
+  Widget _buildTypeSpecificFields() {
+    final type = _selectedEmergencyType;
+    if (type == 'BLOOD_REQUIRED') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          const Text('Blood Group *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('blood_group_field'),
+              controller: _bloodGroupController,
+              decoration: const InputDecoration(
+                hintText: 'Enter blood group (e.g. O+, A-)',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Units Required *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('units_required_field'),
+              controller: _unitsRequiredController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                hintText: 'Enter number of units required',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Hospital Name *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('hospital_name_field'),
+              controller: _hospitalNameController,
+              decoration: const InputDecoration(
+                hintText: 'Enter hospital name & address',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (type == 'MEDICAL_HELP') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          const Text('Patient Condition *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('patient_condition_field'),
+              controller: _patientConditionController,
+              decoration: const InputDecoration(
+                hintText: 'Enter patient condition (e.g. Critical, ICU)',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Hospital Name *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('medical_hospital_field'),
+              controller: _hospitalNameController,
+              decoration: const InputDecoration(
+                hintText: 'Enter hospital name & address',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (type == 'DISASTER_SUPPORT') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          const Text('Disaster Type *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('disaster_type_field'),
+              controller: _disasterTypeController,
+              decoration: const InputDecoration(
+                hintText: 'Enter disaster type (e.g. Flood, Cyclone, Fire)',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Affected Area *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('affected_area_field'),
+              controller: _affectedAreaController,
+              decoration: const InputDecoration(
+                hintText: 'Enter affected area location details',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Required Support *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('required_support_field'),
+              controller: _requiredSupportController,
+              decoration: const InputDecoration(
+                hintText: 'Enter required support (e.g. Food, Rescue, Shelter)',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else if (type == 'VOLUNTEER_NEEDED') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 20),
+          const Text('Volunteer Type *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('volunteer_type_field'),
+              controller: _volunteerTypeController,
+              decoration: const InputDecoration(
+                hintText: 'Enter volunteer work description',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Location *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('volunteer_location_field'),
+              controller: _volunteerLocationController,
+              decoration: const InputDecoration(
+                hintText: 'Enter location / address of volunteer work',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Contact Details *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('volunteer_contact_details_field'),
+              controller: _volunteerContactDetailsController,
+              decoration: const InputDecoration(
+                hintText: 'Enter contact details / info for volunteers',
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   Widget _buildEmergencyForm(RequestState requestState, EventState eventState, String userRole) {
+    final showContact = _selectedEmergencyType == 'BLOOD_REQUIRED' ||
+        _selectedEmergencyType == 'MEDICAL_HELP' ||
+        _selectedEmergencyType == 'OTHER';
+    final isContactRequired = _selectedEmergencyType == 'BLOOD_REQUIRED' ||
+        _selectedEmergencyType == 'MEDICAL_HELP';
+    final descLabel = _selectedEmergencyType == 'OTHER'
+        ? 'Description *'
+        : 'Additional Remarks (Optional)';
+    final descHint = _selectedEmergencyType == 'OTHER'
+        ? 'Type emergency description here...'
+        : 'Type any additional comments/remarks here...';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1060,71 +1500,91 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             ),
           ),
         ),
+        _buildTypeSpecificFields(),
         const SizedBox(height: 20),
-        const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+        Text(descLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
         const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
-          child: TextField(
-            key: const ValueKey('emergency_desc_field'),
-            controller: _emergencyDescriptionController,
-            focusNode: _emergencyDescriptionFocusNode,
-            maxLines: 5,
-            maxLength: 1000,
-            keyboardType: TextInputType.multiline,
-            textInputAction: TextInputAction.newline,
-            decoration: const InputDecoration(
-              hintText: 'Type emergency description here...',
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              filled: false,
-              counterText: '',
-            ),
-          ),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _emergencyDescriptionController,
+          builder: (context, value, child) {
+            final isExceeded = value.text.length > 500;
+            return Container(
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(12), 
+                border: Border.all(color: isExceeded ? Colors.red : const Color(0xFFE5E7EB))
+              ),
+              child: TextField(
+                key: const ValueKey('emergency_desc_field'),
+                controller: _emergencyDescriptionController,
+                focusNode: _emergencyDescriptionFocusNode,
+                maxLines: 5,
+                maxLength: 500,
+                maxLengthEnforcement: MaxLengthEnforcement.none,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  hintText: descHint,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  filled: false,
+                  errorText: isExceeded ? 'Additional remarks cannot exceed 500 characters.' : null,
+                ),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 20),
         _buildLocationSelectorsSection(userRole),
-        const SizedBox(height: 20),
-        const Text('Contact Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
-          child: TextField(
-            key: const ValueKey('emergency_contact_name_field'),
-            controller: _contactPersonController,
-            focusNode: _contactNameFocusNode,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              hintText: "Enter contact name",
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              filled: false,
+        if (showContact) ...[
+          const SizedBox(height: 20),
+          Text(
+            isContactRequired ? 'Contact Name *' : 'Contact Name',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('emergency_contact_name_field'),
+              controller: _contactPersonController,
+              focusNode: _contactNameFocusNode,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                hintText: isContactRequired ? "Enter contact name *" : "Enter contact name",
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                filled: false,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 20),
-        const Text('Contact Number', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
-          child: TextField(
-            key: const ValueKey('emergency_contact_phone_field'),
-            controller: _contactPhoneController,
-            focusNode: _contactPhoneFocusNode,
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.done,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(10),
-            ],
-            decoration: const InputDecoration(
-              hintText: 'Enter contact phone number',
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              filled: false,
+          const SizedBox(height: 20),
+          Text(
+            isContactRequired ? 'Contact Number *' : 'Contact Number',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            child: TextField(
+              key: const ValueKey('emergency_contact_phone_field'),
+              controller: _contactPhoneController,
+              focusNode: _contactPhoneFocusNode,
+              keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+              decoration: InputDecoration(
+                hintText: isContactRequired ? 'Enter contact phone number *' : 'Enter contact phone number',
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                filled: false,
+              ),
             ),
           ),
-        ),
+        ],
         const SizedBox(height: 20),
         _buildExpiryPicker(),
         const SizedBox(height: 24),
@@ -1200,6 +1660,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             listener: (context, state) {
               if (state.message == 'Emergency Alert created successfully') {
                 NTKSnackbar.showSuccess(context, message: 'Sent successfully!');
+                context.read<EventBloc>().add(const ClearEventMessage());
                 Navigator.pop(context);
               }
               if (state.error != null && _activeFormType == 'EMERGENCY') {
@@ -1211,6 +1672,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             listener: (context, state) {
               if (state.submitSuccess) {
                 NTKSnackbar.showSuccess(context, message: 'Sent successfully!');
+                context.read<RequestBloc>().add(ClearSubmitStatus());
                 Navigator.pop(context);
               }
               if (state.error != null && _activeFormType == 'BROADCAST') {

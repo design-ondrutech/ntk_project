@@ -28,6 +28,8 @@ class RegisterRequested extends AuthEvent {
   final int streetId;
   final String? bloodGroup;
   final String? professionName;
+  final String? dateOfBirth;
+  final String? gender;
 
   const RegisterRequested({
     required this.name,
@@ -40,6 +42,8 @@ class RegisterRequested extends AuthEvent {
     required this.streetId,
     this.bloodGroup,
     this.professionName,
+    this.dateOfBirth,
+    this.gender,
   });
 
   @override
@@ -54,6 +58,8 @@ class RegisterRequested extends AuthEvent {
     streetId,
     bloodGroup,
     professionName,
+    dateOfBirth,
+    gender,
   ];
 }
 

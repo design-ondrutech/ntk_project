@@ -9,7 +9,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
   DashboardBloc(this._dashboardRepository) : super(const DashboardState()) {
     on<LoadDashboardStats>(_onLoadDashboardStats);
+    on<LoadModerationStats>(_onLoadModerationStats);
     on<UpdateGlobalLocation>(_onUpdateGlobalLocation);
+    on<ResetDashboard>((event, emit) => emit(const DashboardState()));
   }
 
   Future<void> _onLoadDashboardStats(
@@ -31,6 +33,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       } catch (_) {
         // silently ignore — stats still show correctly
       }
+
+      activity.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
+
       emit(
         state.copyWith(
           isLoading: false,
@@ -52,6 +57,27 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       emit(state.copyWith(clearGlobalLocation: true));
     } else {
       emit(state.copyWith(globalLocation: event.location));
+    }
+  }
+
+  Future<void> _onLoadModerationStats(
+    LoadModerationStats event,
+    Emitter<DashboardState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final stats = await _dashboardRepository.getModerationDashboardStats(
+        event.locationId,
+      );
+      emit(
+        state.copyWith(
+          isLoading: false,
+          moderationStats: stats,
+          clearError: true,
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 }

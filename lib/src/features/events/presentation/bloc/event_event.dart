@@ -149,3 +149,7 @@ class ClearEventMessage extends EventEvent {
 class ClearEventError extends EventEvent {
   const ClearEventError();
 }
+
+class ResetEvents extends EventEvent {
+  const ResetEvents();
+}

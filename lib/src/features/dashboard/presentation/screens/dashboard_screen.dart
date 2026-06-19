@@ -30,6 +30,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<DashboardBloc>().add(
         LoadDashboardStats(locationId),
       );
+      context.read<DashboardBloc>().add(
+        LoadModerationStats(locationId),
+      );
       context.read<PendingRequestsBloc>().add(
         LoadPendingRequests(locationId: locationId),
       );

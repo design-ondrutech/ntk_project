@@ -12,7 +12,7 @@ class SocketService {
   void connect({String? url}) {
     if (socket != null && socket!.connected) return;
 
-    final targetUrl = url ?? 'https://naam-tamilar-katchi.onrender.com';
+    final targetUrl = url ?? 'https://naam-tamilar-katchi-5.onrender.com';
     debugPrint('Connecting to socket server: $targetUrl');
 
     socket = IO.io(

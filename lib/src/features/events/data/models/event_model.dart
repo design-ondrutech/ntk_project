@@ -7,6 +7,7 @@ class EventModel {
   final int going;
   final int maybe;
   final int notGoing;
+  final int? createdById;
 
   EventModel({
     required this.id,
@@ -17,11 +18,20 @@ class EventModel {
     required this.going,
     required this.maybe,
     required this.notGoing,
+    this.createdById,
   });
 
   factory EventModel.fromJson(Map<String, dynamic> json) {
     final location = json['location'] as Map<String, dynamic>?;
     final stats = json['stats'] as Map<String, dynamic>?;
+    final createdByJson = json['createdBy'];
+    
+    int? parsedCreatedById;
+    if (createdByJson != null && createdByJson['id'] != null) {
+      parsedCreatedById = createdByJson['id'] is int 
+          ? createdByJson['id'] as int 
+          : int.tryParse(createdByJson['id'].toString());
+    }
 
     return EventModel(
       id: json['id']?.toString() ?? '',
@@ -32,6 +42,7 @@ class EventModel {
       going: stats?['going'] ?? 0,
       maybe: stats?['maybe'] ?? 0,
       notGoing: stats?['notGoing'] ?? 0,
+      createdById: parsedCreatedById,
     );
   }
 }

@@ -45,4 +45,5 @@ abstract class EventRepository {
   });
 
   Future<bool> recallEvent({required String id});
+  Future<bool> deleteEmergencyRequest({required String id});
 }

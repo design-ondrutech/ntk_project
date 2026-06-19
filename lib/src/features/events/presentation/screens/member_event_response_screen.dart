@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/core/utils/date_helper.dart';
 import 'package:ntk_project/src/features/events/data/models/event_model.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_bloc.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_event.dart';
@@ -49,29 +50,7 @@ class _MemberEventResponseScreenState extends State<MemberEventResponseScreen> {
   }
 
   String _formatDateTime(String dt) {
-    try {
-      final date = DateTime.parse(dt);
-      final months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-      final ampm = date.hour < 12 ? 'AM' : 'PM';
-      final minute = date.minute.toString().padLeft(2, '0');
-      return '${months[date.month - 1]} ${date.day}, ${date.year} • $hour:$minute $ampm';
-    } catch (_) {
-      return dt;
-    }
+    return DateHelper.formatDateTime(dt);
   }
 
   void _submitResponse(EventModel event) {
