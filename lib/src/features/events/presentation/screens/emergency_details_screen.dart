@@ -96,8 +96,14 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
 
   void _onRespond(String status) {
     if (_alert != null) {
+      final authState = context.read<AuthBloc>().state;
+      final userId = authState.loginData?.id?.toString();
       context.read<EventBloc>().add(
-        RespondToEmergency(emergencyRequestId: _alert!.id, status: status),
+        RespondToEmergency(
+          emergencyRequestId: _alert!.id,
+          status: status,
+          userId: userId,
+        ),
       );
     }
   }
@@ -378,43 +384,139 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
     }
   }
 
-  Widget _buildActionsSection(String userRole, int? userId) {
+  Widget _buildRSVPActions(bool hasResponded, String myStatus) {
+    Widget buildRSVPButton(String text, String statusValue, Color color) {
+      final isSelected = myStatus == statusValue;
+      return Expanded(
+        child: ElevatedButton(
+          onPressed: () => _onRespond(statusValue),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: isSelected ? color : Colors.white,
+            foregroundColor: isSelected ? Colors.white : color,
+            side: BorderSide(color: color, width: 1.5),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            elevation: 0,
+          ),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            buildRSVPButton('COMING', 'COMING', const Color(0xFF004D2A)),
+            const SizedBox(width: 8),
+            buildRSVPButton('ON THE WAY', 'ON_THE_WAY', const Color(0xFFEAB308)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            buildRSVPButton('REACHED', 'REACHED', const Color(0xFF2563EB)),
+            const SizedBox(width: 8),
+            buildRSVPButton('UNABLE', 'UNABLE', const Color(0xFFDC2626)),
+          ],
+        ),
+        if (hasResponded) ...[
+          const SizedBox(height: 12),
+          Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  myStatus == 'UNABLE' ? Icons.cancel_rounded : Icons.check_circle_rounded,
+                  color: myStatus == 'UNABLE' ? const Color(0xFFDC2626) : const Color(0xFF004D2A),
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Response submitted: $myStatus',
+                  style: TextStyle(
+                    color: myStatus == 'UNABLE' ? const Color(0xFFDC2626) : const Color(0xFF004D2A),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildActionsSection(String userRoleRaw, int? userId) {
+    final authState = context.read<AuthBloc>().state;
+    final userName = authState.loginData?.name;
+    final userRole = userRoleRaw.toUpperCase();
+    
     final status = _alert?.status?.toUpperCase() ?? 'PENDING';
-    final isCreator = _alert?.isCreatedBy(userId) ?? false;
+    final isCreator = _alert?.isCreatedBy(userId, userName: userName) ?? false;
     final isCompleted = status == 'COMPLETED' || status == 'CLOSED';
     final isRejected = status == 'REJECTED';
     final isExpired = _alert?.isExpired ?? false;
 
     // 1. Terminal States
     if (isCompleted) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF0FDF4),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFBBF7D0)),
-        ),
-        child: Column(
-          children: const [
-            Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 48),
-            SizedBox(height: 12),
-            Text(
-              'Request Completed',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF16A34A),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0FDF4),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFBBF7D0)),
+            ),
+            child: Column(
+              children: const [
+                Icon(Icons.check_circle, color: Color(0xFF16A34A), size: 48),
+                SizedBox(height: 12),
+                Text(
+                  'Request Completed / கோரிக்கை முடிவடைந்தது',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF16A34A),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'This request has been marked as completed.',
+                  style: TextStyle(color: Color(0xFF15803D), fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => _showResponsesSheet(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF004D2A),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
+              elevation: 0,
             ),
-            SizedBox(height: 4),
-            Text(
-              'This request has been marked as completed.',
-              style: TextStyle(color: Color(0xFF15803D), fontSize: 13),
-              textAlign: TextAlign.center,
+            child: const Text(
+              'VIEW RESPONSES / ரெஸ்பான்ஸ்களைக் காண்',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -478,48 +580,9 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
       );
     }
 
-    // 2. Creator Logic
-    if (isCreator) {
-      // Creators can only mark as completed and recall (delete)
-      // View responses is already part of the main UI tabs.
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (status != 'PENDING' && !status.startsWith('PENDING_'))
-            ElevatedButton.icon(
-              onPressed: _isCompleting ? null : _onMarkCompleted,
-              icon: _isCompleting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.check_circle_outline, size: 18),
-              label: const Text(
-                'MARK AS COMPLETED',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0369A1),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-            ),
-          if (status != 'PENDING' && !status.startsWith('PENDING_'))
-            const SizedBox(height: 12),
-          _buildDeleteButton(),
-        ],
-      );
-    }
+    List<Widget> actionWidgets = [];
 
-    // 3. Admin Logic
+    // 2. Admin Logic
     final isAdminRole =
         userRole == 'ADMIN' ||
         userRole == 'SUB_ADMIN' ||
@@ -534,37 +597,37 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
 
       if (userRole == 'SUB_ADMIN') {
         if (status == 'PENDING' || status == 'PENDING_SUB_ADMIN') {
-          showApprove = true;
+          showApprove = !isCreator;
           showForward = true;
-          showReject = true;
+          showReject = !isCreator;
           forwardLabel = 'FORWARD TO ADMIN';
           forwardColor = const Color(0xFFEA580C);
         } else if (status == 'APPROVED_SUB_ADMIN' || status == 'ACCEPTED') {
           showApprove = false;
           showForward = true;
-          showReject = true;
+          showReject = !isCreator;
           forwardLabel = 'FORWARD TO ADMIN';
           forwardColor = const Color(0xFFEA580C);
         }
       } else if (userRole == 'ADMIN') {
-        if (status == 'PENDING_ADMIN') {
-          showApprove = true;
+        if (status == 'PENDING_ADMIN' || status == 'PENDING' || status == 'PENDING_SUB_ADMIN') {
+          showApprove = !isCreator;
           showForward = true;
-          showReject = true;
+          showReject = !isCreator;
           forwardLabel = 'FORWARD TO SUPER ADMIN';
           forwardColor = const Color(0xFF9333EA);
-        } else if (status == 'APPROVED_ADMIN' || status == 'ACCEPTED') {
+        } else if (status == 'APPROVED_ADMIN' || status == 'ACCEPTED' || status == 'APPROVED_SUB_ADMIN') {
           showApprove = false;
           showForward = true;
-          showReject = true;
+          showReject = !isCreator;
           forwardLabel = 'FORWARD TO SUPER ADMIN';
           forwardColor = const Color(0xFF9333EA);
         }
       } else if (userRole == 'SUPER_ADMIN') {
-        if (status == 'PENDING_SUPER_ADMIN') {
+        if (status == 'PENDING_SUPER_ADMIN' || status == 'PENDING' || status == 'PENDING_ADMIN') {
           showApprove = true;
           showReject = true;
-        } else if (status == 'APPROVED_SUPER_ADMIN' || status == 'ACCEPTED') {
+        } else if (status == 'APPROVED_SUPER_ADMIN' || status == 'ACCEPTED' || status == 'APPROVED_ADMIN') {
           showApprove = false;
           showReject = true;
         }
@@ -572,286 +635,298 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
 
       if (showApprove || showForward || showReject) {
         if (_isReviewing) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: CircularProgressIndicator(),
+          actionWidgets.add(
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          );
+        } else {
+          actionWidgets.add(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!isCreator)
+                  const Text(
+                    'Action Required',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                if (!isCreator) const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (showApprove)
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _onReviewRequest('APPROVE'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F5A29),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'APPROVE REQUEST',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    if (showApprove && showReject) const SizedBox(width: 12),
+                    if (showReject)
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _showRejectDialog,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'REJECT REQUEST',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (showForward && forwardLabel != null) ...[
+                  if (showApprove || showReject) const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () => _onReviewRequest('FORWARD'),
+                    icon: Icon(Icons.arrow_forward, size: 18, color: forwardColor),
+                    label: Text(
+                      forwardLabel,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: forwardColor,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: forwardColor,
+                      side: BorderSide(color: forwardColor, width: 1.5),
+                      minimumSize: const Size(0, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           );
         }
+      } else {
+        // If no admin action buttons → check if emergency collects responses
+        final isApprovedFallback =
+            status == 'APPROVED' ||
+            status == 'APPROVED_ADMIN' ||
+            status == 'APPROVED_SUB_ADMIN' ||
+            status == 'APPROVED_STATE' ||
+            status == 'ACCEPTED';
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Action Required',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: Color(0xFF64748B),
+        final collectResponseFallback = _alert?.collectResponse ?? false;
+        if (collectResponseFallback && isApprovedFallback && !isCreator) {
+          final eventState = context.watch<EventBloc>().state;
+          final localStatus = eventState.myEmergencyResponses[_alert?.id ?? ''];
+          final myResponse = eventState.emergencyResponses
+              .where((r) => r.member.id == userId?.toString())
+              .firstOrNull;
+          
+          final hasResponded = localStatus != null || myResponse != null;
+          final myStatus = (localStatus ?? myResponse?.status ?? '').toUpperCase();
+          
+          actionWidgets.add(_buildRSVPActions(hasResponded, myStatus));
+        } else if (!isCreator) {
+          // No matching condition — show informational message
+          actionWidgets.add(
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFED7AA)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.info_outline_rounded, color: Color(0xFFEA580C), size: 24),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'This request has been forwarded or is under review at a higher level.',
+                      style: TextStyle(color: Color(0xFFC2410C), fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (showApprove)
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => _onReviewRequest('APPROVE'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F5A29),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'APPROVE REQUEST',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+          );
+        }
+      }
+    } else { // end isAdminRole
+      // 3. Member Logic
+      final isApprovedState =
+          status == 'APPROVED' ||
+          status == 'APPROVED_SUB_ADMIN' ||
+          status == 'APPROVED_ADMIN' ||
+          status == 'APPROVED_STATE' ||
+          status == 'ACCEPTED';
+
+      if (isApprovedState) {
+        final bool collectResponse = _alert?.collectResponse ?? false;
+        if (collectResponse && !isCreator) {
+          final eventState = context.watch<EventBloc>().state;
+          final localStatus = eventState.myEmergencyResponses[_alert?.id ?? ''];
+          final myResponse = eventState.emergencyResponses
+              .where((r) => r.member.id == userId?.toString())
+              .firstOrNull;
+              
+          final hasResponded = localStatus != null || myResponse != null;
+          final myStatus = (localStatus ?? myResponse?.status ?? '').toUpperCase();
+          
+          actionWidgets.add(_buildRSVPActions(hasResponded, myStatus));
+        }
+      } else if (status.startsWith('PENDING') && !isCreator) {
+        actionWidgets.add(
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFED7AA)),
+            ),
+            child: Row(
+              children: const [
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: Color(0xFFEA580C),
+                  size: 24,
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'This request is currently under review by administrators.',
+                    style: TextStyle(
+                      color: Color(0xFFC2410C),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                if (showApprove && showReject) const SizedBox(width: 12),
-                if (showReject)
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _showRejectDialog,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDC2626),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'REJECT REQUEST',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
+                ),
               ],
             ),
-            if (showForward && forwardLabel != null) ...[
+          ),
+        );
+      }
+    }
+
+    // 4. Append Creator Logic at the bottom
+    if (isCreator) {
+      if (actionWidgets.isNotEmpty) {
+        actionWidgets.add(const SizedBox(height: 16));
+      }
+      
+      // Determine if we should show the "View Responses" button (only if it collects responses)
+      final bool collectResponseFallback = _alert?.collectResponse ?? false;
+      
+      actionWidgets.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (collectResponseFallback && !isCompleted) ...[
+              ElevatedButton(
+                onPressed: () => _showResponsesSheet(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF004D2A),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'VIEW RESPONSES / ரெஸ்பான்ஸ்களைக் காண்',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
               const SizedBox(height: 12),
+            ],
+            if (!isCompleted && !isRejected && !isExpired) ...[
               OutlinedButton.icon(
                 onPressed: () => _onReviewRequest('FORWARD'),
-                icon: Icon(Icons.arrow_forward, size: 18, color: forwardColor),
-                label: Text(
-                  forwardLabel,
+                icon: const Icon(Icons.arrow_forward, size: 18, color: Color(0xFF2563EB)),
+                label: const Text(
+                  'FORWARD / ஃபார்வர்ட் செய்',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: forwardColor,
+                    color: Color(0xFF2563EB),
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: forwardColor,
-                  side: BorderSide(color: forwardColor, width: 1.5),
+                  foregroundColor: const Color(0xFF2563EB),
+                  side: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
                   minimumSize: const Size(0, 48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
-            ],
-          ],
-        );
-      }
-
-      // If no admin buttons to show but still an admin (maybe forwarded past them)
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFED7AA)),
-        ),
-        child: Row(
-          children: const [
-            Icon(
-              Icons.info_outline_rounded,
-              color: Color(0xFFEA580C),
-              size: 24,
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'This request has been forwarded or is under review at a higher level.',
-                style: TextStyle(
-                  color: Color(0xFFC2410C),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // 4. Member Logic
-    final isApprovedState =
-        status == 'APPROVED' ||
-        status == 'APPROVED_SUB_ADMIN' ||
-        status == 'APPROVED_ADMIN' ||
-        status == 'APPROVED_STATE' ||
-        status == 'ACCEPTED';
-
-    if (isApprovedState) {
-      final bool collectResponse = _alert?.collectResponse ?? false;
-      if (collectResponse && (userRole == 'USER' || userRole == 'MEMBER')) {
-        final eventState = context.watch<EventBloc>().state;
-        final myResponse = eventState.emergencyResponses
-            .where((r) => r.member.id == userId?.toString())
-            .firstOrNull;
-        final hasResponded = myResponse != null;
-        final myStatus = myResponse?.status.toUpperCase();
-        final isAvailable = myStatus == 'COMING' || myStatus == 'GOING';
-        final isNotAvailable = myStatus == 'UNABLE' || myStatus == 'NOT_GOING';
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: hasResponded ? null : () => _onRespond('UNABLE'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFDC2626),
-                      side: BorderSide(
-                        color: isNotAvailable
-                            ? const Color(0xFFDC2626)
-                            : (hasResponded
-                                  ? const Color(0xFFE2E8F0)
-                                  : const Color(0xFFFCA5A5)),
-                        width: 1.5,
-                      ),
-                      backgroundColor: isNotAvailable
-                          ? const Color(0xFFFEF2F2)
-                          : null,
-                      minimumSize: const Size(0, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'NOT AVAILABLE',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isNotAvailable
-                            ? const Color(0xFFDC2626)
-                            : (hasResponded
-                                  ? const Color(0xFFCBD5E1)
-                                  : const Color(0xFFDC2626)),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: hasResponded ? null : () => _onRespond('COMING'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isAvailable
-                          ? const Color(0xFF004D2A)
-                          : (hasResponded
-                                ? const Color(0xFFF1F5F9)
-                                : const Color(0xFF004D2A)),
-                      foregroundColor: isAvailable
-                          ? Colors.white
-                          : (hasResponded
-                                ? const Color(0xFFCBD5E1)
-                                : Colors.white),
-                      minimumSize: const Size(0, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      "I'M AVAILABLE",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isAvailable
-                            ? Colors.white
-                            : (hasResponded
-                                  ? const Color(0xFFCBD5E1)
-                                  : Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (hasResponded) ...[
               const SizedBox(height: 12),
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isAvailable
-                          ? Icons.check_circle_rounded
-                          : Icons.cancel_rounded,
-                      color: isAvailable
-                          ? const Color(0xFF004D2A)
-                          : const Color(0xFFDC2626),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Response submitted: ${isAvailable ? 'Available' : 'Not Available'}',
-                      style: TextStyle(
-                        color: isAvailable
-                            ? const Color(0xFF004D2A)
-                            : const Color(0xFFDC2626),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
-          ],
-        );
-      }
-    } else if (status.startsWith('PENDING') && (userRole == 'USER' || userRole == 'MEMBER')) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF7ED),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFED7AA)),
-        ),
-        child: Row(
-          children: const [
-            Icon(
-              Icons.info_outline_rounded,
-              color: Color(0xFFEA580C),
-              size: 24,
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'This request is currently under review by administrators.',
-                style: TextStyle(
-                  color: Color(0xFFC2410C),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+            if (status != 'PENDING' && !status.startsWith('PENDING_') && !isCompleted)
+              ElevatedButton.icon(
+                onPressed: _isCompleting ? null : _onMarkCompleted,
+                icon: _isCompleting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_circle_outline, size: 18),
+                label: const Text(
+                  'MARK AS COMPLETED / முடிவடைந்தது என குறிக்கவும்',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0369A1),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
                 ),
               ),
-            ),
+            if (status != 'PENDING' && !status.startsWith('PENDING_') && !isCompleted)
+              const SizedBox(height: 12),
+            if (!isCompleted)
+              _buildDeleteButton(),
           ],
         ),
       );
     }
 
-    return const SizedBox.shrink();
+    if (actionWidgets.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: actionWidgets,
+    );
   }
 
   Widget _buildDeleteButton() {
@@ -883,8 +958,8 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
       },
       icon: const Icon(CupertinoIcons.trash, size: 18),
       label: const Text(
-        'RECALL EMERGENCY',
-        style: TextStyle(fontWeight: FontWeight.bold),
+        'RECALL EMERGENCY / அவசரநிலையை திரும்பப் பெறு',
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       ),
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFFDC2626),
@@ -1741,7 +1816,7 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
           bloc: context.read<EventBloc>(),
           builder: (context, state) {
             final goingList = state.emergencyResponses
-                .where((r) => r.status == 'COMING' || r.status == 'GOING')
+                .where((r) => r.status == 'COMING' || r.status == 'GOING' || r.status == 'ON_THE_WAY' || r.status == 'REACHED')
                 .toList();
             final notGoingList = state.emergencyResponses
                 .where((r) => r.status == 'UNABLE' || r.status == 'NOT_GOING')

@@ -120,19 +120,20 @@ class _MeScreenState extends State<MeScreen> {
   }
 
   void _logout() {
+    final loc = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Logout',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          loc.logout,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        content: const Text('Are you sure you want to logout?'),
+        content: Text(loc.logoutConfirmText),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(loc.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -151,9 +152,9 @@ class _MeScreenState extends State<MeScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
-              'Logout',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            child: Text(
+              loc.logout,
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -172,6 +173,7 @@ class _MeScreenState extends State<MeScreen> {
       body: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           final profile = state.loginData;
+          final loc = AppLocalizations.of(context)!;
 
           if (profile == null && state.isLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -179,7 +181,7 @@ class _MeScreenState extends State<MeScreen> {
 
           if (profile == null) {
             return _EmptyProfile(
-              message: state.error ?? 'Profile data not found',
+              message: state.error ?? loc.profileDataNotFound,
               onRetry: _refresh,
             );
           }
@@ -242,13 +244,13 @@ class _MeScreenState extends State<MeScreen> {
                         const SizedBox(height: 24),
 
                         // User info card
-                        _SectionLabel('User Information'),
+                        _SectionLabel(loc.userInformation),
                         const SizedBox(height: 12),
                         _UserInfoCard(profile: profile),
                         const SizedBox(height: 24),
 
                         // Quick actions
-                        _SectionLabel('Quick Actions'),
+                        _SectionLabel(loc.quickActions),
                         const SizedBox(height: 12),
                         _QuickActionsCard(
                           profile: profile,
@@ -258,7 +260,7 @@ class _MeScreenState extends State<MeScreen> {
                         const SizedBox(height: 24),
 
                         // Settings
-                        _SectionLabel('Settings'),
+                        _SectionLabel(loc.settings),
                         const SizedBox(height: 12),
                         _SettingsCard(onSnack: _showSnack),
                         const SizedBox(height: 12),
@@ -489,13 +491,14 @@ class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isApproved = profile.approvalStatus.toUpperCase() == 'APPROVED';
+    final loc = AppLocalizations.of(context)!;
 
     return Row(
       children: [
         Expanded(
           child: _StatCard(
-            label: 'Status',
-            value: isApproved ? 'Active' : 'Inactive',
+            label: loc.status,
+            value: isApproved ? loc.active : loc.inactive,
             icon: Icons.circle,
             iconColor: isApproved ? NTKColors.primary : const Color(0xFFF59E0B),
             valueColor: isApproved
@@ -506,7 +509,7 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _StatCard(
-            label: 'Role',
+            label: loc.role,
             value: _formatRole(profile.role),
             icon: _roleIcon(profile.role),
             iconColor: _roleColor(profile.role),
@@ -515,7 +518,7 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _StatCard(
-            label: 'Member ID',
+            label: loc.memberId,
             value: '#${profile.id}',
             icon: Icons.badge_rounded,
             iconColor: const Color(0xFF7C3AED),
@@ -616,6 +619,7 @@ class _UserInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor(profile.approvalStatus);
+    final loc = AppLocalizations.of(context)!;
 
     return Container(
       decoration: BoxDecoration(
@@ -635,7 +639,7 @@ class _UserInfoCard extends StatelessWidget {
             icon: Icons.badge_outlined,
             iconBg: const Color(0xFFEDE9FE),
             iconColor: const Color(0xFF7C3AED),
-            label: 'Member ID',
+            label: loc.memberId,
             value: '#${profile.id}',
             isFirst: true,
           ),
@@ -643,7 +647,7 @@ class _UserInfoCard extends StatelessWidget {
             icon: Icons.person_outline_rounded,
             iconBg: NTKColors.emerald50,
             iconColor: NTKColors.primary,
-            label: 'Full Name',
+            label: loc.fullName,
             value: [
               profile.name,
               if ((profile.surname ?? '').trim().isNotEmpty)
@@ -654,28 +658,28 @@ class _UserInfoCard extends StatelessWidget {
             icon: Icons.call_outlined,
             iconBg: const Color(0xFFEFF6FF),
             iconColor: const Color(0xFF2563EB),
-            label: 'Mobile Number',
+            label: loc.mobileNumber,
             value: profile.phone ?? '—',
           ),
           _InfoRow(
             icon: _roleIcon(profile.role),
             iconBg: _roleColor(profile.role).withValues(alpha: 0.1),
             iconColor: _roleColor(profile.role),
-            label: 'Role',
+            label: loc.role,
             value: _formatRole(profile.role),
           ),
           _InfoRow(
             icon: Icons.location_on_outlined,
             iconBg: const Color(0xFFFFF7ED),
             iconColor: const Color(0xFFF97316),
-            label: 'Location',
+            label: loc.location,
             value: profile.locationName ?? '—',
           ),
           _InfoRow(
             icon: Icons.fact_check_outlined,
             iconBg: statusColor.withValues(alpha: 0.1),
             iconColor: statusColor,
-            label: 'Approval Status',
+            label: loc.approvalStatus,
             value: _formatStatus(profile.approvalStatus),
             valueColor: statusColor,
           ),
@@ -683,7 +687,7 @@ class _UserInfoCard extends StatelessWidget {
             icon: Icons.group_add_outlined,
             iconBg: NTKColors.slate100,
             iconColor: NTKColors.textSecondary,
-            label: 'Added By',
+            label: loc.addedBy,
             value: profile.addedBy ?? '—',
             isLast: true,
           ),
@@ -786,6 +790,7 @@ class AccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isActive = profile.isActive ?? true;
     final isApproved = profile.approvalStatus.toUpperCase() == 'APPROVED';
+    final loc = AppLocalizations.of(context)!;
 
     // Profile completion
     int filled = 0;
@@ -821,9 +826,9 @@ class AccountCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Profile Completion',
-                  style: TextStyle(
+                Text(
+                  loc.profileCompletion,
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                     color: NTKColors.textPrimary,
@@ -863,8 +868,8 @@ class AccountCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: AccountStat(
-                    label: 'Account',
-                    value: isActive ? 'Active' : 'Inactive',
+                    label: loc.account,
+                    value: isActive ? loc.active : loc.inactive,
                     icon: Icons.radio_button_checked_rounded,
                     color: isActive
                         ? NTKColors.primary
@@ -874,8 +879,8 @@ class AccountCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: AccountStat(
-                    label: 'Verification',
-                    value: isApproved ? 'Verified' : 'Pending',
+                    label: loc.verification,
+                    value: isApproved ? loc.verified : loc.pending,
                     icon: isApproved
                         ? Icons.verified_rounded
                         : Icons.pending_rounded,
@@ -967,28 +972,28 @@ class _QuickActionsCard extends StatelessWidget {
         label: loc.editProfile,
         iconBg: NTKColors.emerald50,
         iconColor: NTKColors.primary,
-        onTap: () => onSnack('${loc.editProfile} coming soon'),
+        onTap: () => onSnack('${loc.editProfile} ${loc.comingSoon}'),
       ),
       _ActionItem(
         icon: Icons.lock_outline_rounded,
         label: loc.changePassword,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        onTap: () => onSnack('${loc.changePassword} coming soon'),
+        onTap: () => onSnack('${loc.changePassword} ${loc.comingSoon}'),
       ),
       _ActionItem(
         icon: Icons.location_on_outlined,
         label: loc.viewLocation,
         iconBg: const Color(0xFFFFF7ED),
         iconColor: const Color(0xFFF97316),
-        onTap: () => onSnack('${loc.viewLocation} coming soon'),
+        onTap: () => onSnack('${loc.viewLocation} ${loc.comingSoon}'),
       ),
       _ActionItem(
         icon: Icons.support_agent_rounded,
         label: loc.contactAdmin,
         iconBg: const Color(0xFFF5F3FF),
         iconColor: const Color(0xFF7C3AED),
-        onTap: () => onSnack('${loc.contactAdmin} coming soon'),
+        onTap: () => onSnack('${loc.contactAdmin} ${loc.comingSoon}'),
       ),
       _ActionItem(
         icon: Icons.logout_rounded,
@@ -1242,7 +1247,7 @@ class _SettingsCardState extends State<_SettingsCard> {
             iconBg: const Color(0xFFEFF6FF),
             iconColor: const Color(0xFF2563EB),
             label: loc.privacySettings,
-            onTap: () => widget.onSnack('${loc.privacySettings} coming soon'),
+            onTap: () => widget.onSnack('${loc.privacySettings} ${loc.comingSoon}'),
           ),
           _SettingsTile(
             icon: Icons.language_rounded,
@@ -1271,7 +1276,7 @@ class _SettingsCardState extends State<_SettingsCard> {
             iconBg: const Color(0xFFFFF7ED),
             iconColor: const Color(0xFFF97316),
             label: loc.helpSupport,
-            onTap: () => widget.onSnack('${loc.helpSupport} coming soon'),
+            onTap: () => widget.onSnack('${loc.helpSupport} ${loc.comingSoon}'),
             isLast: true,
           ),
         ],
@@ -1421,7 +1426,7 @@ class _EmptyProfile extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
+              label: Text(AppLocalizations.of(context)!.retry),
               style: ElevatedButton.styleFrom(
                 backgroundColor: NTKColors.primary,
                 foregroundColor: Colors.white,

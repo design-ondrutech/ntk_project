@@ -64,6 +64,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     if (role == 'SUB_ADMIN' && locationId != null) {
       // Sub Admin's locationId IS their Area — load streets directly
       _loadStreetsForSubAdmin(locationId);
+    } else if (role == 'ADMIN' && locationId != null) {
+      // Admin's locationId IS their Constituency — load areas directly
+      _loadAreasForAdmin(locationId);
     } else {
       _loadDistricts();
     }
@@ -87,6 +90,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       });
     } catch (_) {
       setState(() => _loadingDistricts = false);
+    }
+  }
+
+  Future<void> _loadAreasForAdmin(int constituencyId) async {
+    setState(() => _loadingAreas = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'AREA',
+        parentId: constituencyId,
+      );
+      setState(() {
+        _areas = list;
+        _loadingAreas = false;
+      });
+    } catch (_) {
+      setState(() => _loadingAreas = false);
     }
   }
 
@@ -251,6 +270,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     int? eventLocationId;
     if (userRole == 'SUB_ADMIN') {
       eventLocationId = _selectedStreet?.id ?? authState.loginData?.locationId;
+    } else if (userRole == 'ADMIN') {
+      eventLocationId = _selectedStreet?.id ?? _selectedArea?.id ?? authState.loginData?.locationId;
     } else {
       final finalLocation =
           _selectedStreet ??
@@ -416,6 +437,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     final authState = context.read<AuthBloc>().state;
                     final userRole = authState.loginData?.role ?? '';
                     final isSubAdmin = userRole == 'SUB_ADMIN';
+                    final isAdmin = userRole == 'ADMIN';
 
                     if (isSubAdmin) {
                       // Sub Admin: show only Street selector (Area is auto-set from their location)
@@ -437,7 +459,48 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       );
                     }
 
-                    // Non-Sub Admin: full hierarchy
+                    if (isAdmin) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFormLabel('State'),
+                          _buildDisabledField('Tamil Nadu'),
+                          const SizedBox(height: 16),
+                          _buildFormLabel('District'),
+                          _buildDisabledField('Your District'),
+                          const SizedBox(height: 16),
+                          _buildFormLabel('Constituency (Taluk)'),
+                          _buildDisabledField(authState.loginData?.locationName ?? 'Your Constituency'),
+                          const SizedBox(height: 16),
+                          _buildFormLabel('Area (Town)'),
+                          _loadingAreas
+                              ? _buildLoadingField('Area')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _areas,
+                                  value: _selectedArea,
+                                  onChanged: _onAreaChanged,
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Area',
+                                ),
+                          const SizedBox(height: 16),
+                          _buildFormLabel('Street'),
+                          _loadingStreets
+                              ? _buildLoadingField('Street')
+                              : _selectedArea == null
+                              ? _buildDisabledField('Select Area first')
+                              : _buildDropdownField<LocationModel>(
+                                  items: _streets,
+                                  value: _selectedStreet,
+                                  onChanged: (val) =>
+                                      setState(() => _selectedStreet = val),
+                                  itemLabel: (item) => item.name,
+                                  hintText: 'Select Street (Optional)',
+                                ),
+                        ],
+                      );
+                    }
+
+                    // Non-Sub Admin / Non-Admin: full hierarchy
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -508,7 +571,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                 onChanged: (val) =>
                                     setState(() => _selectedStreet = val),
                                 itemLabel: (item) => item.name,
-                                hintText: 'Select Street',
+                                hintText: 'Select Street (Optional)',
                               ),
                       ],
                     );

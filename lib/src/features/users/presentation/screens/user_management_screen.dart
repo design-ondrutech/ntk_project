@@ -1876,28 +1876,14 @@ class UserManagementScreenState extends State<UserManagementScreen> {
   Widget _buildListHeader(UserManagementState state) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
+      children: const [
+        Text(
           'Member List',
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
             color: Color(0xFF111827),
           ),
-        ),
-        Row(
-          children: [
-            const Text(
-              'Sort',
-              style: TextStyle(
-                fontSize: 12,
-                color: Color(0xFF6B7280),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.sort, size: 16, color: Colors.grey[600]),
-          ],
         ),
       ],
     );

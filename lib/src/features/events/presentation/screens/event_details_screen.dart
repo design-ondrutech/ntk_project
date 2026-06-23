@@ -679,7 +679,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                           const SizedBox(height: 16),
                           Builder(
                             builder: (context) {
-                              String? currentRsvpStatus = _localRsvpStatus;
+                              String? currentRsvpStatus = state.myEventResponses[updatedEvent.id] ?? _localRsvpStatus;
                               if (currentRsvpStatus == null &&
                                   state.eventResponses.isNotEmpty) {
                                 final serverResponse = state.eventResponses

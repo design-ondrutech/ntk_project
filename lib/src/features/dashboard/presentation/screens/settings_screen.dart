@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -11,63 +12,63 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(AppLocalizations.of(context)!.settings),
       ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          _buildSectionHeader('ACCOUNT'),
+          _buildSectionHeader(AppLocalizations.of(context)!.accountLabel),
           _buildSettingTile(
             context,
             icon: CupertinoIcons.person,
-            title: 'Edit Profile',
-            subtitle: 'Update your name, photo, and bio',
+            title: AppLocalizations.of(context)!.editProfile,
+            subtitle: AppLocalizations.of(context)!.updateProfileSub,
             onTap: () {},
           ),
           _buildSettingTile(
             context,
             icon: CupertinoIcons.lock,
-            title: 'Security',
-            subtitle: 'Change password and 2FA',
+            title: AppLocalizations.of(context)!.security,
+            subtitle: AppLocalizations.of(context)!.securitySub,
             onTap: () {},
           ),
           
           const SizedBox(height: 32),
-          _buildSectionHeader('PREFERENCES'),
+          _buildSectionHeader(AppLocalizations.of(context)!.preferencesLabel),
           _buildSettingTile(
             context,
             icon: CupertinoIcons.bell,
-            title: 'Notifications',
-            subtitle: 'Configure alerts and updates',
+            title: AppLocalizations.of(context)!.notifications,
+            subtitle: AppLocalizations.of(context)!.notificationsSub,
             onTap: () {},
           ),
           _buildSettingTile(
             context,
             icon: CupertinoIcons.globe,
-            title: 'Language',
-            subtitle: 'Tamil, English',
+            title: AppLocalizations.of(context)!.language,
+            subtitle: AppLocalizations.of(context)!.languageSub,
             onTap: () {},
           ),
           _buildSettingTile(
             context,
             icon: CupertinoIcons.moon,
-            title: 'Appearance',
-            subtitle: 'Light, Dark, System',
+            title: AppLocalizations.of(context)!.appearance,
+            subtitle: AppLocalizations.of(context)!.appearanceSub,
             onTap: () {},
           ),
 
           const SizedBox(height: 32),
-          _buildSectionHeader('SUPPORT'),
+          _buildSectionHeader(AppLocalizations.of(context)!.supportLabel),
           _buildSettingTile(
             context,
             icon: CupertinoIcons.question_circle,
-            title: 'Help Center',
+            title: AppLocalizations.of(context)!.helpCenter,
             onTap: () {},
           ),
           _buildSettingTile(
             context,
             icon: CupertinoIcons.info_circle,
-            title: 'About App',
+            title: AppLocalizations.of(context)!.aboutApp,
             onTap: () {},
           ),
           
@@ -79,7 +80,7 @@ class SettingsScreen extends StatelessWidget {
               foregroundColor: theme.colorScheme.error,
               elevation: 0,
             ),
-            child: const Text('LOGOUT'),
+            child: Text(AppLocalizations.of(context)!.logout),
           ),
           const SizedBox(height: 40),
         ],

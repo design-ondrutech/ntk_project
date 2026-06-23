@@ -12,8 +12,10 @@ import 'package:ntk_project/src/features/users/presentation/screens/user_managem
 import 'package:ntk_project/src/features/location/presentation/bloc/location_bloc.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
+import 'package:ntk_project/src/features/users/presentation/screens/pending_requests_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_widgets.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class SubAdminDashboard extends StatelessWidget {
   const SubAdminDashboard({super.key, required this.authState});
@@ -48,20 +50,20 @@ class SubAdminDashboard extends StatelessWidget {
               padding: const EdgeInsets.all(8.0),
               child: buildDashboardAvatar(context),
             ),
-            title: const Column(
+            title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'NTK Party',
-                  style: TextStyle(
+                  AppLocalizations.of(context)!.ntkParty,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
                 ),
                 Text(
-                  'SUB ADMIN PORTAL',
-                  style: TextStyle(
+                  AppLocalizations.of(context)!.subAdminPortal,
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -92,6 +94,12 @@ class SubAdminDashboard extends StatelessWidget {
                     context.read<DashboardBloc>().add(
                       LoadModerationStats(state.globalLocation?.id ?? authLocationId),
                     );
+                    context.read<PendingRequestsBloc>().add(
+                      LoadPendingRequests(
+                        locationId: state.globalLocation?.id ?? authLocationId,
+                        role: 'MEMBER',
+                      ),
+                    );
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -116,7 +124,7 @@ class SubAdminDashboard extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Vanakkam, $name! 👋',
+                                        AppLocalizations.of(context)!.vanakkam(name),
                                         style: const TextStyle(
                                           fontSize: 22,
                                           fontWeight: FontWeight.bold,
@@ -155,11 +163,11 @@ class SubAdminDashboard extends StatelessWidget {
                         ),
                         
                         // Today's Activity Section
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Text(
-                            "Today's Activity",
-                            style: TextStyle(
+                            AppLocalizations.of(context)!.todaysActivity,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E293B),
@@ -173,9 +181,9 @@ class SubAdminDashboard extends StatelessWidget {
                           cards: [
                             _buildActivityCard(
                               context: context,
-                              title: 'New Members',
+                              title: AppLocalizations.of(context)!.newMembers,
                               value: '${stats?.newMembersToday ?? 0}',
-                              subtext: 'Registered today',
+                              subtext: AppLocalizations.of(context)!.registeredToday,
                               icon: Icons.person_add_outlined,
                               color: const Color(0xFF004D2A),
                               onTap: () {
@@ -185,9 +193,9 @@ class SubAdminDashboard extends StatelessWidget {
                             ),
                             _buildActivityCard(
                               context: context,
-                              title: 'Approved Today',
+                              title: AppLocalizations.of(context)!.approvedToday,
                               value: '${stats?.approvedToday ?? 0}',
-                              subtext: 'Approved today',
+                              subtext: AppLocalizations.of(context)!.approvedToday,
                               icon: Icons.how_to_reg_outlined,
                               color: const Color(0xFF10B981),
                               onTap: () {
@@ -197,25 +205,25 @@ class SubAdminDashboard extends StatelessWidget {
                             ),
                             _buildActivityCard(
                               context: context,
-                              title: 'Total Towns',
+                              title: AppLocalizations.of(context)!.totalTowns,
                               value: '${stats?.totalTowns ?? 0}',
-                              subtext: 'Total towns in scope',
+                              subtext: AppLocalizations.of(context)!.totalTownsScope,
                               icon: Icons.location_city_outlined,
                               color: const Color(0xFF2563EB),
                             ),
                             _buildActivityCard(
                               context: context,
-                              title: 'Total Streets',
+                              title: AppLocalizations.of(context)!.totalStreets,
                               value: '${stats?.totalStreets ?? 0}',
-                              subtext: 'Total streets in scope',
+                              subtext: AppLocalizations.of(context)!.totalStreetsScope,
                               icon: Icons.streetview_outlined,
                               color: const Color(0xFFD97706),
                             ),
                             _buildActivityCard(
                               context: context,
-                              title: 'Active Events',
+                              title: AppLocalizations.of(context)!.activeEvents,
                               value: '${stats?.activeEvents ?? 0}',
-                              subtext: 'Upcoming events',
+                              subtext: AppLocalizations.of(context)!.upcomingEvents,
                               icon: Icons.calendar_today_outlined,
                               color: const Color(0xFF2563EB),
                               onTap: () {
@@ -225,9 +233,9 @@ class SubAdminDashboard extends StatelessWidget {
                             ),
                             _buildActivityCard(
                               context: context,
-                              title: 'Emergency Requests',
+                              title: AppLocalizations.of(context)!.emergencyRequests,
                               value: '${stats?.emergencyRequests ?? 0}',
-                              subtext: 'Active alerts',
+                              subtext: AppLocalizations.of(context)!.activeAlerts,
                               icon: Icons.warning_amber_rounded,
                               color: const Color(0xFFEF4444),
                               onTap: () {
@@ -237,9 +245,9 @@ class SubAdminDashboard extends StatelessWidget {
                             ),
                             _buildActivityCard(
                               context: context,
-                              title: 'Active Broadcasts',
+                              title: AppLocalizations.of(context)!.activeBroadcasts,
                               value: '${stats?.activeBroadcasts ?? 0}',
-                              subtext: 'Active broadcasts',
+                              subtext: AppLocalizations.of(context)!.activeBroadcasts,
                               icon: Icons.campaign_outlined,
                               color: const Color(0xFF8B5CF6),
                               onTap: () {
@@ -259,9 +267,9 @@ class SubAdminDashboard extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'Reported Posts',
-                                  style: TextStyle(
+                                Text(
+                                  AppLocalizations.of(context)!.reportedPosts,
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF1E293B),
@@ -279,7 +287,7 @@ class SubAdminDashboard extends StatelessWidget {
                                         const Icon(Icons.warning_rounded, size: 14, color: Colors.red),
                                         const SizedBox(width: 4),
                                         Text(
-                                          '${state.moderationStats?.highPriority} High Priority',
+                                          AppLocalizations.of(context)!.highPriority(state.moderationStats!.highPriority),
                                           style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
                                         ),
                                       ],
@@ -321,7 +329,7 @@ class SubAdminDashboard extends StatelessWidget {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Pending Reviews',
+                                              AppLocalizations.of(context)!.pendingReviews,
                                               style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
                                             ),
                                             const SizedBox(height: 4),
@@ -340,7 +348,7 @@ class SubAdminDashboard extends StatelessWidget {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Total Reports',
+                                              AppLocalizations.of(context)!.totalReports,
                                               style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
                                             ),
                                             const SizedBox(height: 4),
@@ -362,12 +370,152 @@ class SubAdminDashboard extends StatelessWidget {
                         ],
 
 
+                        // Pending Requests Section
+                        BlocBuilder<PendingRequestsBloc, PendingRequestsState>(
+                          builder: (context, pendingState) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        AppLocalizations.of(context)!.pendingRequests,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                      if (pendingState.requests.isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEF4444).withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Text(
+                                            '${pendingState.requests.length} ${AppLocalizations.of(context)!.pendingRequests}',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Color(0xFFEF4444),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  GestureDetector(
+                                    onTap: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const PendingRequestsScreen(),
+                                        ),
+                                      );
+                                      if (context.mounted) {
+                                        context.read<PendingRequestsBloc>().add(
+                                          LoadPendingRequests(
+                                            locationId: state.globalLocation?.id ?? authLocationId,
+                                            role: 'MEMBER',
+                                          ),
+                                        );
+                                        context.read<DashboardBloc>().add(
+                                          LoadDashboardStats(state.globalLocation?.id ?? authLocationId),
+                                        );
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: const Color(0xFFF1F5F9)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.03),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: pendingState.isLoading
+                                          ? const Center(
+                                              child: Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                              ),
+                                            )
+                                          : Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.all(10),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(0xFFD97706).withOpacity(0.1),
+                                                        borderRadius: BorderRadius.circular(12),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.pending_actions_outlined,
+                                                        color: Color(0xFFD97706),
+                                                        size: 20,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 16),
+                                                    Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(
+                                                          pendingState.requests.isEmpty
+                                                              ? AppLocalizations.of(context)!.noPendingRequests
+                                                              : AppLocalizations.of(context)!.membersWaiting(pendingState.requests.length),
+                                                          style: const TextStyle(
+                                                            fontWeight: FontWeight.bold,
+                                                            fontSize: 15,
+                                                            color: Color(0xFF1E293B),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(height: 2),
+                                                        Text(
+                                                          pendingState.requests.isEmpty
+                                                              ? AppLocalizations.of(context)!.allRequestsProcessed
+                                                              : AppLocalizations.of(context)!.tapToReviewAndApprove,
+                                                          style: const TextStyle(
+                                                            fontSize: 12,
+                                                            color: Color(0xFF94A3B8),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                                const Icon(
+                                                  Icons.chevron_right_rounded,
+                                                  color: Color(0xFF94A3B8),
+                                                  size: 20,
+                                                ),
+                                              ],
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 28),
+
                         // Quick Actions Section
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Text(
-                            'Quick Actions',
-                            style: TextStyle(
+                            AppLocalizations.of(context)!.quickActions,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E293B),
@@ -382,7 +530,7 @@ class SubAdminDashboard extends StatelessWidget {
                           child: Column(
                             children: [
                               _buildQuickActionCard(
-                                label: 'Add Member',
+                                label: AppLocalizations.of(context)!.addMember,
                                 icon: Icons.person_add_alt_1_outlined,
                                 color: const Color(0xFF2563EB),
                                 onTap: () async {
@@ -393,7 +541,7 @@ class SubAdminDashboard extends StatelessWidget {
                                 },
                               ),
                               _buildQuickActionCard(
-                                label: 'Broadcast',
+                                label: AppLocalizations.of(context)!.broadcast,
                                 icon: Icons.campaign_outlined,
                                 color: const Color(0xFF10B981),
                                 onTap: () {
@@ -402,7 +550,7 @@ class SubAdminDashboard extends StatelessWidget {
                                 },
                               ),
                               _buildQuickActionCard(
-                                label: 'Event',
+                                label: AppLocalizations.of(context)!.event,
                                 icon: Icons.event_note_outlined,
                                 color: const Color(0xFF2563EB),
                                 onTap: () {
@@ -411,7 +559,7 @@ class SubAdminDashboard extends StatelessWidget {
                                 },
                               ),
                               _buildQuickActionCard(
-                                label: 'Emergency',
+                                label: AppLocalizations.of(context)!.emergency,
                                 icon: Icons.warning_amber_rounded,
                                 color: const Color(0xFFEF4444),
                                 onTap: () {
@@ -420,7 +568,7 @@ class SubAdminDashboard extends StatelessWidget {
                                 },
                               ),
                               _buildQuickActionCard(
-                                label: 'Community',
+                                label: AppLocalizations.of(context)!.community,
                                 icon: Icons.forum_outlined,
                                 color: const Color(0xFF8B5CF6),
                                 onTap: () => MainScreen.of(context)?.setSelectedIndex(3),

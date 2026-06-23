@@ -213,9 +213,7 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
 
       try {
         // 2. Call API
-        final newLikesFromServer = isCurrentlyLiked 
-            ? await _repository.unlikePost(id: event.postId)
-            : await _repository.likePost(id: event.postId);
+        final newLikesFromServer = await _repository.likePost(id: event.postId);
 
       // 3. Sync with server (only update likes count)
       final syncedPosts = state.posts.map((post) {

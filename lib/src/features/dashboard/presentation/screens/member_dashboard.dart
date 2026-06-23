@@ -9,6 +9,7 @@ import 'package:ntk_project/src/features/notifications/presentation/bloc/notific
 import 'package:ntk_project/src/features/notifications/presentation/bloc/notification_state.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/main_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class MemberDashboard extends StatelessWidget {
   const MemberDashboard({super.key, required this.authState});
@@ -45,20 +46,20 @@ class MemberDashboard extends StatelessWidget {
                 ),
               ),
             ),
-            title: const Column(
+            title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'NTK Party',
-                  style: TextStyle(
+                  AppLocalizations.of(context)!.ntkParty,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
                 ),
                 Text(
-                  'Member Dashboard',
-                  style: TextStyle(
+                  AppLocalizations.of(context)!.memberDashboard,
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -124,7 +125,7 @@ class MemberDashboard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Vanakkam, $name! 👋',
+                                AppLocalizations.of(context)!.vanakkam(name),
                                 style: const TextStyle(
                                   fontSize: 26,
                                   fontWeight: FontWeight.bold,
@@ -161,11 +162,11 @@ class MemberDashboard extends StatelessWidget {
                         const SizedBox(height: 24),
                         
                         // Today's Highlights section
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20.0),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
                           child: Text(
-                            "Today's Highlights",
-                            style: TextStyle(
+                            AppLocalizations.of(context)!.todaysHighlights,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E293B),
@@ -178,23 +179,23 @@ class MemberDashboard extends StatelessWidget {
                         DashboardCarousel(
                           cards: [
                             _buildHighlightCard(
-                              title: 'Total Members',
+                              title: AppLocalizations.of(context)!.totalMembers,
                               value: stats != null ? '${stats.totalMembers}' : '11',
-                              subtext: 'Total Members',
+                              subtext: AppLocalizations.of(context)!.totalMembers,
                               icon: Icons.people_outline_rounded,
                               color: const Color(0xFF10B981),
                             ),
                             _buildHighlightCard(
-                              title: 'Upcoming Events',
+                              title: AppLocalizations.of(context)!.upcomingEvents,
                               value: stats != null ? '${stats.activeEvents}' : '2',
-                              subtext: 'Upcoming Events',
+                              subtext: AppLocalizations.of(context)!.upcomingEvents,
                               icon: Icons.calendar_today_outlined,
                               color: const Color(0xFF2563EB),
                             ),
                             _buildHighlightCard(
-                              title: 'Active Alerts',
+                              title: AppLocalizations.of(context)!.activeAlerts,
                               value: stats != null ? '${stats.emergencyRequests}' : '0',
-                              subtext: 'Active Alerts',
+                              subtext: AppLocalizations.of(context)!.activeAlerts,
                               icon: Icons.warning_amber_rounded,
                               color: const Color(0xFFEF4444),
                             ),
@@ -204,11 +205,11 @@ class MemberDashboard extends StatelessWidget {
                         const SizedBox(height: 28),
                         
                         // Quick Actions section
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 20.0),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
                           child: Text(
-                            'Quick Actions',
-                            style: TextStyle(
+                            AppLocalizations.of(context)!.quickActions,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E293B),
@@ -228,7 +229,7 @@ class MemberDashboard extends StatelessWidget {
                                 context: context,
                                 icon: Icons.campaign_outlined,
                                 color: const Color(0xFF8B5CF6),
-                                label: 'Broadcasts',
+                                label: AppLocalizations.of(context)!.broadcasts,
                                 onTap: () {
                                   MainScreen.of(context)?.setSelectedIndex(1);
                                   EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 1);
@@ -238,7 +239,7 @@ class MemberDashboard extends StatelessWidget {
                                 context: context,
                                 icon: Icons.calendar_today_outlined,
                                 color: const Color(0xFF2563EB),
-                                label: 'Events',
+                                label: AppLocalizations.of(context)!.events,
                                 onTap: () {
                                   MainScreen.of(context)?.setSelectedIndex(1);
                                   EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(1);
@@ -248,21 +249,21 @@ class MemberDashboard extends StatelessWidget {
                                 context: context,
                                 icon: Icons.warning_amber_rounded,
                                 color: const Color(0xFFEF4444),
-                                label: 'Emergency',
+                                label: AppLocalizations.of(context)!.emergency,
                                 onTap: () => Navigator.pushNamed(context, '/create_announcement'),
                               ),
                               _buildCircleActionButton(
                                 context: context,
                                 icon: Icons.forum_outlined,
                                 color: const Color(0xFF10B981),
-                                label: 'Community',
+                                label: AppLocalizations.of(context)!.community,
                                 onTap: () => MainScreen.of(context)?.setSelectedIndex(2),
                               ),
                               _buildCircleActionButton(
                                 context: context,
                                 icon: Icons.person_outline_rounded,
                                 color: const Color(0xFF64748B),
-                                label: 'My Profile',
+                                label: AppLocalizations.of(context)!.myProfile,
                                 onTap: () => MainScreen.of(context)?.setSelectedIndex(3),
                               ),
                             ],
@@ -277,9 +278,9 @@ class MemberDashboard extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'Recent Updates',
-                                style: TextStyle(
+                              Text(
+                                AppLocalizations.of(context)!.recentUpdates,
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF1E293B),
@@ -287,9 +288,9 @@ class MemberDashboard extends StatelessWidget {
                               ),
                               TextButton(
                                 onPressed: () => MainScreen.of(context)?.setSelectedIndex(1),
-                                child: const Text(
-                                  'View All',
-                                  style: TextStyle(
+                                child: Text(
+                                  AppLocalizations.of(context)!.viewAll,
+                                  style: const TextStyle(
                                     color: Color(0xFF004D2A),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -509,8 +510,8 @@ class MemberDashboard extends StatelessWidget {
   Widget _buildRecentUpdatesSection(BuildContext context, DashboardState state) {
     if (state.recentActivity.isEmpty) {
       return _buildRecentUpdateCard(
-        title: 'New Event Added',
-        subtitle: 'District meeting scheduled for this weekend',
+        title: AppLocalizations.of(context)!.newEventAdded,
+        subtitle: AppLocalizations.of(context)!.districtMeetingScheduled,
         time: '2 hrs ago',
       );
     }
@@ -520,11 +521,11 @@ class MemberDashboard extends StatelessWidget {
       children: list.map((act) {
         final title = act.title?.isNotEmpty == true ? act.title! : act.details;
         final subtitle = act.action == 'EVENT'
-            ? 'New Event Scheduled'
+            ? AppLocalizations.of(context)!.newEventScheduled
             : act.action == 'EMERGENCY'
-                ? 'Emergency Alert Created'
+                ? AppLocalizations.of(context)!.emergencyAlertCreated
                 : act.action == 'BROADCAST'
-                    ? 'New Broadcast Sent'
+                    ? AppLocalizations.of(context)!.newBroadcastSent
                     : act.details;
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),

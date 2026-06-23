@@ -33,11 +33,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context.read<DashboardBloc>().add(
         LoadModerationStats(locationId),
       );
+      final role = loginData.role;
       context.read<PendingRequestsBloc>().add(
-        LoadPendingRequests(locationId: locationId),
+        LoadPendingRequests(
+          locationId: locationId,
+          role: role == 'SUB_ADMIN' ? 'MEMBER' : 'All',
+        ),
       );
       
-      final role = loginData.role;
       if (role == 'ADMIN' && locationId != null) {
         // Load constituencies under the Admin's district
         context.read<LocationBloc>().add(DistrictSelected(locationId));

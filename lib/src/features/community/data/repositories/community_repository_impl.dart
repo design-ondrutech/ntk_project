@@ -144,7 +144,6 @@ class CommunityRepositoryImpl implements CommunityRepository {
       query GetCommunityPosts($communityId: Int!, $category: String) {
         getCommunityPosts(communityId: $communityId, category: $category) {
           id
-          title
           content
           category
           image
@@ -510,7 +509,6 @@ class CommunityRepositoryImpl implements CommunityRepository {
           locationId: $locationId
         ) {
           id
-          title
           content
           category
           image
@@ -575,7 +573,6 @@ class CommunityRepositoryImpl implements CommunityRepository {
           documents: $documents
         ) {
           id
-          title
           content
           category
           images
@@ -1203,9 +1200,8 @@ class CommunityRepositoryImpl implements CommunityRepository {
           createdAt
           expiresAt
           userVoteOptionId
-          likes
           isLiked
-          commentCount
+          commentsCount
           options {
             id
             text

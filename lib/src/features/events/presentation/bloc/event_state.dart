@@ -16,6 +16,15 @@ class EventState extends Equatable {
   final String? error;
   final String? message;
 
+  /// Locally tracks which emergencies the current user has responded to.
+  /// Key: emergencyRequestId, Value: response status (e.g. 'COMING', 'UNABLE')
+  /// Persists across back/forward navigation for the current app session.
+  final Map<String, String> myEmergencyResponses;
+
+  /// Locally tracks which events the current user has responded to.
+  /// Key: eventId, Value: response status (e.g. 'GOING', 'MAYBE', 'NOT_GOING')
+  final Map<String, String> myEventResponses;
+
   const EventState({
     this.isLoading = false,
     this.isResponsesLoading = false,
@@ -23,6 +32,8 @@ class EventState extends Equatable {
     this.emergencies = const [],
     this.eventResponses = const [],
     this.emergencyResponses = const [],
+    this.myEmergencyResponses = const {},
+    this.myEventResponses = const {},
     this.error,
     this.message,
   });
@@ -34,6 +45,8 @@ class EventState extends Equatable {
     List<EmergencyModel>? emergencies,
     List<EventResponseModel>? eventResponses,
     List<EmergencyResponseModel>? emergencyResponses,
+    Map<String, String>? myEmergencyResponses,
+    Map<String, String>? myEventResponses,
     String? error,
     String? message,
     bool clearError = false,
@@ -46,6 +59,8 @@ class EventState extends Equatable {
       emergencies: emergencies ?? this.emergencies,
       eventResponses: eventResponses ?? this.eventResponses,
       emergencyResponses: emergencyResponses ?? this.emergencyResponses,
+      myEmergencyResponses: myEmergencyResponses ?? this.myEmergencyResponses,
+      myEventResponses: myEventResponses ?? this.myEventResponses,
       error: clearError ? null : (error ?? this.error),
       message: clearMessage ? null : (message ?? this.message),
     );
@@ -59,6 +74,8 @@ class EventState extends Equatable {
     emergencies,
     eventResponses,
     emergencyResponses,
+    myEmergencyResponses,
+    myEventResponses,
     error,
     message,
   ];

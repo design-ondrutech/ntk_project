@@ -92,7 +92,7 @@ class PollModel extends Equatable {
       createdBy: json['createdBy'] as Map<String, dynamic>?,
       member: json['member'] as Map<String, dynamic>?,
       likes: json['likes'] as int? ?? 0,
-      commentCount: json['commentCount'] as int? ?? 0,
+      commentCount: (json['commentsCount'] ?? json['commentCount']) as int? ?? 0,
       isLiked: json['isLiked'] as bool? ?? false,
     );
   }

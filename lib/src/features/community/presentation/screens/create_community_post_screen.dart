@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_event.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_state.dart';
@@ -18,15 +21,36 @@ class CreateCommunityPostScreen extends StatefulWidget {
 class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
-  // Placeholders for attachments
-  List<String> _attachedImages = [];
-  List<String> _attachedDocuments = [];
+  final _picker = ImagePicker();
+
+  final List<File> _pickedImages = [];
+  final List<String> _attachedDocuments = [];
 
   @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final List<XFile> files = await _picker.pickMultiImage(imageQuality: 80);
+      if (files.isEmpty) return;
+      setState(() {
+        _pickedImages.addAll(files.map((f) => File(f.path)));
+      });
+    } catch (e) {
+      if (mounted) {
+        NTKSnackbar.showError(context, message: 'Could not open gallery. Please try again.');
+      }
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _pickedImages.removeAt(index);
+    });
   }
 
   void _submitPost() {
@@ -41,15 +65,18 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final user = context.read<AuthBloc>().state.loginData;
     if (user == null) return;
 
+    // Convert picked image files to paths (server will handle upload separately if needed)
+    final imagePaths = _pickedImages.map((f) => f.path).toList();
+
     context.read<CommunityPostsBloc>().add(
       CreateCommunityPostEvent(
         communityId: widget.communityId,
         title: title,
         content: content,
-        category: null, // As per UI design, no category selection
-        images: _attachedImages.isNotEmpty ? _attachedImages : null,
+        category: null,
+        images: imagePaths.isNotEmpty ? imagePaths : null,
         documents: _attachedDocuments.isNotEmpty ? _attachedDocuments : null,
-      )
+      ),
     );
   }
 
@@ -155,87 +182,81 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _attachedImages.add('dummy_image_url');
-                        });
-                        NTKSnackbar.showNotification(context, message: 'Dummy image attached');
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: const Column(
-                          children: [
-                            Icon(Icons.image, color: Color(0xFF008955), size: 32),
-                            SizedBox(height: 8),
-                            Text(
-                              'Image',
-                              style: TextStyle(color: Color(0xFF008955), fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+
+              // Image button only (Document hidden)
+              InkWell(
+                onTap: _pickImage,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _attachedDocuments.add('dummy_doc_url');
-                        });
-                        NTKSnackbar.showNotification(context, message: 'Dummy document attached');
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: const Column(
-                          children: [
-                            Icon(Icons.description, color: Color(0xFF3B82F6), size: 32),
-                            SizedBox(height: 8),
-                            Text(
-                              'Document',
-                              style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.image, color: Color(0xFF008955), size: 32),
+                      SizedBox(height: 8),
+                      Text(
+                        'Image',
+                        style: TextStyle(color: Color(0xFF008955), fontWeight: FontWeight.w600),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: Text(
-                  'PDF, DOC, DOCX (Max 10MB)',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                 ),
               ),
 
-              if (_attachedImages.isNotEmpty || _attachedDocuments.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ..._attachedImages.map((e) => const Chip(label: Text('Image Attached'), avatar: Icon(Icons.image))),
-                    ..._attachedDocuments.map((e) => const Chip(label: Text('Document Attached'), avatar: Icon(Icons.picture_as_pdf))),
-                  ],
+              // Image Previews
+              if (_pickedImages.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                const Text(
+                  'Selected Images',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 90,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _pickedImages.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    itemBuilder: (context, index) {
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.file(
+                              _pickedImages[index],
+                              width: 90,
+                              height: 90,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: -6,
+                            right: -6,
+                            child: GestureDetector(
+                              onTap: () => _removeImage(index),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                padding: const EdgeInsets.all(3),
+                                child: const Icon(Icons.close, size: 14, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ],
+
               const SizedBox(height: 40),
             ],
           ),
@@ -253,8 +274,15 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: state.isLoading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Post', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Post',
+                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 );
               },
             ),

@@ -149,9 +149,14 @@ class EventBloc extends Bloc<EventEvent, EventState> {
         ));
       }
       
-      // Emit optimistic state immediately
-      emit(state.copyWith(eventResponses: optimisticResponses));
+      final updatedMyResponses = Map<String, String>.from(state.myEventResponses);
+      updatedMyResponses[event.eventId] = event.status;
 
+      // Emit optimistic state immediately
+      emit(state.copyWith(
+        eventResponses: optimisticResponses,
+        myEventResponses: updatedMyResponses,
+      ));
       await _eventRepository.respondToEvent(
         eventId: event.eventId,
         memberId: event.memberId,
@@ -214,6 +219,47 @@ class EventBloc extends Bloc<EventEvent, EventState> {
     RespondToEmergency event,
     Emitter<EventState> emit,
   ) async {
+    // ── Optimistic update: reflect response immediately in UI ──
+    final optimisticUserId = event.userId ?? '__optimistic__';
+
+    // Build a temporary local response so buttons disable instantly
+    final tempResponse = EmergencyResponseModel(
+      status: event.status,
+      member: EmergencyMemberModel(id: optimisticUserId, name: 'You', phone: ''),
+    );
+    final optimisticList = [...state.emergencyResponses, tempResponse];
+
+    // Update counters optimistically on the emergency card
+    final updatedEmergencies = state.emergencies.map((e) {
+      if (e.id == event.emergencyRequestId) {
+        int newGoing = e.going;
+        int newMaybe = e.maybe;
+        int newNotGoing = e.notGoing;
+        if (event.status == 'COMING' || event.status == 'GOING') {
+          newGoing++;
+        } else if (event.status == 'MAYBE') {
+          newMaybe++;
+        } else if (event.status == 'UNABLE' || event.status == 'NOT_GOING') {
+          newNotGoing++;
+        }
+        return e.copyWith(going: newGoing, maybe: newMaybe, notGoing: newNotGoing);
+      }
+      return e;
+    }).toList();
+
+    // Persist response locally in map
+    final updatedMyResponses = Map<String, String>.from(state.myEmergencyResponses);
+    updatedMyResponses[event.emergencyRequestId] = event.status;
+
+    // Emit optimistic state IMMEDIATELY (button disables, UI updates)
+    emit(state.copyWith(
+      emergencies: updatedEmergencies,
+      emergencyResponses: optimisticList,
+      myEmergencyResponses: updatedMyResponses,
+      message: 'Successfully responded to emergency',
+      clearError: true,
+    ));
+
     try {
       await _eventRepository.respondToEmergency(
         emergencyRequestId: event.emergencyRequestId,
@@ -221,50 +267,25 @@ class EventBloc extends Bloc<EventEvent, EventState> {
         note: event.note,
       );
 
-      final updatedEmergencies = state.emergencies.map((e) {
-        if (e.id == event.emergencyRequestId) {
-          int newGoing = e.going;
-          int newMaybe = e.maybe;
-          int newNotGoing = e.notGoing;
-
-          if (event.status == 'COMING' || event.status == 'GOING') {
-            newGoing++;
-          } else if (event.status == 'MAYBE') {
-            newMaybe++;
-          } else if (event.status == 'UNABLE' || event.status == 'NOT_GOING') {
-            newNotGoing++;
-          }
-
-          return e.copyWith(
-            going: newGoing,
-            maybe: newMaybe,
-            notGoing: newNotGoing,
-          );
-        }
-        return e;
-      }).toList();
-
+      // Silently refresh actual responses from server in background
       final responses = await _eventRepository.getEmergencyResponses(
         emergencyRequestId: event.emergencyRequestId,
       );
-
-      emit(
-        state.copyWith(
-          emergencies: updatedEmergencies,
-          emergencyResponses: responses,
-          message: 'Successfully responded to emergency',
-          clearError: true,
-        ),
-      );
+      emit(state.copyWith(
+        emergencyResponses: responses,
+        clearError: true,
+      ));
     } catch (e) {
-      emit(
-        state.copyWith(
-          error: 'Failed to respond: ${e.toString()}',
-          clearMessage: true,
-        ),
-      );
+      // Rollback optimistic update on failure
+      emit(state.copyWith(
+        emergencies: state.emergencies,
+        emergencyResponses: state.emergencyResponses,
+        error: 'Failed to respond: ${e.toString()}',
+        clearMessage: true,
+      ));
     }
   }
+
 
   Future<void> _onCreateEvent(
     CreateEvent event,

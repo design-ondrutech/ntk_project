@@ -543,45 +543,13 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                               ),
                             ],
                           ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.search_rounded, color: _text),
-                                onPressed: () {},
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.filter_list_rounded, color: _text),
-                                onPressed: () {},
-                              ),
-                            ],
-                          ),
+                          // Search and filter icons hidden
+                          const SizedBox.shrink(),
                         ],
                       ),
                       const SizedBox(height: 24),
-                      // 2. Search Section
-                      TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search Communities',
-                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF9CA3AF)),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(99),
-                            borderSide: const BorderSide(color: _line),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(99),
-                            borderSide: const BorderSide(color: _line),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(99),
-                            borderSide: const BorderSide(color: _primary),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
+                      // Search bar hidden
+                      const SizedBox.shrink(),
                       // 3. My Groups Section
                       if (myGroups.isNotEmpty) ...[
                         const Text(

@@ -110,10 +110,16 @@ class EmergencyModel {
     );
   }
 
-  bool isCreatedBy(int? userId) {
-    if (userId == null) return false;
-    if (creatorId == userId || creatorId?.toString() == userId.toString()) return true;
-    if (createdById == userId || createdById?.toString() == userId.toString()) return true;
+  bool isCreatedBy(int? userId, {String? userName}) {
+    if (userId != null) {
+      if (creatorId == userId || creatorId?.toString() == userId.toString()) return true;
+      if (createdById == userId || createdById?.toString() == userId.toString()) return true;
+    }
+    if (userName != null && userName.isNotEmpty && createdBy != null && createdBy!.isNotEmpty) {
+      final uname = userName.toLowerCase().trim();
+      final cname = createdBy!.toLowerCase().trim();
+      if (uname == cname || cname.contains(uname)) return true;
+    }
     return false;
   }
 

@@ -15,6 +15,7 @@ import 'package:ntk_project/src/features/location/presentation/bloc/location_sta
 import 'package:ntk_project/src/features/location/presentation/bloc/location_event.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key, required this.authState});
@@ -64,7 +65,7 @@ class AdminDashboard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Vanakkam, $name! 👋',
+                                  AppLocalizations.of(context)!.vanakkam(name),
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
@@ -102,23 +103,12 @@ class AdminDashboard extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Today's Activity",
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.of(context)!.todaysActivity,
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1E293B),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text(
-                            'View All >',
-                            style: TextStyle(
-                              color: Color(0xFF004D2A),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
                           ),
                         ),
                       ],
@@ -129,9 +119,9 @@ class AdminDashboard extends StatelessWidget {
                     height: 135,
                     cards: [
                       _buildActivityCard(
-                        title: 'New Members',
+                        title: AppLocalizations.of(context)!.newMembers,
                         value: '${stats?.newMembersToday ?? 0}',
-                        subtext: 'Registered today',
+                        subtext: AppLocalizations.of(context)!.registeredToday,
                         icon: Icons.person_add_outlined,
                         color: const Color(0xFF004D2A),
                         onTap: () {
@@ -140,9 +130,9 @@ class AdminDashboard extends StatelessWidget {
                         },
                       ),
                       _buildActivityCard(
-                        title: 'Approved Today',
+                        title: AppLocalizations.of(context)!.approvedToday,
                         value: '${stats?.approvedToday ?? 0}',
-                        subtext: 'Approved today',
+                        subtext: AppLocalizations.of(context)!.approvedToday,
                         icon: Icons.how_to_reg_outlined,
                         color: const Color(0xFF10B981),
                         onTap: () {
@@ -151,23 +141,23 @@ class AdminDashboard extends StatelessWidget {
                         },
                       ),
                       _buildActivityCard(
-                        title: 'Total Towns',
+                        title: AppLocalizations.of(context)!.totalTowns,
                         value: '${stats?.totalTowns ?? 0}',
-                        subtext: 'Total towns in scope',
+                        subtext: AppLocalizations.of(context)!.totalTownsScope,
                         icon: Icons.location_city_outlined,
                         color: const Color(0xFF2563EB),
                       ),
                       _buildActivityCard(
-                        title: 'Total Streets',
+                        title: AppLocalizations.of(context)!.totalStreets,
                         value: '${stats?.totalStreets ?? 0}',
-                        subtext: 'Total streets in scope',
+                        subtext: AppLocalizations.of(context)!.totalStreetsScope,
                         icon: Icons.streetview_outlined,
                         color: const Color(0xFFD97706),
                       ),
                       _buildActivityCard(
-                        title: 'Active Events',
+                        title: AppLocalizations.of(context)!.activeEvents,
                         value: '${stats?.activeEvents ?? 0}',
-                        subtext: 'Upcoming events',
+                        subtext: AppLocalizations.of(context)!.upcomingEvents,
                         icon: Icons.calendar_today_outlined,
                         color: const Color(0xFF2563EB),
                         onTap: () {
@@ -176,9 +166,9 @@ class AdminDashboard extends StatelessWidget {
                         },
                       ),
                       _buildActivityCard(
-                        title: 'Emergency Requests',
+                        title: AppLocalizations.of(context)!.emergencyRequests,
                         value: '${stats?.emergencyRequests ?? 0}',
-                        subtext: 'Active alerts',
+                        subtext: AppLocalizations.of(context)!.activeAlerts,
                         icon: Icons.warning_amber_rounded,
                         color: const Color(0xFFEF4444),
                         onTap: () {
@@ -187,9 +177,9 @@ class AdminDashboard extends StatelessWidget {
                         },
                       ),
                       _buildActivityCard(
-                        title: 'Active Broadcasts',
+                        title: AppLocalizations.of(context)!.activeBroadcasts,
                         value: '${stats?.activeBroadcasts ?? 0}',
-                        subtext: 'Active broadcasts',
+                        subtext: AppLocalizations.of(context)!.activeBroadcasts,
                         icon: Icons.campaign_outlined,
                         color: const Color(0xFF8B5CF6),
                         onTap: () {
@@ -207,33 +197,33 @@ class AdminDashboard extends StatelessWidget {
                     height: 150,
                     cards: [
                       _buildCustomStatCard(
-                        title: 'Sub Admins',
+                        title: AppLocalizations.of(context)!.subAdmins,
                         value: '${stats?.totalSubAdmins ?? 0}',
                         icon: Icons.person_add_alt_1_outlined,
                         color: const Color(0xFF059669), // Green
-                        actionText: 'View all',
+                        actionText: AppLocalizations.of(context)!.viewAll,
                         onTap: () {
                           MainScreen.of(context)?.setSelectedIndex(1);
                           UserManagementScreen.userManagementKey.currentState?.selectTab('Sub Admin');
                         },
                       ),
                       _buildCustomStatCard(
-                        title: 'Members',
+                        title: AppLocalizations.of(context)!.members,
                         value: '${stats?.totalMembers ?? 0}',
                         icon: Icons.people_alt_outlined,
                         color: const Color(0xFF2563EB), // Blue
-                        actionText: 'View all',
+                        actionText: AppLocalizations.of(context)!.viewAll,
                         onTap: () {
                           MainScreen.of(context)?.setSelectedIndex(1);
                           UserManagementScreen.userManagementKey.currentState?.selectTab('Member');
                         },
                       ),
                       _buildCustomStatCard(
-                        title: 'Pending Requests',
+                        title: AppLocalizations.of(context)!.pendingRequests,
                         value: '${stats?.pendingApprovals ?? 0}',
                         icon: Icons.assignment_late_outlined,
                         color: const Color(0xFFD97706), // Amber
-                        actionText: 'View queue',
+                        actionText: AppLocalizations.of(context)!.viewQueue,
                         onTap: () async {
                           await Navigator.pushNamed(context, '/pending_requests');
                           if (context.mounted) {
@@ -247,11 +237,11 @@ class AdminDashboard extends StatelessWidget {
                   const SizedBox(height: 28),
 
                   // Quick Actions Section
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'Quick Actions',
-                      style: TextStyle(
+                      AppLocalizations.of(context)!.quickActions,
+                      style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF1E293B),
@@ -270,7 +260,7 @@ class AdminDashboard extends StatelessWidget {
                       childAspectRatio: 2.8,
                       children: [
                         _buildCustomActionCard(
-                          label: 'Add Sub Admin',
+                          label: AppLocalizations.of(context)!.addSubAdmin,
                           icon: Icons.person_add_alt_1_outlined,
                           color: const Color(0xFF059669),
                           onTap: () async {
@@ -281,7 +271,7 @@ class AdminDashboard extends StatelessWidget {
                           },
                         ),
                         _buildCustomActionCard(
-                          label: 'Add Member',
+                          label: AppLocalizations.of(context)!.addMember,
                           icon: Icons.person_add_outlined,
                           color: const Color(0xFF2563EB),
                           onTap: () async {
@@ -292,7 +282,7 @@ class AdminDashboard extends StatelessWidget {
                           },
                         ),
                         _buildCustomActionCard(
-                          label: 'Broadcast',
+                          label: AppLocalizations.of(context)!.broadcast,
                           icon: Icons.campaign_outlined,
                           color: const Color(0xFF059669),
                           onTap: () {
@@ -301,7 +291,7 @@ class AdminDashboard extends StatelessWidget {
                           },
                         ),
                         _buildCustomActionCard(
-                          label: 'Event',
+                          label: AppLocalizations.of(context)!.event,
                           icon: Icons.event_note_outlined,
                           color: const Color(0xFF2563EB),
                           onTap: () {
@@ -310,7 +300,7 @@ class AdminDashboard extends StatelessWidget {
                           },
                         ),
                         _buildCustomActionCard(
-                          label: 'Emergency',
+                          label: AppLocalizations.of(context)!.emergency,
                           icon: Icons.warning_amber_rounded,
                           color: Colors.red,
                           onTap: () {
@@ -319,7 +309,7 @@ class AdminDashboard extends StatelessWidget {
                           },
                         ),
                         _buildCustomActionCard(
-                          label: 'Community',
+                          label: AppLocalizations.of(context)!.community,
                           icon: Icons.forum_outlined,
                           color: Colors.purple,
                           onTap: () => MainScreen.of(context)?.setSelectedIndex(3),
@@ -337,9 +327,9 @@ class AdminDashboard extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Reported Posts',
-                            style: TextStyle(
+                          Text(
+                            AppLocalizations.of(context)!.reportedPosts,
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E293B),
@@ -357,7 +347,7 @@ class AdminDashboard extends StatelessWidget {
                                   const Icon(Icons.warning_rounded, size: 14, color: Colors.red),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '${state.moderationStats?.highPriority} High Priority',
+                                    AppLocalizations.of(context)!.highPriority(state.moderationStats!.highPriority),
                                     style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -399,7 +389,7 @@ class AdminDashboard extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Pending Reviews',
+                                        AppLocalizations.of(context)!.pendingReviews,
                                         style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
                                       ),
                                       const SizedBox(height: 4),
@@ -418,7 +408,7 @@ class AdminDashboard extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Total Reports',
+                                        AppLocalizations.of(context)!.totalReports,
                                         style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
                                       ),
                                       const SizedBox(height: 4),

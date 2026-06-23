@@ -122,15 +122,17 @@ class RespondToEmergency extends EventEvent {
   final String emergencyRequestId;
   final String status;
   final String? note;
+  final String? userId;
 
   const RespondToEmergency({
     required this.emergencyRequestId,
     required this.status,
     this.note,
+    this.userId,
   });
 
   @override
-  List<Object?> get props => [emergencyRequestId, status, note];
+  List<Object?> get props => [emergencyRequestId, status, note, userId];
 }
 
 class RecallEvent extends EventEvent {

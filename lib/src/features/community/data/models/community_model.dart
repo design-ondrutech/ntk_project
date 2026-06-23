@@ -42,7 +42,7 @@ class CommunityModel extends Equatable {
       id: json['id'] is int
           ? json['id'] as int
           : int.parse(json['id'].toString()),
-      name: json['name'] as String,
+      name: json['name'] as String? ?? 'Unknown',
       description: json['description'] as String?,
       image: json['image'] as String?,
       allowMemberMessages: json['allowMemberMessages'] as bool? ?? true,
@@ -63,7 +63,7 @@ class CommunityModel extends Equatable {
           ? json['locationId'] as int
           : int.tryParse(json['locationId']?.toString() ?? ''),
       location: json['location'] as Map<String, dynamic>?,
-      createdAt: json['createdAt'] as String,
+      createdAt: json['createdAt'] as String? ?? '',
     );
   }
 

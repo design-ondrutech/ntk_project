@@ -205,6 +205,696 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Language changed'**
   String get languageChanged;
+
+  /// No description provided for @reportEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'Report Emergency'**
+  String get reportEmergency;
+
+  /// No description provided for @emergencyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency Title'**
+  String get emergencyTitle;
+
+  /// No description provided for @description.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get description;
+
+  /// No description provided for @location.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get location;
+
+  /// No description provided for @loadingAlerts.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading alerts...'**
+  String get loadingAlerts;
+
+  /// No description provided for @loadingAlertDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading alert...'**
+  String get loadingAlertDetail;
+
+  /// No description provided for @alertDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Alert Details'**
+  String get alertDetails;
+
+  /// No description provided for @emergencyTitleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency title is required'**
+  String get emergencyTitleRequired;
+
+  /// No description provided for @locationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is required'**
+  String get locationRequired;
+
+  /// No description provided for @descriptionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Description is required'**
+  String get descriptionRequired;
+
+  /// No description provided for @submittingReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitting report...'**
+  String get submittingReport;
+
+  /// No description provided for @emergencyReported.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency reported'**
+  String get emergencyReported;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// No description provided for @responseSubmited.
+  ///
+  /// In en, this message translates to:
+  /// **'Response submitted'**
+  String get responseSubmited;
+
+  /// No description provided for @areYouComing.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you coming?'**
+  String get areYouComing;
+
+  /// No description provided for @coming.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming'**
+  String get coming;
+
+  /// No description provided for @onTheWay.
+  ///
+  /// In en, this message translates to:
+  /// **'On the way'**
+  String get onTheWay;
+
+  /// No description provided for @reached.
+  ///
+  /// In en, this message translates to:
+  /// **'Reached'**
+  String get reached;
+
+  /// No description provided for @unable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable'**
+  String get unable;
+
+  /// No description provided for @responseSubmitted.
+  ///
+  /// In en, this message translates to:
+  /// **'Response submitted'**
+  String get responseSubmitted;
+
+  /// No description provided for @reportDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Report details'**
+  String get reportDetails;
+
+  /// No description provided for @reportedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported by'**
+  String get reportedBy;
+
+  /// No description provided for @noDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'No description'**
+  String get noDescription;
+
+  /// No description provided for @noUsersYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No users yet'**
+  String get noUsersYet;
+
+  /// No description provided for @contactEmergencyContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact emergency contact'**
+  String get contactEmergencyContact;
+
+  /// No description provided for @logoutConfirmText.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to logout?'**
+  String get logoutConfirmText;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @profileDataNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile data not found'**
+  String get profileDataNotFound;
+
+  /// No description provided for @userInformation.
+  ///
+  /// In en, this message translates to:
+  /// **'User Information'**
+  String get userInformation;
+
+  /// No description provided for @quickActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Actions'**
+  String get quickActions;
+
+  /// No description provided for @active.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get active;
+
+  /// No description provided for @inactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get inactive;
+
+  /// No description provided for @status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get status;
+
+  /// No description provided for @role.
+  ///
+  /// In en, this message translates to:
+  /// **'Role'**
+  String get role;
+
+  /// No description provided for @memberId.
+  ///
+  /// In en, this message translates to:
+  /// **'Member ID'**
+  String get memberId;
+
+  /// No description provided for @fullName.
+  ///
+  /// In en, this message translates to:
+  /// **'Full Name'**
+  String get fullName;
+
+  /// No description provided for @mobileNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile Number'**
+  String get mobileNumber;
+
+  /// No description provided for @approvalStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Approval Status'**
+  String get approvalStatus;
+
+  /// No description provided for @addedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Added By'**
+  String get addedBy;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @comingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'coming soon'**
+  String get comingSoon;
+
+  /// No description provided for @profileCompletion.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile Completion'**
+  String get profileCompletion;
+
+  /// No description provided for @account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// No description provided for @verification.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification'**
+  String get verification;
+
+  /// No description provided for @verified.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified'**
+  String get verified;
+
+  /// No description provided for @pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pending;
+
+  /// No description provided for @memberDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Member Dashboard'**
+  String get memberDashboard;
+
+  /// No description provided for @vanakkam.
+  ///
+  /// In en, this message translates to:
+  /// **'Vanakkam, {name}! 👋'**
+  String vanakkam(String name);
+
+  /// No description provided for @todaysHighlights.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Highlights'**
+  String get todaysHighlights;
+
+  /// No description provided for @totalMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Members'**
+  String get totalMembers;
+
+  /// No description provided for @upcomingEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming Events'**
+  String get upcomingEvents;
+
+  /// No description provided for @activeAlerts.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Alerts'**
+  String get activeAlerts;
+
+  /// No description provided for @broadcasts.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcasts'**
+  String get broadcasts;
+
+  /// No description provided for @events.
+  ///
+  /// In en, this message translates to:
+  /// **'Events'**
+  String get events;
+
+  /// No description provided for @emergency.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency'**
+  String get emergency;
+
+  /// No description provided for @myProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'My Profile'**
+  String get myProfile;
+
+  /// No description provided for @recentUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Updates'**
+  String get recentUpdates;
+
+  /// No description provided for @viewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View All'**
+  String get viewAll;
+
+  /// No description provided for @newEventAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'New Event Added'**
+  String get newEventAdded;
+
+  /// No description provided for @districtMeetingScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'District meeting scheduled for this weekend'**
+  String get districtMeetingScheduled;
+
+  /// No description provided for @newEventScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'New Event Scheduled'**
+  String get newEventScheduled;
+
+  /// No description provided for @emergencyAlertCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency Alert Created'**
+  String get emergencyAlertCreated;
+
+  /// No description provided for @newBroadcastSent.
+  ///
+  /// In en, this message translates to:
+  /// **'New Broadcast Sent'**
+  String get newBroadcastSent;
+
+  /// No description provided for @ntkParty.
+  ///
+  /// In en, this message translates to:
+  /// **'NTK Party'**
+  String get ntkParty;
+
+  /// No description provided for @todaysActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Activity'**
+  String get todaysActivity;
+
+  /// No description provided for @newMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'New Members'**
+  String get newMembers;
+
+  /// No description provided for @registeredToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered today'**
+  String get registeredToday;
+
+  /// No description provided for @approvedToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved Today'**
+  String get approvedToday;
+
+  /// No description provided for @totalTowns.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Towns'**
+  String get totalTowns;
+
+  /// No description provided for @totalTownsScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Total towns in scope'**
+  String get totalTownsScope;
+
+  /// No description provided for @totalStreets.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Streets'**
+  String get totalStreets;
+
+  /// No description provided for @totalStreetsScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Total streets in scope'**
+  String get totalStreetsScope;
+
+  /// No description provided for @activeEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Events'**
+  String get activeEvents;
+
+  /// No description provided for @emergencyRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency Requests'**
+  String get emergencyRequests;
+
+  /// No description provided for @activeBroadcasts.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Broadcasts'**
+  String get activeBroadcasts;
+
+  /// No description provided for @subAdmins.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub Admins'**
+  String get subAdmins;
+
+  /// No description provided for @members.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get members;
+
+  /// No description provided for @pendingRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Requests'**
+  String get pendingRequests;
+
+  /// No description provided for @viewQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'View queue'**
+  String get viewQueue;
+
+  /// No description provided for @addSubAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Sub Admin'**
+  String get addSubAdmin;
+
+  /// No description provided for @addMember.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Member'**
+  String get addMember;
+
+  /// No description provided for @broadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast'**
+  String get broadcast;
+
+  /// No description provided for @event.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get event;
+
+  /// No description provided for @reportedPosts.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported Posts'**
+  String get reportedPosts;
+
+  /// No description provided for @highPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} High Priority'**
+  String highPriority(int count);
+
+  /// No description provided for @pendingReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Reviews'**
+  String get pendingReviews;
+
+  /// No description provided for @totalReports.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Reports'**
+  String get totalReports;
+
+  /// No description provided for @subAdminPortal.
+  ///
+  /// In en, this message translates to:
+  /// **'SUB ADMIN PORTAL'**
+  String get subAdminPortal;
+
+  /// No description provided for @noPendingRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No Pending Requests'**
+  String get noPendingRequests;
+
+  /// No description provided for @membersWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Members Waiting'**
+  String membersWaiting(int count);
+
+  /// No description provided for @allRequestsProcessed.
+  ///
+  /// In en, this message translates to:
+  /// **'All requests are processed'**
+  String get allRequestsProcessed;
+
+  /// No description provided for @tapToReviewAndApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to review and approve'**
+  String get tapToReviewAndApprove;
+
+  /// No description provided for @overviewPartyAdministration.
+  ///
+  /// In en, this message translates to:
+  /// **'Here is an overview of the party administration.'**
+  String get overviewPartyAdministration;
+
+  /// No description provided for @district.
+  ///
+  /// In en, this message translates to:
+  /// **'District'**
+  String get district;
+
+  /// No description provided for @allDistricts.
+  ///
+  /// In en, this message translates to:
+  /// **'All Districts'**
+  String get allDistricts;
+
+  /// No description provided for @newMembersMultiLine.
+  ///
+  /// In en, this message translates to:
+  /// **'New\nMembers'**
+  String get newMembersMultiLine;
+
+  /// No description provided for @approved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get approved;
+
+  /// No description provided for @emergencyAlertsMultiLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency\nAlerts'**
+  String get emergencyAlertsMultiLine;
+
+  /// No description provided for @totalAdmins.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Admins'**
+  String get totalAdmins;
+
+  /// No description provided for @totalSubAdmins.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Sub Admins'**
+  String get totalSubAdmins;
+
+  /// No description provided for @addAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Admin'**
+  String get addAdmin;
+
+  /// No description provided for @emergencyAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency Alert'**
+  String get emergencyAlert;
+
+  /// No description provided for @requests.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get requests;
+
+  /// No description provided for @accountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'ACCOUNT'**
+  String get accountLabel;
+
+  /// No description provided for @updateProfileSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Update your name, photo, and bio'**
+  String get updateProfileSub;
+
+  /// No description provided for @security.
+  ///
+  /// In en, this message translates to:
+  /// **'Security'**
+  String get security;
+
+  /// No description provided for @securitySub.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password and 2FA'**
+  String get securitySub;
+
+  /// No description provided for @preferencesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PREFERENCES'**
+  String get preferencesLabel;
+
+  /// No description provided for @notificationsSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure alerts and updates'**
+  String get notificationsSub;
+
+  /// No description provided for @languageSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Tamil, English'**
+  String get languageSub;
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
+  /// No description provided for @appearanceSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Light, Dark, System'**
+  String get appearanceSub;
+
+  /// No description provided for @supportLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SUPPORT'**
+  String get supportLabel;
+
+  /// No description provided for @helpCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Help Center'**
+  String get helpCenter;
+
+  /// No description provided for @aboutApp.
+  ///
+  /// In en, this message translates to:
+  /// **'About App'**
+  String get aboutApp;
 }
 
 class _AppLocalizationsDelegate

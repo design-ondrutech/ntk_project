@@ -15,6 +15,7 @@ import 'package:ntk_project/src/features/dashboard/presentation/screens/main_scr
 import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_widgets.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class SuperAdminDashboard extends StatelessWidget {
   const SuperAdminDashboard({super.key, required this.authState});
@@ -42,7 +43,7 @@ class SuperAdminDashboard extends StatelessWidget {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('NTK Party', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                Text(AppLocalizations.of(context)!.ntkParty, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                 Text(locationName, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500, fontSize: 11, letterSpacing: 1.2)),
               ],
             ),
@@ -97,7 +98,7 @@ class SuperAdminDashboard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        buildGreetingText('Vanakkam, $name!', 'Here is an overview of the party administration.'),
+                        buildGreetingText(AppLocalizations.of(context)!.vanakkam(name), AppLocalizations.of(context)!.overviewPartyAdministration),
                         const SizedBox(height: 20),
                         
                         // Location Filter (District)
@@ -121,18 +122,18 @@ class SuperAdminDashboard extends StatelessWidget {
                                   hint: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Text('District', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600)),
-                                      SizedBox(height: 2),
-                                      Text('All Districts', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                                    children: [
+                                      Text(AppLocalizations.of(context)!.district, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600)),
+                                      const SizedBox(height: 2),
+                                      Text(AppLocalizations.of(context)!.allDistricts, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                                     ],
                                   ),
                                   value: hasDistrict ? currentSelectedId : null,
                                   icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                                   items: [
-                                    const DropdownMenuItem(
+                                    DropdownMenuItem(
                                       value: null,
-                                      child: Text('All Districts', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                                      child: Text(AppLocalizations.of(context)!.allDistricts, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                                     ),
                                     ...locationState.districts.map((d) => DropdownMenuItem(
                                       value: d.id,
@@ -158,15 +159,15 @@ class SuperAdminDashboard extends StatelessWidget {
                         const SizedBox(height: 20),
                         
                         // Today's Activity Section
-                        const Text('Today\'s Activity', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                        Text(AppLocalizations.of(context)!.todaysActivity, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                         const SizedBox(height: 12),
                         DashboardCarousel(
                           cards: [
-                            buildHorizontalActivityCard('New\nMembers', '${state.stats?.newMembersToday ?? 0}', const Color(0xFF004D2A), width: null),
-                            buildHorizontalActivityCard('Approved', '${state.stats?.approvedToday ?? 0}', const Color(0xFF004D2A), width: null),
-                            buildHorizontalActivityCard('Events', '${state.stats?.activeEvents ?? 0}', Colors.blue, width: null),
-                            buildHorizontalActivityCard('Broadcasts', '${state.stats?.activeBroadcasts ?? 0}', Colors.purple, width: null),
-                            buildHorizontalActivityCard('Emergency\nAlerts', '${state.stats?.emergencyRequests ?? 0}', Colors.red, width: null),
+                            buildHorizontalActivityCard(AppLocalizations.of(context)!.newMembersMultiLine, '${state.stats?.newMembersToday ?? 0}', const Color(0xFF004D2A), width: null),
+                            buildHorizontalActivityCard(AppLocalizations.of(context)!.approved, '${state.stats?.approvedToday ?? 0}', const Color(0xFF004D2A), width: null),
+                            buildHorizontalActivityCard(AppLocalizations.of(context)!.events, '${state.stats?.activeEvents ?? 0}', Colors.blue, width: null),
+                            buildHorizontalActivityCard(AppLocalizations.of(context)!.broadcasts, '${state.stats?.activeBroadcasts ?? 0}', Colors.purple, width: null),
+                            buildHorizontalActivityCard(AppLocalizations.of(context)!.emergencyAlertsMultiLine, '${state.stats?.emergencyRequests ?? 0}', Colors.red, width: null),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -181,7 +182,7 @@ class SuperAdminDashboard extends StatelessWidget {
                           childAspectRatio: 1.45,
                           children: [
                             buildModernStatCard(
-                              'Total Admins',
+                              AppLocalizations.of(context)!.totalAdmins,
                               '${state.stats?.totalAdmins ?? 19}',
                               Icons.security_outlined,
                               const Color(0xFF004D2A),
@@ -191,7 +192,7 @@ class SuperAdminDashboard extends StatelessWidget {
                               },
                             ),
                             buildModernStatCard(
-                              'Total Sub Admins',
+                              AppLocalizations.of(context)!.totalSubAdmins,
                               '${state.stats?.totalSubAdmins ?? 14}',
                               Icons.badge_outlined,
                               const Color(0xFF004D2A),
@@ -201,7 +202,7 @@ class SuperAdminDashboard extends StatelessWidget {
                               },
                             ),
                             buildModernStatCard(
-                              'Total Members',
+                              AppLocalizations.of(context)!.totalMembers,
                               '${state.stats?.totalMembers ?? 45}',
                               Icons.people_alt_outlined,
                               const Color(0xFF004D2A),
@@ -211,7 +212,7 @@ class SuperAdminDashboard extends StatelessWidget {
                               },
                             ),
                             buildModernStatCard(
-                              'Pending Requests',
+                              AppLocalizations.of(context)!.pendingRequests,
                               '${state.stats?.pendingApprovals ?? 0}',
                               Icons.assignment_late_outlined,
                               Colors.red,
@@ -232,9 +233,9 @@ class SuperAdminDashboard extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'Reported Posts',
-                                style: TextStyle(
+                              Text(
+                                AppLocalizations.of(context)!.reportedPosts,
+                                style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF1E293B),
@@ -252,7 +253,7 @@ class SuperAdminDashboard extends StatelessWidget {
                                       const Icon(Icons.warning_rounded, size: 14, color: Colors.red),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '${state.moderationStats?.highPriority} High Priority',
+                                        AppLocalizations.of(context)!.highPriority(state.moderationStats!.highPriority),
                                         style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
                                       ),
                                     ],
@@ -291,7 +292,7 @@ class SuperAdminDashboard extends StatelessWidget {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Pending Reviews',
+                                            AppLocalizations.of(context)!.pendingReviews,
                                             style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
                                           ),
                                           const SizedBox(height: 4),
@@ -310,7 +311,7 @@ class SuperAdminDashboard extends StatelessWidget {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'Total Reports',
+                                            AppLocalizations.of(context)!.totalReports,
                                             style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
                                           ),
                                           const SizedBox(height: 4),
@@ -332,7 +333,7 @@ class SuperAdminDashboard extends StatelessWidget {
 
                         
                         // Quick Actions Section
-                        const Text('Quick Actions', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                        Text(AppLocalizations.of(context)!.quickActions, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                         const SizedBox(height: 12),
                         GridView.count(
                           crossAxisCount: 4,
@@ -342,38 +343,38 @@ class SuperAdminDashboard extends StatelessWidget {
                           crossAxisSpacing: 12,
                           childAspectRatio: 0.95,
                           children: [
-                            buildModernActionBtn('Add Admin', Icons.person_add_alt_1_outlined, const Color(0xFF004D2A), () async {
+                            buildModernActionBtn(AppLocalizations.of(context)!.addAdmin, Icons.person_add_alt_1_outlined, const Color(0xFF004D2A), () async {
                               await Navigator.pushNamed(context, '/create_admin');
                               if (context.mounted) {
                                 context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
                               }
                             }),
-                            buildModernActionBtn('Add Sub Admin', Icons.person_add_alt_outlined, const Color(0xFF004D2A), () async {
+                            buildModernActionBtn(AppLocalizations.of(context)!.addSubAdmin, Icons.person_add_alt_outlined, const Color(0xFF004D2A), () async {
                               await Navigator.pushNamed(context, '/create_sub_admin');
                               if (context.mounted) {
                                 context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
                               }
                             }),
-                            buildModernActionBtn('Add Member', Icons.person_add_outlined, const Color(0xFF004D2A), () async {
+                            buildModernActionBtn(AppLocalizations.of(context)!.addMember, Icons.person_add_outlined, const Color(0xFF004D2A), () async {
                               await Navigator.pushNamed(context, '/create_member');
                               if (context.mounted) {
                                 context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
                               }
                             }),
-                            buildModernActionBtn('Broadcasts', Icons.campaign_outlined, const Color(0xFF004D2A), () {
+                            buildModernActionBtn(AppLocalizations.of(context)!.broadcasts, Icons.campaign_outlined, const Color(0xFF004D2A), () {
                               MainScreen.of(context)?.setSelectedIndex(2);
                               EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 1);
                             }),
-                            buildModernActionBtn('Events', Icons.event_note_outlined, const Color(0xFF004D2A), () {
+                            buildModernActionBtn(AppLocalizations.of(context)!.events, Icons.event_note_outlined, const Color(0xFF004D2A), () {
                               MainScreen.of(context)?.setSelectedIndex(2);
                               EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(1);
                             }),
-                            buildModernActionBtn('Emergency Alert', Icons.warning_amber_rounded, Colors.red, () {
+                            buildModernActionBtn(AppLocalizations.of(context)!.emergencyAlert, Icons.warning_amber_rounded, Colors.red, () {
                               MainScreen.of(context)?.setSelectedIndex(2);
                               EventsOverviewScreen.eventsOverviewKey.currentState?.selectTab(0, subTabIndex: 0);
                             }),
-                            buildModernActionBtn('Requests', Icons.rule_folder_outlined, const Color(0xFF004D2A), () => Navigator.pushNamed(context, '/pending_requests')),
-                            buildModernActionBtn('Community', Icons.forum_outlined, const Color(0xFF004D2A), () => MainScreen.of(context)?.setSelectedIndex(3)),
+                            buildModernActionBtn(AppLocalizations.of(context)!.requests, Icons.rule_folder_outlined, const Color(0xFF004D2A), () => Navigator.pushNamed(context, '/pending_requests')),
+                            buildModernActionBtn(AppLocalizations.of(context)!.community, Icons.forum_outlined, const Color(0xFF004D2A), () => MainScreen.of(context)?.setSelectedIndex(3)),
                           ],
                         ),
                         const SizedBox(height: 24),
