@@ -856,9 +856,9 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'VIEW RESPONSES / ரெஸ்பான்ஸ்களைக் காண்',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                child: Text(
+                  AppLocalizations.of(context)!.viewResponses,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 12),
@@ -867,9 +867,9 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
               OutlinedButton.icon(
                 onPressed: () => _onReviewRequest('FORWARD'),
                 icon: const Icon(Icons.arrow_forward, size: 18, color: Color(0xFF2563EB)),
-                label: const Text(
-                  'FORWARD / ஃபார்வர்ட் செய்',
-                  style: TextStyle(
+                label: Text(
+                  AppLocalizations.of(context)!.forwardRequest,
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF2563EB),
                   ),
@@ -898,9 +898,9 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
                         ),
                       )
                     : const Icon(Icons.check_circle_outline, size: 18),
-                label: const Text(
-                  'MARK AS COMPLETED / முடிவடைந்தது என குறிக்கவும்',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                label: Text(
+                  AppLocalizations.of(context)!.markAsCompleted,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0369A1),
@@ -941,7 +941,7 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
             ),
             actions: [
               CupertinoDialogAction(
-                child: const Text('Cancel'),
+                child: Text(AppLocalizations.of(context)!.cancel),
                 onPressed: () => Navigator.pop(context),
               ),
               CupertinoDialogAction(
@@ -957,9 +957,9 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
         );
       },
       icon: const Icon(CupertinoIcons.trash, size: 18),
-      label: const Text(
-        'RECALL EMERGENCY / அவசரநிலையை திரும்பப் பெறு',
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+      label: Text(
+        AppLocalizations.of(context)!.recallEmergency,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       ),
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFFDC2626),

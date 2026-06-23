@@ -294,7 +294,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subAdmins => 'Sub Admins';
 
   @override
-  String get members => 'Members';
+  String get members => 'members';
 
   @override
   String get pendingRequests => 'Pending Requests';
@@ -414,4 +414,119 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutApp => 'About App';
+
+  @override
+  String get broadcastTabTitle => 'Broadcast';
+
+  @override
+  String get eventsTabTitle => 'Events';
+
+  @override
+  String get noEventsScheduled => 'No events scheduled';
+
+  @override
+  String get createEvent => 'Create Event';
+
+  @override
+  String get eventsList => 'Events List';
+
+  @override
+  String get activeUpcoming => 'Active & Upcoming';
+
+  @override
+  String get expiredCompleted => 'Expired/Completed';
+
+  @override
+  String get noActiveUpcomingEvents => 'No active or upcoming events.';
+
+  @override
+  String get noExpiredCompletedEvents => 'No expired or completed events.';
+
+  @override
+  String get failedToLoadBroadcasts => 'Failed to load broadcasts';
+
+  @override
+  String get createBroadcast => 'Create Broadcast';
+
+  @override
+  String get emergencyAlerts => 'Emergency Alerts';
+
+  @override
+  String get recentBroadcasts => 'Recent Broadcasts';
+
+  @override
+  String get noEmergencyAlertsFound => 'No emergency alerts found';
+
+  @override
+  String get noRecentBroadcastsFound => 'No recent broadcasts found';
+
+  @override
+  String get recallBroadcast => 'Recall Broadcast';
+
+  @override
+  String get recallBroadcastConfirm =>
+      'Are you sure you want to recall this broadcast message? This action cannot be undone.';
+
+  @override
+  String get deliveredTo => 'Delivered to';
+
+  @override
+  String get by => 'By';
+
+  @override
+  String get unknownLocation => 'Unknown Location';
+
+  @override
+  String get unknownTime => 'Unknown Time';
+
+  @override
+  String get forwardToAdmin => 'FORWARD TO ADMIN';
+
+  @override
+  String get forwardToSuperAdmin => 'FORWARD TO SUPER ADMIN';
+
+  @override
+  String get approveRequest => 'APPROVE REQUEST';
+
+  @override
+  String get rejectRequest => 'REJECT REQUEST';
+
+  @override
+  String get forwardRequest => 'FORWARD';
+
+  @override
+  String get viewResponses => 'VIEW RESPONSES';
+
+  @override
+  String get markAsCompleted => 'MARK AS COMPLETED';
+
+  @override
+  String get recallEmergency => 'RECALL EMERGENCY';
+
+  @override
+  String get responsesOverview => 'Responses Overview';
+
+  @override
+  String get totalResponses => 'Total Responses';
+
+  @override
+  String get requestInfo => 'Request Info';
+
+  @override
+  String get hospitalDetails => 'Hospital Details';
+
+  @override
+  String get locationDetails => 'Location Details';
+
+  @override
+  String get patientDetails => 'Patient Details';
+
+  @override
+  String get requiredSupport => 'Required Support';
+
+  @override
+  String get contactDetails => 'Contact Details';
+
+  @override
+  String get actionRequired => 'Action Required';
 }

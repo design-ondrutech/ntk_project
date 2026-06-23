@@ -417,4 +417,120 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get aboutApp => 'பயன்பாட்டைப் பற்றி';
+
+  @override
+  String get broadcastTabTitle => 'அறிவிப்புகள்';
+
+  @override
+  String get eventsTabTitle => 'நிகழ்வுகள்';
+
+  @override
+  String get noEventsScheduled => 'நிகழ்வுகள் ஏதுமில்லை';
+
+  @override
+  String get createEvent => 'நிகழ்வை உருவாக்கு';
+
+  @override
+  String get eventsList => 'நிகழ்வுகளின் பட்டியல்';
+
+  @override
+  String get activeUpcoming => 'நடப்பில் மற்றும் வரவிருக்கும்';
+
+  @override
+  String get expiredCompleted => 'முடிவடைந்தவை';
+
+  @override
+  String get noActiveUpcomingEvents =>
+      'நடப்பில் அல்லது வரவிருக்கும் நிகழ்வுகள் ஏதுமில்லை.';
+
+  @override
+  String get noExpiredCompletedEvents => 'முடிவடைந்த நிகழ்வுகள் ஏதுமில்லை.';
+
+  @override
+  String get failedToLoadBroadcasts => 'அறிவிப்புகளை ஏற்றுவதில் பிழை';
+
+  @override
+  String get createBroadcast => 'அறிவிப்பை உருவாக்கு';
+
+  @override
+  String get emergencyAlerts => 'அவசர எச்சரிக்கைகள்';
+
+  @override
+  String get recentBroadcasts => 'சமீபத்திய அறிவிப்புகள்';
+
+  @override
+  String get noEmergencyAlertsFound => 'அவசர எச்சரிக்கைகள் ஏதுமில்லை';
+
+  @override
+  String get noRecentBroadcastsFound => 'சமீபத்திய அறிவிப்புகள் ஏதுமில்லை';
+
+  @override
+  String get recallBroadcast => 'அறிவிப்பை திரும்பப் பெறு';
+
+  @override
+  String get recallBroadcastConfirm =>
+      'இந்த அறிவிப்பைத் திரும்பப் பெற விரும்புகிறீர்களா? இதை மாற்ற முடியாது.';
+
+  @override
+  String get deliveredTo => 'வழங்கப்பட்டவர்கள்';
+
+  @override
+  String get by => 'உருவாக்கியவர்';
+
+  @override
+  String get unknownLocation => 'அறியப்படாத இடம்';
+
+  @override
+  String get unknownTime => 'அறியப்படாத நேரம்';
+
+  @override
+  String get forwardToAdmin => 'நிர்வாகிக்கு அனுப்பு';
+
+  @override
+  String get forwardToSuperAdmin => 'தலைமை நிர்வாகிக்கு அனுப்பு';
+
+  @override
+  String get approveRequest => 'கோரிக்கையை அனுமதி';
+
+  @override
+  String get rejectRequest => 'கோரிக்கையை நிராகரி';
+
+  @override
+  String get forwardRequest => 'ஃபார்வர்ட் செய்';
+
+  @override
+  String get viewResponses => 'ரெஸ்பான்ஸ்களைக் காண்';
+
+  @override
+  String get markAsCompleted => 'முடிவடைந்தது என குறிக்கவும்';
+
+  @override
+  String get recallEmergency => 'அவசரநிலையை திரும்பப் பெறு';
+
+  @override
+  String get responsesOverview => 'ரெஸ்பான்ஸ் கண்ணோட்டம்';
+
+  @override
+  String get totalResponses => 'மொத்த ரெஸ்பான்ஸ்கள்';
+
+  @override
+  String get requestInfo => 'கோரிக்கை விவரங்கள்';
+
+  @override
+  String get hospitalDetails => 'மருத்துவமனை விவரங்கள்';
+
+  @override
+  String get locationDetails => 'இட விவரங்கள்';
+
+  @override
+  String get patientDetails => 'நோயாளி விவரங்கள்';
+
+  @override
+  String get requiredSupport => 'தேவையான உதவி';
+
+  @override
+  String get contactDetails => 'தொடர்பு விவரங்கள்';
+
+  @override
+  String get actionRequired => 'நடவடிக்கை தேவை';
 }

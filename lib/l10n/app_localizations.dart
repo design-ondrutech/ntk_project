@@ -665,7 +665,7 @@ abstract class AppLocalizations {
   /// No description provided for @members.
   ///
   /// In en, this message translates to:
-  /// **'Members'**
+  /// **'members'**
   String get members;
 
   /// No description provided for @pendingRequests.
@@ -895,6 +895,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'About App'**
   String get aboutApp;
+
+  /// No description provided for @broadcastTabTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Broadcast'**
+  String get broadcastTabTitle;
+
+  /// No description provided for @eventsTabTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Events'**
+  String get eventsTabTitle;
+
+  /// No description provided for @noEventsScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'No events scheduled'**
+  String get noEventsScheduled;
+
+  /// No description provided for @createEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Event'**
+  String get createEvent;
+
+  /// No description provided for @eventsList.
+  ///
+  /// In en, this message translates to:
+  /// **'Events List'**
+  String get eventsList;
+
+  /// No description provided for @activeUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Active & Upcoming'**
+  String get activeUpcoming;
+
+  /// No description provided for @expiredCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired/Completed'**
+  String get expiredCompleted;
+
+  /// No description provided for @noActiveUpcomingEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'No active or upcoming events.'**
+  String get noActiveUpcomingEvents;
+
+  /// No description provided for @noExpiredCompletedEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'No expired or completed events.'**
+  String get noExpiredCompletedEvents;
+
+  /// No description provided for @failedToLoadBroadcasts.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load broadcasts'**
+  String get failedToLoadBroadcasts;
+
+  /// No description provided for @createBroadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Broadcast'**
+  String get createBroadcast;
+
+  /// No description provided for @emergencyAlerts.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency Alerts'**
+  String get emergencyAlerts;
+
+  /// No description provided for @recentBroadcasts.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Broadcasts'**
+  String get recentBroadcasts;
+
+  /// No description provided for @noEmergencyAlertsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No emergency alerts found'**
+  String get noEmergencyAlertsFound;
+
+  /// No description provided for @noRecentBroadcastsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No recent broadcasts found'**
+  String get noRecentBroadcastsFound;
+
+  /// No description provided for @recallBroadcast.
+  ///
+  /// In en, this message translates to:
+  /// **'Recall Broadcast'**
+  String get recallBroadcast;
+
+  /// No description provided for @recallBroadcastConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to recall this broadcast message? This action cannot be undone.'**
+  String get recallBroadcastConfirm;
+
+  /// No description provided for @deliveredTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered to'**
+  String get deliveredTo;
+
+  /// No description provided for @by.
+  ///
+  /// In en, this message translates to:
+  /// **'By'**
+  String get by;
+
+  /// No description provided for @unknownLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Location'**
+  String get unknownLocation;
+
+  /// No description provided for @unknownTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Time'**
+  String get unknownTime;
+
+  /// No description provided for @forwardToAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'FORWARD TO ADMIN'**
+  String get forwardToAdmin;
+
+  /// No description provided for @forwardToSuperAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'FORWARD TO SUPER ADMIN'**
+  String get forwardToSuperAdmin;
+
+  /// No description provided for @approveRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'APPROVE REQUEST'**
+  String get approveRequest;
+
+  /// No description provided for @rejectRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'REJECT REQUEST'**
+  String get rejectRequest;
+
+  /// No description provided for @forwardRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'FORWARD'**
+  String get forwardRequest;
+
+  /// No description provided for @viewResponses.
+  ///
+  /// In en, this message translates to:
+  /// **'VIEW RESPONSES'**
+  String get viewResponses;
+
+  /// No description provided for @markAsCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'MARK AS COMPLETED'**
+  String get markAsCompleted;
+
+  /// No description provided for @recallEmergency.
+  ///
+  /// In en, this message translates to:
+  /// **'RECALL EMERGENCY'**
+  String get recallEmergency;
+
+  /// No description provided for @responsesOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Responses Overview'**
+  String get responsesOverview;
+
+  /// No description provided for @totalResponses.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Responses'**
+  String get totalResponses;
+
+  /// No description provided for @requestInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Info'**
+  String get requestInfo;
+
+  /// No description provided for @hospitalDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Hospital Details'**
+  String get hospitalDetails;
+
+  /// No description provided for @locationDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Location Details'**
+  String get locationDetails;
+
+  /// No description provided for @patientDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Patient Details'**
+  String get patientDetails;
+
+  /// No description provided for @requiredSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Required Support'**
+  String get requiredSupport;
+
+  /// No description provided for @contactDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Details'**
+  String get contactDetails;
+
+  /// No description provided for @actionRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Action Required'**
+  String get actionRequired;
 }
 
 class _AppLocalizationsDelegate

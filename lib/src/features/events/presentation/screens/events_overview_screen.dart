@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
@@ -204,9 +205,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                 unselectedLabelColor: NTKColors.textSecondary,
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(text: 'Broadcast'),
-                  Tab(text: 'Events'),
+                tabs: [
+                  Tab(text: AppLocalizations.of(context)!.broadcastTabTitle),
+                  Tab(text: AppLocalizations.of(context)!.eventsTabTitle),
                 ],
               ),
             ),
@@ -234,8 +235,8 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Broadcast',
-                  style: TextStyle(
+                  AppLocalizations.of(context)!.broadcastTabTitle,
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1E293B),
@@ -259,8 +260,8 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Broadcast', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            Text(authState.loginData?.locationName ?? 'Tamil Nadu', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500, fontSize: 11, letterSpacing: 1.2)),
+            Text(AppLocalizations.of(context)!.broadcastTabTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(authState.loginData?.locationName ?? AppLocalizations.of(context)!.unknownLocation, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500, fontSize: 11, letterSpacing: 1.2)),
           ],
         ),
       ),
@@ -283,7 +284,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
               color: theme.dividerColor.withOpacity(0.2),
             ),
             const SizedBox(height: 16),
-            Text('No events scheduled', style: theme.textTheme.titleLarge),
+            Text(AppLocalizations.of(context)!.noEventsScheduled, style: theme.textTheme.titleLarge),
             if (canCreate) ...[
               const SizedBox(height: 24),
               OutlinedButton.icon(
@@ -294,7 +295,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                   }
                 },
                 icon: const Icon(CupertinoIcons.plus),
-                label: const Text('Create Event'),
+                label: Text(AppLocalizations.of(context)!.createEvent),
               ),
             ],
           ],
@@ -342,9 +343,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Events List',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
+                        Text(
+                          AppLocalizations.of(context)!.eventsList,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
                         ),
                         if (canCreate)
                           OutlinedButton.icon(
@@ -359,9 +360,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                               size: 16,
                               color: NTKColors.textPrimary,
                             ),
-                            label: const Text(
-                              'Create Event',
-                              style: TextStyle(
+                            label: Text(
+                              AppLocalizations.of(context)!.createEvent,
+                              style: const TextStyle(
                                 color: NTKColors.textPrimary,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -384,7 +385,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                     Row(
                       children: [
                         _buildFilterChip(
-                          label: 'Active & Upcoming',
+                          label: AppLocalizations.of(context)!.activeUpcoming,
                           count: nonExpiredEvents.length,
                           isSelected: _eventsFilterIndex == 0,
                           activeColor: const Color(0xFF004D2A),
@@ -393,7 +394,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                         ),
                         const SizedBox(width: 8),
                         _buildFilterChip(
-                          label: 'Expired/Completed',
+                          label: AppLocalizations.of(context)!.expiredCompleted,
                           count: expiredEvents.length,
                           isSelected: _eventsFilterIndex == 1,
                           activeColor: const Color(0xFFEF4444),
@@ -410,8 +411,8 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                         child: Center(
                           child: Text(
                             _eventsFilterIndex == 0
-                                ? 'No active or upcoming events.'
-                                : 'No expired or completed events.',
+                                ? AppLocalizations.of(context)!.noActiveUpcomingEvents
+                                : AppLocalizations.of(context)!.noExpiredCompletedEvents,
                             style: const TextStyle(
                               color: Color(0xFF6B7280),
                               fontSize: 14,
@@ -464,7 +465,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Failed to load broadcasts',
+                    AppLocalizations.of(context)!.failedToLoadBroadcasts,
                     style: theme.textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
@@ -488,7 +489,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text('Retry'),
+                    child: Text(AppLocalizations.of(context)!.retry),
                   ),
                 ],
               ),
@@ -527,7 +528,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                       color: Colors.white,
                     ),
                     label: Text(
-                      canCreate ? 'Create Broadcast' : 'Report Emergency',
+                      canCreate ? AppLocalizations.of(context)!.createBroadcast : AppLocalizations.of(context)!.reportEmergency,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -553,7 +554,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                         child: Column(
                           children: [
                             Text(
-                              'Emergency Alerts',
+                              AppLocalizations.of(context)!.emergencyAlerts,
                               style: TextStyle(
                                 color: _selectedSubTabIndex == 0 ? const Color(0xFFEF4444) : const Color(0xFF64748B),
                                 fontWeight: FontWeight.bold,
@@ -579,7 +580,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                         child: Column(
                           children: [
                             Text(
-                              'Recent Broadcasts',
+                              AppLocalizations.of(context)!.recentBroadcasts,
                               style: TextStyle(
                                 color: _selectedSubTabIndex == 1 ? const Color(0xFF004D2A) : const Color(0xFF64748B),
                                 fontWeight: FontWeight.bold,
@@ -604,7 +605,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
               Expanded(
                 child: _selectedSubTabIndex == 0
                     ? (emergencies.isEmpty
-                        ? const Center(child: Text('No emergency alerts found'))
+                        ? Center(child: Text(AppLocalizations.of(context)!.noEmergencyAlertsFound))
                         : Builder(
                             builder: (context) {
                               final flattenedEmergencies = _groupAndFlatten(
@@ -622,9 +623,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          const Text(
-                                            'Emergency Alerts',
-                                            style: TextStyle(
+                                          Text(
+                                            AppLocalizations.of(context)!.emergencyAlerts,
+                                            style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
                                               color: Color(0xFFEF4444),
@@ -643,9 +644,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                               minimumSize: Size.zero,
                                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                             ),
-                                            child: const Text(
-                                              'View All',
-                                              style: TextStyle(
+                                            child: Text(
+                                              AppLocalizations.of(context)!.viewAll,
+                                              style: const TextStyle(
                                                 color: Color(0xFFEF4444),
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -668,7 +669,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                             },
                           ))
                     : (broadcasts.isEmpty
-                        ? const Center(child: Text('No recent broadcasts found'))
+                        ? Center(child: Text(AppLocalizations.of(context)!.noRecentBroadcastsFound))
                         : Builder(
                             builder: (context) {
                               final flattenedBroadcasts = _groupAndFlatten(
@@ -686,9 +687,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          const Text(
-                                            'Recent Broadcasts',
-                                            style: TextStyle(
+                                          Text(
+                                            AppLocalizations.of(context)!.recentBroadcasts,
+                                            style: const TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
                                               color: Color(0xFF004D2A),
@@ -734,18 +735,16 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                               showCupertinoDialog(
                                                 context: context,
                                                 builder: (context) => CupertinoAlertDialog(
-                                                  title: const Text('Recall Broadcast'),
-                                                  content: const Text(
-                                                    'Are you sure you want to recall this broadcast message? This action cannot be undone.',
-                                                  ),
+                                                  title: Text(AppLocalizations.of(context)!.recallBroadcast),
+                                                  content: Text(AppLocalizations.of(context)!.recallBroadcastConfirm),
                                                   actions: [
                                                     CupertinoDialogAction(
-                                                      child: const Text('Cancel'),
+                                                      child: Text(AppLocalizations.of(context)!.cancel),
                                                       onPressed: () => Navigator.pop(context),
                                                     ),
                                                     CupertinoDialogAction(
                                                       isDestructiveAction: true,
-                                                      child: const Text('Recall'),
+                                                      child: Text(AppLocalizations.of(context)!.recall),
                                                       onPressed: () {
                                                         context
                                                             .read<RequestBloc>()
@@ -831,9 +830,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                           color: const Color(0xFFE6F4EA),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text(
-                          'Active',
-                          style: TextStyle(
+                        child: Text(
+                          AppLocalizations.of(context)!.active,
+                          style: const TextStyle(
                             color: Color(0xFF0F5A29),
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
@@ -848,7 +847,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                       const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF64748B)),
                       const SizedBox(width: 8),
                       Text(
-                        'By ${broadcast.createdByName ?? 'Admin'}',
+                        '${AppLocalizations.of(context)!.by} ${broadcast.createdByName ?? 'Admin'}',
                         style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                       ),
                     ],
@@ -859,7 +858,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                       const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF64748B)),
                       const SizedBox(width: 8),
                       Text(
-                        broadcast.locationName ?? 'Unknown Location',
+                        broadcast.locationName ?? AppLocalizations.of(context)!.unknownLocation,
                         style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                       ),
                     ],
@@ -872,7 +871,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                       Text(
                         broadcast.createdAt != null && broadcast.createdAt!.isNotEmpty
                             ? _formatDateTime(broadcast.createdAt!)
-                            : 'Unknown Time',
+                            : AppLocalizations.of(context)!.unknownTime,
                         style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                       ),
                     ],
@@ -883,7 +882,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                       const Icon(Icons.people_outline, size: 16, color: Color(0xFF64748B)),
                       const SizedBox(width: 8),
                       Text(
-                        'Delivered to ${broadcast.recipientCount} members',
+                        '${AppLocalizations.of(context)!.deliveredTo} ${broadcast.recipientCount} ${AppLocalizations.of(context)!.members}',
                         style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                       ),
                     ],
@@ -1067,7 +1066,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                       const Icon(Icons.person_outline_rounded, size: 16, color: Color(0xFF64748B)),
                       const SizedBox(width: 8),
                       Text(
-                        'By ${alert.createdBy ?? 'Unknown Member'}',
+                        '${AppLocalizations.of(context)!.by} ${alert.createdBy ?? 'Unknown Member'}',
                         style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                       ),
                     ],
@@ -1091,7 +1090,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                       Text(
                         alert.createdAt != null && alert.createdAt!.isNotEmpty
                             ? _formatDateTime(alert.createdAt!)
-                            : 'Just now',
+                            : AppLocalizations.of(context)!.unknownTime,
                         style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                       ),
                     ],
