@@ -343,17 +343,6 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       );
                     },
                   ),
-                IconButton(
-                  icon: const Icon(CupertinoIcons.share, color: Colors.white),
-                  onPressed: () {
-                    final text =
-                        'Event: ${updatedEvent.title}\n'
-                        'Date: ${_formatDateTime(updatedEvent.date)}\n'
-                        'Location: ${updatedEvent.locationName}\n\n'
-                        '${updatedEvent.description}';
-                    Share.share(text);
-                  },
-                ),
               ],
             ),
             body: SingleChildScrollView(
@@ -959,7 +948,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           isSelected: currentStatus == 'GOING',
           isLoading: isExpired ? true : (isLoading && currentStatus != 'GOING'),
           isExpired: isExpired,
-          onTap: () => _submitRsvp(eventId, memberId, 'GOING'),
+          onTap: (currentStatus != null) ? null : () => _submitRsvp(eventId, memberId, 'GOING'),
         ),
         const SizedBox(height: 12),
         _buildRsvpOptionCard(
@@ -974,7 +963,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
           isSelected: currentStatus == 'MAYBE',
           isLoading: isExpired ? true : (isLoading && currentStatus != 'MAYBE'),
           isExpired: isExpired,
-          onTap: () => _submitRsvp(eventId, memberId, 'MAYBE'),
+          onTap: (currentStatus != null) ? null : () => _submitRsvp(eventId, memberId, 'MAYBE'),
         ),
         const SizedBox(height: 12),
         _buildRsvpOptionCard(
@@ -991,7 +980,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               ? true
               : (isLoading && currentStatus != 'NOT_GOING'),
           isExpired: isExpired,
-          onTap: () => _submitRsvp(eventId, memberId, 'NOT_GOING'),
+          onTap: (currentStatus != null) ? null : () => _submitRsvp(eventId, memberId, 'NOT_GOING'),
         ),
         if (isExpired) ...[
           const SizedBox(height: 16),
@@ -1034,7 +1023,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     required bool isSelected,
     required bool isLoading,
     required bool isExpired,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
     final cardBgColor = isSelected ? selectedBgColor : Colors.white;
     final cardBorderColor = isSelected

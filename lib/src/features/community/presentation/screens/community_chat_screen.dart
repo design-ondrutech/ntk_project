@@ -304,18 +304,25 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
           onTap: () => _launchURL(url),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              url,
-              fit: BoxFit.cover,
-              width: 200,
-              height: 150,
-              errorBuilder: (_, __, ___) => Container(
-                width: 200,
-                height: 150,
-                color: Colors.grey[200],
-                child: const Icon(Icons.broken_image, color: Colors.grey),
-              ),
-            ),
+            child: url.startsWith('http')
+                ? Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    width: 200,
+                    height: 150,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 200,
+                      height: 150,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  )
+                : Container(
+                    width: 200,
+                    height: 150,
+                    color: Colors.grey[200],
+                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  ),
           ),
         ),
         if (message.message.isNotEmpty) ...[

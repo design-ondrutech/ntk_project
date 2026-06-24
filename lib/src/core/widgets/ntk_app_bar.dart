@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 
+String localizeLocationName(BuildContext context, String name) {
+  final isTamil = Localizations.localeOf(context).languageCode == 'ta';
+  if (name == 'Tamil Nadu' || name == 'தமிழ்நாடு') {
+    return isTamil ? 'தமிழ்நாடு' : 'Tamil Nadu';
+  }
+  return name;
+}
+
 class NTKAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final String subtitle;
@@ -48,7 +56,7 @@ class NTKAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           subtitleWidget ??
               Text(
-                subtitle,
+                localizeLocationName(context, subtitle),
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 12,

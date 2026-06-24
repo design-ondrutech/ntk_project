@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -53,7 +54,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     });
   }
 
-  void _submitPost() {
+  void _submitPost() async {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
@@ -65,8 +66,13 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
     final user = context.read<AuthBloc>().state.loginData;
     if (user == null) return;
 
-    // Convert picked image files to paths (server will handle upload separately if needed)
-    final imagePaths = _pickedImages.map((f) => f.path).toList();
+    // Convert picked image files to Base64 strings
+    final List<String> imageBase64List = [];
+    for (var file in _pickedImages) {
+      final bytes = await file.readAsBytes();
+      final base64String = base64Encode(bytes);
+      imageBase64List.add('data:image/jpeg;base64,$base64String');
+    }
 
     context.read<CommunityPostsBloc>().add(
       CreateCommunityPostEvent(
@@ -74,7 +80,7 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
         title: title,
         content: content,
         category: null,
-        images: imagePaths.isNotEmpty ? imagePaths : null,
+        images: imageBase64List.isNotEmpty ? imageBase64List : null,
         documents: _attachedDocuments.isNotEmpty ? _attachedDocuments : null,
       ),
     );

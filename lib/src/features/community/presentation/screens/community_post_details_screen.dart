@@ -127,10 +127,12 @@ class _CommunityPostDetailsScreenState extends State<CommunityPostDetailsScreen>
                                   itemBuilder: (context, index) {
                                     return Padding(
                                       padding: const EdgeInsets.only(right: 8.0),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.network(post.images[index], fit: BoxFit.cover, width: 250),
-                                      ),
+                                      child: post.images[index].startsWith('http')
+                                          ? ClipRRect(
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: Image.network(post.images[index], fit: BoxFit.cover, width: 250),
+                                            )
+                                          : const SizedBox.shrink(),
                                     );
                                   },
                                 ),

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:ntk_project/src/features/community/data/models/comment_model.dart';
 
 class PollOptionModel extends Equatable {
   final int id;
@@ -46,6 +47,7 @@ class PollModel extends Equatable {
   final int likes;
   final int commentCount;
   final bool isLiked;
+  final List<CommentModel> comments;
 
   const PollModel({
     required this.id,
@@ -63,10 +65,12 @@ class PollModel extends Equatable {
     this.likes = 0,
     this.commentCount = 0,
     this.isLiked = false,
+    this.comments = const [],
   });
 
   factory PollModel.fromJson(Map<String, dynamic> json) {
     final optionsJson = json['options'] as List? ?? [];
+    final commentsJson = json['comments'] as List? ?? [];
 
     return PollModel(
       id: json['id'] is int
@@ -91,9 +95,12 @@ class PollModel extends Equatable {
           : int.tryParse(json['userVoteOptionId']?.toString() ?? ''),
       createdBy: json['createdBy'] as Map<String, dynamic>?,
       member: json['member'] as Map<String, dynamic>?,
-      likes: json['likes'] as int? ?? 0,
-      commentCount: (json['commentsCount'] ?? json['commentCount']) as int? ?? 0,
+      likes: (json['likesCount'] ?? json['likes_count'] ?? json['likes']) as int? ?? 0,
+      commentCount: (json['commentsCount'] ?? json['commentCount']) as int? ?? commentsJson.length,
       isLiked: json['isLiked'] as bool? ?? false,
+      comments: commentsJson
+          .map((c) => CommentModel.fromJson(c as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -113,6 +120,7 @@ class PollModel extends Equatable {
     int? likes,
     int? commentCount,
     bool? isLiked,
+    List<CommentModel>? comments,
   }) {
     return PollModel(
       id: id ?? this.id,
@@ -130,6 +138,7 @@ class PollModel extends Equatable {
       likes: likes ?? this.likes,
       commentCount: commentCount ?? this.commentCount,
       isLiked: isLiked ?? this.isLiked,
+      comments: comments ?? this.comments,
     );
   }
 
@@ -150,5 +159,6 @@ class PollModel extends Equatable {
     likes,
     commentCount,
     isLiked,
+    comments,
   ];
 }

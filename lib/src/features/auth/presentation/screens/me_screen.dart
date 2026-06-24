@@ -689,6 +689,20 @@ class _UserInfoCard extends StatelessWidget {
             iconColor: NTKColors.textSecondary,
             label: loc.addedBy,
             value: profile.addedBy ?? '—',
+          ),
+          _InfoRow(
+            icon: Icons.bloodtype_outlined,
+            iconBg: const Color(0xFFFEE2E2),
+            iconColor: const Color(0xFFEF4444),
+            label: 'Blood Group',
+            value: profile.bloodGroup ?? '—',
+          ),
+          _InfoRow(
+            icon: Icons.work_outline_rounded,
+            iconBg: const Color(0xFFE0E7FF),
+            iconColor: const Color(0xFF4F46E5),
+            label: 'Profession',
+            value: profile.professionName ?? '—',
             isLast: true,
           ),
         ],
@@ -972,28 +986,14 @@ class _QuickActionsCard extends StatelessWidget {
         label: loc.editProfile,
         iconBg: NTKColors.emerald50,
         iconColor: NTKColors.primary,
-        onTap: () => onSnack('${loc.editProfile} ${loc.comingSoon}'),
+        onTap: () => Navigator.pushNamed(context, '/edit-profile'),
       ),
       _ActionItem(
         icon: Icons.lock_outline_rounded,
         label: loc.changePassword,
         iconBg: const Color(0xFFEFF6FF),
         iconColor: const Color(0xFF2563EB),
-        onTap: () => onSnack('${loc.changePassword} ${loc.comingSoon}'),
-      ),
-      _ActionItem(
-        icon: Icons.location_on_outlined,
-        label: loc.viewLocation,
-        iconBg: const Color(0xFFFFF7ED),
-        iconColor: const Color(0xFFF97316),
-        onTap: () => onSnack('${loc.viewLocation} ${loc.comingSoon}'),
-      ),
-      _ActionItem(
-        icon: Icons.support_agent_rounded,
-        label: loc.contactAdmin,
-        iconBg: const Color(0xFFF5F3FF),
-        iconColor: const Color(0xFF7C3AED),
-        onTap: () => onSnack('${loc.contactAdmin} ${loc.comingSoon}'),
+        onTap: () => Navigator.pushNamed(context, '/change-password'),
       ),
       _ActionItem(
         icon: Icons.logout_rounded,
@@ -1151,16 +1151,26 @@ class _SettingsCardState extends State<_SettingsCard> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text(loc.selectLanguage, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: Text(
+                  loc.selectLanguage,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               ListTile(
                 title: const Text('English'),
-                trailing: _languageCode == 'en' ? const Icon(Icons.check, color: NTKColors.primary) : null,
+                trailing: _languageCode == 'en'
+                    ? const Icon(Icons.check, color: NTKColors.primary)
+                    : null,
                 onTap: () => _setLanguage('en'),
               ),
               ListTile(
                 title: const Text('தமிழ்'),
-                trailing: _languageCode == 'ta' ? const Icon(Icons.check, color: NTKColors.primary) : null,
+                trailing: _languageCode == 'ta'
+                    ? const Icon(Icons.check, color: NTKColors.primary)
+                    : null,
                 onTap: () => _setLanguage('ta'),
               ),
             ],
@@ -1177,8 +1187,10 @@ class _SettingsCardState extends State<_SettingsCard> {
     setState(() {
       _languageCode = code;
     });
-    NTKSnackbar.showSuccess(context,
-        message: code == 'ta' ? 'மொழி மாற்றப்பட்டது' : 'Language changed');
+    NTKSnackbar.showSuccess(
+      context,
+      message: code == 'ta' ? 'மொழி மாற்றப்பட்டது' : 'Language changed',
+    );
   }
 
   @override
@@ -1243,13 +1255,6 @@ class _SettingsCardState extends State<_SettingsCard> {
             ),
           ),
           _SettingsTile(
-            icon: Icons.privacy_tip_outlined,
-            iconBg: const Color(0xFFEFF6FF),
-            iconColor: const Color(0xFF2563EB),
-            label: loc.privacySettings,
-            onTap: () => widget.onSnack('${loc.privacySettings} ${loc.comingSoon}'),
-          ),
-          _SettingsTile(
             icon: Icons.language_rounded,
             iconBg: const Color(0xFFF5F3FF),
             iconColor: const Color(0xFF7C3AED),
@@ -1270,13 +1275,6 @@ class _SettingsCardState extends State<_SettingsCard> {
               ),
             ),
             onTap: _showLanguagePicker,
-          ),
-          _SettingsTile(
-            icon: Icons.help_outline_rounded,
-            iconBg: const Color(0xFFFFF7ED),
-            iconColor: const Color(0xFFF97316),
-            label: loc.helpSupport,
-            onTap: () => widget.onSnack('${loc.helpSupport} ${loc.comingSoon}'),
             isLast: true,
           ),
         ],

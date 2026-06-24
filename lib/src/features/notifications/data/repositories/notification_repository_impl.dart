@@ -92,6 +92,10 @@ class NotificationRepositoryImpl implements NotificationRepository {
           statusBadge
           purpose
           responseRequired
+          notification {
+            entityId
+            entityType
+          }
           createdBy {
             name
             role

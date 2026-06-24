@@ -7,6 +7,14 @@ import 'package:ntk_project/src/features/notifications/data/models/notification_
 import 'package:ntk_project/src/features/notifications/domain/repositories/notification_repository.dart';
 import 'package:ntk_project/src/injection_container.dart';
 import 'package:intl/intl.dart';
+import 'package:ntk_project/src/features/events/data/models/event_model.dart';
+import 'package:ntk_project/src/features/events/data/models/emergency_model.dart';
+import 'package:ntk_project/src/features/requests_broadcasts/data/models/broadcast_model.dart';
+import 'package:ntk_project/src/features/community/data/models/post_model.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_post_details_screen.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ntk_project/src/features/notifications/presentation/screens/notifications_screen.dart';
 
 class NotificationDetailsScreen extends StatefulWidget {
   final NotificationModel notification;
@@ -337,7 +345,142 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
             ),
           ),
         ],
+        _buildGoToDetailsButton(context, details),
       ],
+    );
+  }
+
+  Widget _buildGoToDetailsButton(BuildContext context, Map<String, dynamic> details) {
+    final type = widget.notification.type?.toUpperCase() ?? '';
+    final notificationField = _asMap(details['notification']);
+    final entityId = notificationField != null
+        ? int.tryParse(notificationField['entityId']?.toString() ?? '')
+        : widget.notification.relatedEntityId;
+    final entityType = (notificationField != null
+        ? notificationField['entityType']?.toString()
+        : widget.notification.type)?.toUpperCase() ?? '';
+
+    // Check if we have the corresponding entity data/ID
+    final hasEmergency = details['emergency'] != null;
+    final hasEvent = details['event'] != null;
+    final hasBroadcast = details['broadcast'] != null;
+    final hasPoll = entityType == 'POLL' && entityId != null;
+    final hasPost = (entityType == 'POST' || entityType == 'COMMUNITY') && entityId != null;
+
+    if (!hasEmergency && !hasEvent && !hasBroadcast && !hasPoll && !hasPost) {
+      return const SizedBox.shrink();
+    }
+
+    String label = 'View Details';
+    IconData icon = Icons.info_outline;
+    VoidCallback? onTap;
+
+    if (hasEmergency) {
+      label = 'View Emergency Details';
+      icon = Icons.campaign;
+      onTap = () {
+        final emergency = EmergencyModel.fromJson(_asMap(details['emergency'])!);
+        Navigator.pushNamed(
+          context,
+          '/emergency_details',
+          arguments: emergency,
+        );
+      };
+    } else if (hasEvent) {
+      label = 'View Event Details';
+      icon = Icons.calendar_month;
+      onTap = () {
+        final event = EventModel.fromJson(_asMap(details['event'])!);
+        Navigator.pushNamed(
+          context,
+          '/event_details',
+          arguments: event,
+        );
+      };
+    } else if (hasBroadcast) {
+      label = 'View Broadcast Details';
+      icon = Icons.podcasts;
+      onTap = () {
+        final broadcast = BroadcastModel.fromJson(_asMap(details['broadcast'])!);
+        Navigator.pushNamed(
+          context,
+          '/broadcast_details',
+          arguments: broadcast,
+        );
+      };
+    } else if (hasPoll) {
+      label = 'View Poll Details';
+      icon = Icons.poll;
+      onTap = () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => PollDetailSheet(
+            pollId: entityId!,
+            title: widget.notification.title,
+          ),
+        );
+      };
+    } else if (hasPost) {
+      label = 'View Post Details';
+      icon = Icons.people_outline;
+      onTap = () {
+        final post = PostModel(
+          id: entityId!,
+          title: widget.notification.title,
+          content: widget.notification.message,
+          likes: 0,
+          authorName: '',
+          createdAt: widget.notification.createdAt,
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: sl<CommunityPostsBloc>(),
+              child: CommunityPostDetailsScreen(post: post),
+            ),
+          ),
+        );
+      };
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24.0, bottom: 8.0),
+      child: SizedBox(
+        width: double.infinity,
+        height: 54,
+        child: ElevatedButton(
+          onPressed: onTap,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: NTKColors.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            elevation: 0,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 20, color: Colors.white),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward, size: 16, color: Colors.white),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

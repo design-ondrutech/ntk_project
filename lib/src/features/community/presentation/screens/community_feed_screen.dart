@@ -75,7 +75,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
   String get _locationName {
     final globalLoc = context.watch<DashboardBloc>().state.globalLocation;
     final auth = context.watch<AuthBloc>().state.loginData;
-    return globalLoc?.name ?? auth?.locationName ?? 'Nagapattinam';
+    return localizeLocationName(context, globalLoc?.name ?? auth?.locationName ?? 'Nagapattinam');
   }
 
   void _fetchFeed() {
@@ -259,6 +259,10 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
               animation: _tabController,
               builder: (context, _) {
                 if (_tabController.index == 0) {
+                  final userRole = context.watch<AuthBloc>().state.loginData?.role;
+                  if (userRole != 'SUB_ADMIN' && userRole != 'ADMIN' && userRole != 'SUPER_ADMIN') {
+                    return const SizedBox.shrink();
+                  }
                   return IconButton(
                     icon: const Icon(CupertinoIcons.add, color: Colors.white),
                     onPressed: () => _showCreateGroupDialog(context),
@@ -919,7 +923,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
     final auth = authState.loginData;
     final images = <String>[];
     for (final image in _images) {
-      images.add(base64Encode(await image.readAsBytes()));
+      images.add('data:image/jpeg;base64,${base64Encode(await image.readAsBytes())}');
     }
     context.read<CommunityBloc>().add(
       CreateCommunityPost(
@@ -1961,30 +1965,94 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
   }
 }
 
-class _PollDetailsScreen extends StatelessWidget {
+class _PollDetailsScreen extends StatefulWidget {
   const _PollDetailsScreen({required this.poll});
 
   final PollModel poll;
 
   @override
+  State<_PollDetailsScreen> createState() => _PollDetailsScreenState();
+}
+
+class _PollDetailsScreenState extends State<_PollDetailsScreen> {
+  final _comment = TextEditingController();
+  final _focusNode = FocusNode();
+  final _scrollController = ScrollController();
+  CommentModel? _replyingToComment;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<CommunityPollsBloc>().add(
+          FetchPollDetailsEvent(pollId: widget.poll.id),
+        );
+  }
+
+  @override
+  void dispose() {
+    _comment.dispose();
+    _focusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent + 150,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void _addComment(int pollId) {
+    final text = _comment.text.trim();
+    if (text.isEmpty) return;
+    final auth = context.read<AuthBloc>().state.loginData;
+    context.read<CommunityPollsBloc>().add(
+          AddPollCommentEvent(
+            pollId: pollId,
+            content: text,
+            authorName: auth?.name ?? 'Community Member',
+            authorRole: auth?.role ?? 'MEMBER',
+            parentId: _replyingToComment?.id,
+          ),
+        );
+    _comment.clear();
+    setState(() {
+      _replyingToComment = null;
+    });
+    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      body: Column(
-        children: [
-          Container(
-            color: _primary,
-            child: const SafeArea(bottom: false, child: SizedBox.shrink()),
+      appBar: AppBar(
+        backgroundColor: _primary,
+        elevation: 0,
+        leading: const BackButton(color: Colors.white),
+        title: const Text(
+          'Poll Details',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
-          const _PageHeader(title: 'Poll Details'),
-          Expanded(
-            child: SafeArea(
-              top: false,
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
               child: BlocBuilder<CommunityPollsBloc, CommunityPollsState>(
                 builder: (context, state) {
                   final livePoll = state.polls.firstWhere(
-                    (p) => p.id == poll.id,
-                    orElse: () => poll,
+                    (p) => p.id == widget.poll.id,
+                    orElse: () => widget.poll,
                   );
                   final liveTotal = livePoll.votesCount == 0
                       ? livePoll.options.fold<int>(
@@ -2002,7 +2070,11 @@ class _PollDetailsScreen extends StatelessWidget {
                     } catch (_) {}
                   }
 
+                  final comments = livePoll.comments;
+                  final rootComments = comments.where((c) => c.parentId == null).toList();
+
                   return ListView(
+                    controller: _scrollController,
                     padding: const EdgeInsets.all(18),
                     children: [
                       _AuthorLine(
@@ -2091,19 +2163,84 @@ class _PollDetailsScreen extends StatelessWidget {
                           context.read<CommunityPollsBloc>().add(LikePollEvent(pollId: livePoll.id));
                         },
                         onComment: () {
-                          // The actual app might have a bottom sheet, for now we will assume the post details has it
+                          _focusNode.requestFocus();
                         },
                         onShare: () {
                           Share.share('${livePoll.question}\n\nShared via NTK App');
                         },
                       ),
+                      const SizedBox(height: 20),
+                      const _SectionHeader(title: 'Comments'),
+                      const SizedBox(height: 8),
+                      if (rootComments.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'No comments yet. Be the first to comment!',
+                              style: TextStyle(color: _muted, fontSize: 13),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        )
+                      else
+                        ...rootComments.map(
+                          (comment) => _CommentTile(
+                            comment: comment,
+                            onLike: (c) {
+                              context.read<CommunityPollsBloc>().add(
+                                    LikePollCommentEvent(pollCommentId: c.id),
+                                  );
+                            },
+                            onReply: (c) {
+                              setState(() {
+                                _replyingToComment = c;
+                              });
+                              _focusNode.requestFocus();
+                            },
+                          ),
+                        ),
                     ],
                   );
                 },
               ),
             ),
-          ),
-        ],
+            if (_replyingToComment != null)
+              Container(
+                color: const Color(0xFFEAF6EF),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Replying to ${_replyingToComment!.authorName}: "${_replyingToComment!.content}"',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: () {
+                        setState(() {
+                          _replyingToComment = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            _CommentComposer(
+              controller: _comment,
+              focusNode: _focusNode,
+              onSend: () => _addComment(widget.poll.id),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2123,6 +2260,7 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
   final _comment = TextEditingController();
   final _focusNode = FocusNode();
   final _scrollController = ScrollController();
+  CommentModel? _replyingToComment;
 
   @override
   void dispose() {
@@ -2152,9 +2290,13 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
         content: text,
         authorName: auth?.name ?? 'Community Member',
         authorRole: auth?.role ?? 'MEMBER',
+        parentId: _replyingToComment?.id,
       ),
     );
     _comment.clear();
+    setState(() {
+      _replyingToComment = null;
+    });
     Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
   }
 
@@ -2202,6 +2344,7 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
                 builder: (context, state) {
                   final post = _livePost(state);
                   final comments = post.comments;
+                  final rootComments = comments.where((c) => c.parentId == null).toList();
                   return ListView(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(14),
@@ -2259,7 +2402,7 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
                       const SizedBox(height: 12),
                       const _SectionHeader(title: 'Comments'),
                       const SizedBox(height: 8),
-                      if (comments.isEmpty)
+                      if (rootComments.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 24),
                           child: Center(
@@ -2271,14 +2414,54 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
                           ),
                         )
                       else
-                        ...comments.map(
-                          (comment) => _CommentTile(comment: comment),
+                        ...rootComments.map(
+                          (comment) => _CommentTile(
+                            comment: comment,
+                            onLike: (c) {
+                              context.read<CommunityBloc>().add(LikeComment(c.id));
+                            },
+                            onReply: (c) {
+                              setState(() {
+                                _replyingToComment = c;
+                              });
+                              _focusNode.requestFocus();
+                            },
+                          ),
                         ),
                     ],
                   );
                 },
               ),
             ),
+            if (_replyingToComment != null)
+              Container(
+                color: const Color(0xFFEAF6EF),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Replying to ${_replyingToComment!.authorName}: "${_replyingToComment!.content}"',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: () {
+                        setState(() {
+                          _replyingToComment = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
             _CommentComposer(
               controller: _comment,
               focusNode: _focusNode,
@@ -2572,9 +2755,173 @@ class _PostCard extends StatelessWidget {
     );
   }
 
+  void _showModerateDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.gavel_rounded, color: Color(0xFF0F8A4B), size: 20),
+            SizedBox(width: 8),
+            Text(
+              'Moderate Post',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Select moderation action for this post:',
+          style: TextStyle(fontSize: 14),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              icon: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF0F8A4B)),
+              label: const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Keep Post', style: TextStyle(color: Color(0xFF0F8A4B))),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showConfirmKeepDialog(context);
+              },
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              label: const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Send Warning', style: TextStyle(color: Colors.orange)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showSendWarningDialog(context);
+              },
+            ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+              label: const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Delete Post', style: TextStyle(color: Color(0xFFEF4444))),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                onDelete?.call();
+              },
+            ),
+          ),
+          const Divider(),
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showConfirmKeepDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Keep Post', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to approve and keep this post? This will clear any pending reviews.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<CommunityBloc>().add(
+                ModeratePost(postId: post.id, action: 'KEEP'),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F8A4B),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSendWarningDialog(BuildContext context) {
+    final TextEditingController msgController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Send Warning', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Send a warning to the author of this post. The post will remain visible but marked with a warning.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: msgController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter warning message to the user...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<CommunityBloc>().add(
+                ModeratePost(
+                  postId: post.id,
+                  action: 'WARN',
+                  warningMessage: msgController.text.trim().isNotEmpty
+                      ? msgController.text.trim()
+                      : null,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final myId = context.watch<AuthBloc>().state.loginData?.id;
+    final role = context.watch<AuthBloc>().state.loginData?.role.toUpperCase() ?? 'MEMBER';
+    final isAdmin = role == 'SUB_ADMIN' || role == 'ADMIN' || role == 'SUPER_ADMIN';
     final isOwner =
         myId != null && post.createdById != null && myId == post.createdById;
 
@@ -2612,10 +2959,12 @@ class _PostCard extends StatelessWidget {
                       onDelete?.call();
                     } else if (value == 'report') {
                       _showReportDialog(context);
+                    } else if (value == 'moderate') {
+                      _showModerateDialog(context);
                     }
                   },
                   itemBuilder: (context) => [
-                    if (isOwner)
+                    if (isOwner || isAdmin)
                       const PopupMenuItem<String>(
                         value: 'delete',
                         child: Row(
@@ -2630,16 +2979,32 @@ class _PostCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                    const PopupMenuItem<String>(
-                      value: 'report',
-                      child: Row(
-                        children: [
-                          Icon(Icons.flag_outlined, color: Color(0xFFF59E0B), size: 18),
-                          SizedBox(width: 10),
-                          Text('Report Post'),
-                        ],
+                    if (isAdmin)
+                      const PopupMenuItem<String>(
+                        value: 'moderate',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.gavel_rounded,
+                              color: Color(0xFF0F8A4B),
+                              size: 18,
+                            ),
+                            SizedBox(width: 10),
+                            Text('Moderate Post'),
+                          ],
+                        ),
                       ),
-                    ),
+                    if (!isOwner && !isAdmin)
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, color: Color(0xFFF59E0B), size: 18),
+                            SizedBox(width: 10),
+                            Text('Report Post'),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -3936,42 +4301,102 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _CommentTile extends StatelessWidget {
-  const _CommentTile({required this.comment});
+  const _CommentTile({
+    required this.comment,
+    required this.onLike,
+    required this.onReply,
+    this.isReply = false,
+  });
 
   final CommentModel comment;
+  final ValueChanged<CommentModel> onLike;
+  final ValueChanged<CommentModel> onReply;
+  final bool isReply;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _AuthorLine(
-            name: comment.authorName,
-            location: '',
-            time: _timeAgo(comment.createdAt),
-            category: comment.authorRole, // Shows Role as a Badge instead of Location
-            image: comment.createdBy?['image']?.toString(),
-          ),
-          const SizedBox(height: 8),
-          _ExpandableText(text: comment.content),
-          const SizedBox(height: 8),
-          // Action row for future implementation
-          // When backend provides likes and replies, bind them here.
-          Row(
-            children: [
-              const _InlineAction(
-                icon: Icons.thumb_up_outlined,
-                label: '0', // Replaced dummy 3 with 0 since backend doesn't support comment likes yet
-                onTap: _noop,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isReply) ...[
+              const Padding(
+                padding: EdgeInsets.only(left: 8, right: 8, top: 12),
+                child: Text(
+                  '↳',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _muted,
+                  ),
+                ),
               ),
-              const SizedBox(width: 12),
-              TextButton(onPressed: () {}, child: const Text('Reply')),
             ],
+            Expanded(
+              child: _Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _AuthorLine(
+                      name: comment.authorName,
+                      location: '',
+                      time: _timeAgo(comment.createdAt),
+                      category: comment.authorRole, // Shows Role as a Badge instead of Location
+                      image: comment.createdBy?['image']?.toString(),
+                    ),
+                    const SizedBox(height: 8),
+                    _ExpandableText(text: comment.content),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _InlineAction(
+                          icon: comment.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          label: '${comment.likesCount}',
+                          color: comment.isLiked ? const Color(0xFFE91E63) : _muted,
+                          onTap: () => onLike(comment),
+                        ),
+                        const SizedBox(width: 16),
+                        InkWell(
+                          onTap: () => onReply(comment),
+                          borderRadius: BorderRadius.circular(4),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Text(
+                              'Reply',
+                              style: TextStyle(
+                                color: _secondary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (comment.replies.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 24),
+            child: Column(
+              children: comment.replies
+                  .map((reply) => _CommentTile(
+                        comment: reply,
+                        onLike: onLike,
+                        onReply: onReply,
+                        isReply: true,
+                      ))
+                  .toList(),
+            ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

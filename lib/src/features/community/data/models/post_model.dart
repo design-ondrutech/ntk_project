@@ -82,7 +82,7 @@ class PostModel extends Equatable {
       images: (json['images'] as List?)?.where((e) => e != null).map((e) => e.toString()).toList() ?? [],
       documents: (json['documents'] as List?)?.where((e) => e != null).map((e) => e.toString()).toList() ?? [],
       attachments: (json['attachments'] as List?)?.where((e) => e != null).map((e) => e.toString()).toList() ?? [],
-      likes: json['likes'] as int? ?? 0,
+      likes: (json['likesCount'] ?? json['likes_count'] ?? json['likes']) as int? ?? 0,
       authorName: authorName,
       authorRole: authorRole,
       community: json['community'] != null

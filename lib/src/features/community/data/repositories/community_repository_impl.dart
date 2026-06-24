@@ -107,6 +107,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
           createdAt
           authorName
           createdById
+          isLiked
           location {
             name
           }
@@ -116,6 +117,19 @@ class CommunityRepositoryImpl implements CommunityRepository {
             authorName
             authorRole
             createdAt
+            parentId
+            likesCount
+            isLiked
+            replies {
+              id
+              content
+              authorName
+              authorRole
+              createdAt
+              parentId
+              likesCount
+              isLiked
+            }
           }
         }
       }
@@ -139,7 +153,10 @@ class CommunityRepositoryImpl implements CommunityRepository {
   }
 
   @override
-  Future<List<PostModel>> getCommunityPosts({required int communityId, String? category}) async {
+  Future<List<PostModel>> getCommunityPosts({
+    required int communityId,
+    String? category,
+  }) async {
     const String query = r'''
       query GetCommunityPosts($communityId: Int!, $category: String) {
         getCommunityPosts(communityId: $communityId, category: $category) {
@@ -174,6 +191,19 @@ class CommunityRepositoryImpl implements CommunityRepository {
             authorName
             authorRole
             createdAt
+            parentId
+            likesCount
+            isLiked
+            replies {
+              id
+              content
+              authorName
+              authorRole
+              createdAt
+              parentId
+              likesCount
+              isLiked
+            }
           }
           createdAt
         }
@@ -212,6 +242,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
           commentCount
           createdAt
           createdByType
+          isLiked
           location {
             name
           }
@@ -226,6 +257,19 @@ class CommunityRepositoryImpl implements CommunityRepository {
             authorName
             authorRole
             createdAt
+            parentId
+            likesCount
+            isLiked
+            replies {
+              id
+              content
+              authorName
+              authorRole
+              createdAt
+              parentId
+              likesCount
+              isLiked
+            }
           }
         }
       }
@@ -409,7 +453,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
 
     final data = result.data?['likePost'] as Map<String, dynamic>?;
     if (data == null) throw Exception('Like post failed');
-    return data['likes'] as int? ?? 0;
+    return (data['likesCount'] ?? data['likes_count'] ?? data['likes']) as int? ?? 0;
   }
 
   @override
@@ -434,7 +478,36 @@ class CommunityRepositoryImpl implements CommunityRepository {
 
     final data = result.data?['unlikePost'] as Map<String, dynamic>?;
     if (data == null) throw Exception('Unlike post failed');
-    return data['likes'] as int? ?? 0;
+    return (data['likesCount'] ?? data['likes_count'] ?? data['likes']) as int? ?? 0;
+  }
+
+  @override
+  Future<Map<String, dynamic>> likeComment({required int commentId}) async {
+    const String mutation = r'''
+      mutation LikeComment($commentId: Int!) {
+        likeComment(commentId: $commentId) {
+          id
+          likesCount
+          isLiked
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {'commentId': commentId},
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to like comment: ${result.exception}');
+    }
+
+    final data = result.data?['likeComment'] as Map<String, dynamic>?;
+    if (data == null) throw Exception('Like comment failed');
+    return {
+      'likesCount': data['likesCount'] as int? ?? 0,
+      'isLiked': data['isLiked'] as bool? ?? false,
+    };
   }
 
   @override
@@ -443,15 +516,19 @@ class CommunityRepositoryImpl implements CommunityRepository {
     required String content,
     required String authorName,
     required String authorRole,
+    int? parentId,
   }) async {
     const String mutation = r'''
-      mutation AddComment($postId: Int!, $content: String!, $authorName: String!, $authorRole: String!) {
-        addComment(postId: $postId, content: $content, authorName: $authorName, authorRole: $authorRole) {
+      mutation AddComment($postId: Int!, $content: String!, $authorName: String!, $authorRole: String!, $parentId: Int) {
+        addComment(postId: $postId, content: $content, authorName: $authorName, authorRole: $authorRole, parentId: $parentId) {
           id
           content
           authorName
           authorRole
           createdAt
+          parentId
+          likesCount
+          isLiked
         }
       }
     ''';
@@ -463,6 +540,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
         'content': content,
         'authorName': authorName,
         'authorRole': authorRole,
+        'parentId': parentId,
       },
     );
 
@@ -516,6 +594,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
           likes
           authorName
           createdById
+          isLiked
         }
       }
     ''';
@@ -580,6 +659,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
           authorName
           authorRole
           createdAt
+          isLiked
         }
       }
     ''';
@@ -621,6 +701,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
           id
           content
           images
+          isLiked
           location {
             name
           }
@@ -691,21 +772,23 @@ class CommunityRepositoryImpl implements CommunityRepository {
   }
 
   @override
-  Future<List<PostModel>> getReportedPostsList({int? locationId}) async {
+  Future<List<PostModel>> getReportedPostsList({
+    int? locationId,
+    String? status,
+  }) async {
     const String query = r'''
-      query ReportedPosts($locationId: Int) {
-        getReportedPosts(locationId: $locationId) {
+      query GetReportedPostsList($locationId: Int, $status: String) {
+        getReportedPostsList(locationId: $locationId, status: $status) {
           id
           content
-          category
-          image
           images
-          likes
-          commentCount
-          createdAt
           authorName
+          authorRole
+          createdAt
           location {
+            id
             name
+            type
           }
           status
           reportCount
@@ -720,14 +803,17 @@ class CommunityRepositoryImpl implements CommunityRepository {
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: locationId != null ? {'locationId': locationId} : {},
+      variables: {
+        if (locationId != null) 'locationId': locationId,
+        if (status != null) 'status': status,
+      },
     );
 
     if (result.hasException) {
       throw Exception('Failed to fetch reported posts: ${result.exception}');
     }
 
-    final List data = result.data?['getReportedPosts'] as List? ?? [];
+    final List data = result.data?['getReportedPostsList'] as List? ?? [];
     return data
         .map<PostModel>(
           (json) => PostModel.fromJson(json as Map<String, dynamic>),
@@ -760,6 +846,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
           isHighPriority
           isUnderReview
           hasWarning
+          isLiked
         }
       }
     ''';
@@ -808,7 +895,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
     }
 
     final data = result.data?['likeCommunityPost'] as Map<String, dynamic>?;
-    return data?['likes'] as int? ?? 0;
+    return (data?['likesCount'] ?? data?['likes_count'] ?? data?['likes']) as int? ?? 0;
   }
 
   @override
@@ -830,10 +917,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
 
     final result = await _graphQLService.performMutation(
       mutation,
-      variables: {
-        'postId': postId,
-        'content': content,
-      },
+      variables: {'postId': postId, 'content': content},
     );
 
     if (result.hasException) {
@@ -1082,14 +1166,13 @@ class CommunityRepositoryImpl implements CommunityRepository {
       query,
       variables: {'communityId': communityId},
     );
-    if (result.hasException) throw Exception('Failed to get members: ${result.exception}');
+    if (result.hasException)
+      throw Exception('Failed to get members: ${result.exception}');
     final List data = result.data?['getCommunityMembers'] as List? ?? [];
     return data
         .map((e) => CommunityMemberModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
-
-
 
   @override
   Future<CommunityModel> updateCommunityChatSettings({
@@ -1336,6 +1419,26 @@ class CommunityRepositoryImpl implements CommunityRepository {
           location {
             name
           }
+          comments {
+            id
+            content
+            authorName
+            authorRole
+            createdAt
+            parentId
+            likesCount
+            isLiked
+            replies {
+              id
+              content
+              authorName
+              authorRole
+              createdAt
+              parentId
+              likesCount
+              isLiked
+            }
+          }
         }
       }
     ''';
@@ -1355,11 +1458,13 @@ class CommunityRepositoryImpl implements CommunityRepository {
   }
 
   @override
-  Future<void> likePoll({required int pollId}) async {
+  Future<Map<String, dynamic>> likePoll({required int pollId}) async {
     const String mutation = r'''
-      mutation LikePoll($pollId: Int!) {
+      mutation LikePoll($pollId: Int) {
         likePoll(pollId: $pollId) {
           id
+          likesCount
+          isLiked
         }
       }
     ''';
@@ -1370,27 +1475,83 @@ class CommunityRepositoryImpl implements CommunityRepository {
     if (result.hasException) {
       throw Exception('Failed to like poll: ${result.exception}');
     }
+    final data = result.data?['likePoll'] as Map<String, dynamic>?;
+    if (data == null) throw Exception('Like poll failed');
+    return {
+      'likesCount': data['likesCount'] as int? ?? 0,
+      'isLiked': data['isLiked'] as bool? ?? false,
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> likePollComment({required int pollCommentId}) async {
+    const String mutation = r'''
+      mutation LikePollComment($pollCommentId: Int!) {
+        likePollComment(pollCommentId: $pollCommentId) {
+          id
+          likesCount
+          isLiked
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {'pollCommentId': pollCommentId},
+    );
+    if (result.hasException) {
+      throw Exception('Failed to like poll comment: ${result.exception}');
+    }
+    final data = result.data?['likePollComment'] as Map<String, dynamic>?;
+    if (data == null) throw Exception('Like poll comment failed');
+    return {
+      'likesCount': data['likesCount'] as int? ?? 0,
+      'isLiked': data['isLiked'] as bool? ?? false,
+    };
   }
 
   @override
   Future<CommentModel> addPollComment({
     required int pollId,
     required String content,
+    required String authorName,
+    required String authorRole,
+    int? parentId,
   }) async {
     const String mutation = r'''
-      mutation AddPollComment($pollId: Int!, $content: String!) {
-        addPollComment(pollId: $pollId, content: $content) {
+      mutation AddPollComment(
+        $pollId: Int!
+        $content: String!
+        $authorName: String!
+        $authorRole: String!
+        $parentId: Int
+      ) {
+        addPollComment(
+          pollId: $pollId
+          content: $content
+          authorName: $authorName
+          authorRole: $authorRole
+          parentId: $parentId
+        ) {
           id
           content
           authorName
           authorRole
           createdAt
+          parentId
+          likesCount
+          isLiked
         }
       }
     ''';
     final result = await _graphQLService.performMutation(
       mutation,
-      variables: {'pollId': pollId, 'content': content},
+      variables: {
+        'pollId': pollId,
+        'content': content,
+        'authorName': authorName,
+        'authorRole': authorRole,
+        'parentId': parentId,
+      },
     );
     if (result.hasException) {
       throw Exception('Failed to add poll comment: ${result.exception}');

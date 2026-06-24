@@ -450,4 +450,39 @@ class MemberRepositoryImpl implements MemberRepository {
         return 4;
     }
   }
+
+  @override
+  Future<void> changePassword({
+    required int id,
+    required String password,
+  }) async {
+    const String mutation = r'''
+      mutation ChangePassword($id: Int!, $password: String!) {
+        updateMember(id: $id, password: $password) {
+          id
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'id': id,
+        'password': password,
+      },
+    );
+
+    if (result.hasException) {
+      final errors = result.exception?.graphqlErrors;
+      if (errors != null && errors.isNotEmpty) {
+        throw Exception(errors.first.message);
+      }
+      throw Exception('Failed to change password. Please try again.');
+    }
+
+    final data = result.data?['updateMember'];
+    if (data == null) {
+      throw Exception('Password update failed. Please try again.');
+    }
+  }
 }

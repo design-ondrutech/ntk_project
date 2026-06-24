@@ -68,11 +68,38 @@ class LikePollEvent extends CommunityPollsEvent {
 class AddPollCommentEvent extends CommunityPollsEvent {
   final int pollId;
   final String content;
+  final String authorName;
+  final String authorRole;
+  final int? parentId;
 
-  const AddPollCommentEvent({required this.pollId, required this.content});
+  const AddPollCommentEvent({
+    required this.pollId,
+    required this.content,
+    required this.authorName,
+    required this.authorRole,
+    this.parentId,
+  });
 
   @override
-  List<Object?> get props => [pollId, content];
+  List<Object?> get props => [pollId, content, authorName, authorRole, parentId];
+}
+
+class LikePollCommentEvent extends CommunityPollsEvent {
+  final int pollCommentId;
+
+  const LikePollCommentEvent({required this.pollCommentId});
+
+  @override
+  List<Object?> get props => [pollCommentId];
+}
+
+class FetchPollDetailsEvent extends CommunityPollsEvent {
+  final int pollId;
+
+  const FetchPollDetailsEvent({required this.pollId});
+
+  @override
+  List<Object?> get props => [pollId];
 }
 
 class DeletePollEvent extends CommunityPollsEvent {

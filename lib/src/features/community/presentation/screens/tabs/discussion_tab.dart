@@ -140,7 +140,7 @@ class _DiscussionTabState extends State<DiscussionTab> {
           const Divider(height: 1, color: Color(0xFFE7ECE9)),
           const SizedBox(height: 8),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextButton.icon(
                 onPressed: () {
@@ -154,20 +154,6 @@ class _DiscussionTabState extends State<DiscussionTab> {
                 style: TextButton.styleFrom(foregroundColor: const Color(0xFF0F8A4B)),
                 icon: const Icon(Icons.image_outlined, size: 20),
                 label: const Text('Image', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              ),
-              Container(width: 1, height: 24, color: const Color(0xFFE7ECE9)),
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CreateCommunityPostScreen(communityId: widget.community.id),
-                    ),
-                  );
-                },
-                style: TextButton.styleFrom(foregroundColor: const Color(0xFF0F8A4B)),
-                icon: const Icon(Icons.attach_file_rounded, size: 20),
-                label: const Text('Document', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               ),
             ],
           ),
@@ -269,7 +255,7 @@ class _PostCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 14, color: Color(0xFF374151), height: 1.5),
               ),
-              if (post.images.isNotEmpty) ...[
+              if (post.images.isNotEmpty && post.images.first.startsWith('http')) ...[
                 const SizedBox(height: 16),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),

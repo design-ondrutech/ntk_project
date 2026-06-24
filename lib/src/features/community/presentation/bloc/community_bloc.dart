@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
 import 'package:ntk_project/src/features/community/data/models/community_message_model.dart';
 import 'package:ntk_project/src/features/community/data/models/post_model.dart';
+import 'package:ntk_project/src/features/community/data/models/comment_model.dart';
 import 'package:ntk_project/src/features/community/data/community_socket_service.dart';
 import 'dart:async';
 import 'community_event.dart';
@@ -12,6 +13,7 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
   final CommunityRepository _repository;
   final CommunitySocketService _socketService;
   final Set<int> _processingLikes = {};
+  final Set<int> _processingCommentLikes = {};
   
   StreamSubscription? _postDeletedSub;
   StreamSubscription? _pollDeletedSub;
@@ -24,10 +26,12 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
     on<SendCommunityMessage>(_onSendCommunityMessage);
     on<LikePost>(_onLikePost);
     on<AddComment>(_onAddComment);
+    on<LikeComment>(_onLikeComment);
     on<CreateCommunityPost>(_onCreateCommunityPost);
     on<EditPost>(_onEditPost);
     on<DeletePost>(_onDeletePost);
     on<ReportPost>(_onReportPost);
+    on<ModeratePost>(_onModeratePost);
     on<CreateCommunity>(_onCreateCommunity);
     on<JoinCommunity>(_onJoinCommunity);
     on<ReactToMessage>(_onReactToMessage);
@@ -213,7 +217,9 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
 
       try {
         // 2. Call API
-        final newLikesFromServer = await _repository.likePost(id: event.postId);
+        final newLikesFromServer = isCurrentlyLiked
+            ? await _repository.unlikePost(id: event.postId)
+            : await _repository.likePost(id: event.postId);
 
       // 3. Sync with server (only update likes count)
       final syncedPosts = state.posts.map((post) {
@@ -285,11 +291,14 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
         content: event.content,
         authorName: event.authorName,
         authorRole: event.authorRole,
+        parentId: event.parentId,
       );
 
       final updatedPosts = state.posts.map((post) {
         if (post.id == event.postId) {
-          final newComments = [...post.comments, comment];
+          final newComments = event.parentId == null
+              ? [...post.comments, comment]
+              : _addCommentToTree(post.comments, comment, event.parentId!);
           return post.copyWith(
             commentCount: post.commentCount + 1,
             comments: newComments,
@@ -300,7 +309,9 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
 
       final updatedFeedPosts = state.feedPosts.map((post) {
         if (post.id == event.postId) {
-          final newComments = [...post.comments, comment];
+          final newComments = event.parentId == null
+              ? [...post.comments, comment]
+              : _addCommentToTree(post.comments, comment, event.parentId!);
           return post.copyWith(
             commentCount: post.commentCount + 1,
             comments: newComments,
@@ -448,6 +459,54 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
         state.copyWith(
           isReportingPost: false,
           error: e.toString().replaceFirst('Exception: ', ''),
+          clearMessage: true,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onModeratePost(
+    ModeratePost event,
+    Emitter<CommunityState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final updatedPost = await _repository.moderatePost(
+        postId: event.postId,
+        action: event.action,
+        warningMessage: event.warningMessage,
+      );
+
+      if (event.action == 'DELETE') {
+        bool keep(PostModel post) => post.id != event.postId;
+        emit(
+          state.copyWith(
+            isLoading: false,
+            posts: state.posts.where(keep).toList(),
+            feedPosts: state.feedPosts.where(keep).toList(),
+            message: 'Post deleted successfully.',
+            clearError: true,
+          ),
+        );
+      } else {
+        PostModel update(PostModel post) => post.id == event.postId ? updatedPost : post;
+        emit(
+          state.copyWith(
+            isLoading: false,
+            posts: state.posts.map(update).toList(),
+            feedPosts: state.feedPosts.map(update).toList(),
+            message: event.action == 'KEEP'
+                ? 'Post marked as keep.'
+                : 'Warning sent to post author.',
+            clearError: true,
+          ),
+        );
+      }
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          error: 'Failed to moderate post: $e',
           clearMessage: true,
         ),
       );
@@ -731,5 +790,174 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
       return m;
     }).toList();
     emit(state.copyWith(messages: updatedList));
+  }
+
+  Future<void> _onLikeComment(
+    LikeComment event,
+    Emitter<CommunityState> emit,
+  ) async {
+    if (_processingCommentLikes.contains(event.commentId)) return;
+    _processingCommentLikes.add(event.commentId);
+
+    try {
+      CommentModel? targetComment;
+      for (final post in [...state.posts, ...state.feedPosts]) {
+        targetComment = _findCommentInTree(post.comments, event.commentId);
+        if (targetComment != null) break;
+      }
+
+      if (targetComment == null) return;
+
+      final wasLiked = targetComment.isLiked;
+
+      // 1. Optimistic Update
+      final updatedPosts = state.posts.map((post) {
+        return post.copyWith(
+          comments: _updateCommentLikeInTree(
+            comments: post.comments,
+            targetCommentId: event.commentId,
+            isLikedUpdater: (c) => !c.isLiked,
+            likesCount: (c) => c.isLiked ? (c.likesCount - 1).clamp(0, 999999) : c.likesCount + 1,
+          ),
+        );
+      }).toList();
+
+      final updatedFeedPosts = state.feedPosts.map((post) {
+        return post.copyWith(
+          comments: _updateCommentLikeInTree(
+            comments: post.comments,
+            targetCommentId: event.commentId,
+            isLikedUpdater: (c) => !c.isLiked,
+            likesCount: (c) => c.isLiked ? (c.likesCount - 1).clamp(0, 999999) : c.likesCount + 1,
+          ),
+        );
+      }).toList();
+
+      emit(state.copyWith(
+        posts: updatedPosts,
+        feedPosts: updatedFeedPosts,
+        clearError: true,
+      ));
+
+      try {
+        // 2. Call API
+        final result = await _repository.likeComment(commentId: event.commentId);
+        final isLikedFromServer = result['isLiked'] as bool;
+        final likesCountFromServer = result['likesCount'] as int;
+
+        // 3. Sync with server values
+        final syncedPosts = state.posts.map((post) {
+          return post.copyWith(
+            comments: _updateCommentLikeInTree(
+              comments: post.comments,
+              targetCommentId: event.commentId,
+              isLikedUpdater: (_) => isLikedFromServer,
+              likesCount: (_) => likesCountFromServer,
+            ),
+          );
+        }).toList();
+
+        final syncedFeedPosts = state.feedPosts.map((post) {
+          return post.copyWith(
+            comments: _updateCommentLikeInTree(
+              comments: post.comments,
+              targetCommentId: event.commentId,
+              isLikedUpdater: (_) => isLikedFromServer,
+              likesCount: (_) => likesCountFromServer,
+            ),
+          );
+        }).toList();
+
+        emit(state.copyWith(
+          posts: syncedPosts,
+          feedPosts: syncedFeedPosts,
+          clearError: true,
+        ));
+      } catch (e) {
+        // 4. Rollback on failure
+        final rollbackPosts = state.posts.map((post) {
+          return post.copyWith(
+            comments: _updateCommentLikeInTree(
+              comments: post.comments,
+              targetCommentId: event.commentId,
+              isLikedUpdater: (_) => wasLiked,
+              likesCount: (_) => targetComment!.likesCount,
+            ),
+          );
+        }).toList();
+
+        final rollbackFeedPosts = state.feedPosts.map((post) {
+          return post.copyWith(
+            comments: _updateCommentLikeInTree(
+              comments: post.comments,
+              targetCommentId: event.commentId,
+              isLikedUpdater: (_) => wasLiked,
+              likesCount: (_) => targetComment!.likesCount,
+            ),
+          );
+        }).toList();
+
+        emit(state.copyWith(
+          posts: rollbackPosts,
+          feedPosts: rollbackFeedPosts,
+          error: 'லைக் செய்ய முடியவில்லை: $e',
+          clearMessage: true,
+        ));
+      }
+    } finally {
+      _processingCommentLikes.remove(event.commentId);
+    }
+  }
+
+  List<CommentModel> _addCommentToTree(List<CommentModel> comments, CommentModel newComment, int parentId) {
+    return comments.map((comment) {
+      if (comment.id == parentId) {
+        return comment.copyWith(
+          replies: [...comment.replies, newComment],
+        );
+      } else if (comment.replies.isNotEmpty) {
+        return comment.copyWith(
+          replies: _addCommentToTree(comment.replies, newComment, parentId),
+        );
+      }
+      return comment;
+    }).toList();
+  }
+
+  CommentModel? _findCommentInTree(List<CommentModel> comments, int commentId) {
+    for (final comment in comments) {
+      if (comment.id == commentId) return comment;
+      if (comment.replies.isNotEmpty) {
+        final nested = _findCommentInTree(comment.replies, commentId);
+        if (nested != null) return nested;
+      }
+    }
+    return null;
+  }
+
+  List<CommentModel> _updateCommentLikeInTree({
+    required List<CommentModel> comments,
+    required int targetCommentId,
+    required bool Function(CommentModel) isLikedUpdater,
+    required int Function(CommentModel) likesCount,
+  }) {
+    return comments.map((comment) {
+      if (comment.id == targetCommentId) {
+        return comment.copyWith(
+          isLiked: isLikedUpdater(comment),
+          likesCount: likesCount(comment),
+        );
+      } else if (comment.replies.isNotEmpty) {
+        return comment.copyWith(
+          replies: _updateCommentLikeInTree(
+            comments: comment.replies,
+            targetCommentId: targetCommentId,
+            isLikedUpdater: isLikedUpdater,
+            likesCount: likesCount,
+          ),
+        );
+      }
+      return comment;
+    }).toList();
   }
 }

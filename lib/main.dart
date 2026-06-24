@@ -30,6 +30,8 @@ import 'package:ntk_project/src/features/users/presentation/screens/pending_requ
 import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/settings_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/activity_log_screen.dart';
+import 'package:ntk_project/src/features/auth/presentation/screens/edit_profile_screen.dart';
+import 'package:ntk_project/src/features/auth/presentation/screens/change_password_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -125,15 +127,19 @@ void main() async {
   }
 
   final prefs = await SharedPreferences.getInstance();
-  final langCode = prefs.getString('languageCode') ?? 'en';
+  String langCode = prefs.getString('languageCode') ?? 'en';
+  if (langCode != 'en' && langCode != 'ta') {
+    langCode = 'en';
+  }
   di.sl<GraphQLService>().setLanguage(langCode);
 
-  runApp(MainApp(initialSession: initialSession));
+  runApp(MainApp(initialSession: initialSession, languageCode: langCode));
 }
 
 class MainApp extends StatelessWidget {
   final AdminLoginModel? initialSession;
-  const MainApp({super.key, this.initialSession});
+  final String languageCode;
+  const MainApp({super.key, this.initialSession, required this.languageCode});
 
   String _getInitialRoute(AdminLoginModel? session) {
     if (session == null) return '/login';
@@ -173,7 +179,7 @@ class MainApp extends StatelessWidget {
         BlocProvider<ModerationQueueBloc>(create: (context) => di.sl<ModerationQueueBloc>()),
         BlocProvider<NotificationBloc>(create: (context) => di.sl<NotificationBloc>()),
         BlocProvider<NotificationSettingsBloc>(create: (context) => di.sl<NotificationSettingsBloc>()),
-        BlocProvider<LanguageCubit>(create: (context) => LanguageCubit(initialSession != null ? di.sl<GraphQLService>().client.link.toString() : 'en')),
+        BlocProvider<LanguageCubit>(create: (context) => LanguageCubit(languageCode)),
       ],
       child: BlocBuilder<LanguageCubit, Locale>(
         builder: (context, locale) {
@@ -307,6 +313,8 @@ class MainApp extends StatelessWidget {
                 '/member_event_response': (context) => const MemberEventResponseScreen(),
                 '/response_success': (context) => const ResponseSuccessScreen(),
                 '/activity_log': (context) => const ActivityLogScreen(),
+                '/edit-profile': (context) => const EditProfileScreen(),
+                '/change-password': (context) => const ChangePasswordScreen(),
               },
             ),
           );

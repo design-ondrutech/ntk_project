@@ -127,13 +127,13 @@ class DashboardRepositoryImpl implements DashboardRepository {
   @override
   Future<ModerationStatsModel> getModerationDashboardStats(int? locationId) async {
     const String query = r'''
-      query ModerationDashboardStats($locationId: Int) {
-        moderationDashboardStats(locationId: $locationId) {
-          totalReported
+      query GetModerationDashboardStats($locationId: Int) {
+        getModerationDashboardStats(locationId: $locationId) {
+          totalReportedPosts
           pendingReviews
-          warningSent
-          deletedPosts
-          highPriority
+          warningSentCount
+          deletedPostsCount
+          highPriorityReportsCount
         }
       }
     ''';
@@ -149,7 +149,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
       );
     }
 
-    final data = result.data?['moderationDashboardStats'];
+    final data = result.data?['getModerationDashboardStats'];
     if (data == null) {
       throw Exception('No moderation data received');
     }

@@ -16,6 +16,7 @@ import 'package:ntk_project/src/features/users/presentation/screens/pending_requ
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_widgets.dart';
 import 'package:ntk_project/l10n/app_localizations.dart';
+import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 
 class SubAdminDashboard extends StatelessWidget {
   const SubAdminDashboard({super.key, required this.authState});
@@ -142,7 +143,7 @@ class SubAdminDashboard extends StatelessWidget {
                                           const SizedBox(width: 4),
                                           Expanded(
                                             child: Text(
-                                              locationName,
+                                              localizeLocationName(context, locationName),
                                               style: const TextStyle(
                                                 fontSize: 14,
                                                 color: Colors.white70,
@@ -275,7 +276,7 @@ class SubAdminDashboard extends StatelessWidget {
                                     color: Color(0xFF1E293B),
                                   ),
                                 ),
-                                if ((state.moderationStats?.highPriority ?? 0) > 0)
+                                 if ((state.moderationStats?.highPriorityReportsCount ?? 0) > 0)
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
@@ -287,7 +288,7 @@ class SubAdminDashboard extends StatelessWidget {
                                         const Icon(Icons.warning_rounded, size: 14, color: Colors.red),
                                         const SizedBox(width: 4),
                                         Text(
-                                          AppLocalizations.of(context)!.highPriority(state.moderationStats!.highPriority),
+                                          AppLocalizations.of(context)!.highPriority(state.moderationStats!.highPriorityReportsCount),
                                           style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold),
                                         ),
                                       ],
@@ -336,25 +337,6 @@ class SubAdminDashboard extends StatelessWidget {
                                             Text(
                                               '${state.moderationStats?.pendingReviews ?? 0}',
                                               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
-                                            ),
-                                          ],
-                                        ),
-                                        Container(
-                                          height: 40,
-                                          width: 1,
-                                          color: Colors.grey[200],
-                                        ),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              AppLocalizations.of(context)!.totalReports,
-                                              style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${state.moderationStats?.totalReported ?? 0}',
-                                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                                             ),
                                           ],
                                         ),

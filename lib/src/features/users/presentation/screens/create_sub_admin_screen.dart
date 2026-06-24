@@ -32,12 +32,8 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
   LocationModel? _selectedTaluk;
   LocationModel? _selectedArea;
 
-  List<LocationModel> _districts = [];
-  List<LocationModel> _taluks = [];
   List<LocationModel> _areas = [];
 
-  bool _loadingDistricts = false;
-  bool _loadingTaluks = false;
   bool _loadingAreas = false;
 
   String? _selectedBloodGroup;
@@ -105,7 +101,6 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
   void initState() {
     super.initState();
     _locationRepo = LocationRepositoryImpl(sl());
-    _loadDistricts();
     _phoneController.addListener(() {
       if (_phoneErrorText != null) {
         setState(() {
@@ -113,43 +108,52 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
         });
       }
     });
-  }
-
-  Future<void> _loadDistricts() async {
-    setState(() => _loadingDistricts = true);
-    try {
-      final list = await _locationRepo.getLocationList(type: 'DISTRICT');
-      setState(() {
-        _districts = list;
-        _loadingDistricts = false;
-      });
-    } catch (_) {
-      setState(() => _loadingDistricts = false);
-    }
-  }
-
-  Future<void> _onDistrictChanged(LocationModel? district) async {
-    setState(() {
-      _selectedDistrict = district;
-      _selectedTaluk = null;
-      _selectedArea = null;
-      _taluks = [];
-      _areas = [];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initLocationForAdmin();
     });
-    if (district == null) return;
-    setState(() => _loadingTaluks = true);
-    try {
-      final list = await _locationRepo.getLocationList(
-        type: 'TALUK',
-        parentId: district.id,
-      );
-      setState(() {
-        _taluks = list;
-        _loadingTaluks = false;
-      });
-    } catch (_) {
-      setState(() => _loadingTaluks = false);
+  }
+
+  /// Admin's locationId is their TALUK ID.
+  /// Resolve parent District from the API and lock District + Taluk.
+  /// Only Area is freely selectable.
+  Future<void> _initLocationForAdmin() async {
+    final authState = context.read<AuthBloc>().state;
+    final talukId = authState.loginData?.locationId;
+    final talukName = authState.loginData?.locationName ?? 'Taluk';
+
+    if (talukId == null) {
+      return;
     }
+
+    // Admin's locationId = Taluk ID → pre-select as locked taluk
+    final adminTaluk = LocationModel(id: talukId, name: talukName);
+    setState(() {
+      _selectedTaluk = adminTaluk;
+    });
+
+    // Resolve parent District by scanning all districts
+    try {
+      final allDistricts = await _locationRepo.getLocationList(type: 'DISTRICT');
+      for (final district in allDistricts) {
+        final taluks = await _locationRepo.getLocationList(
+          type: 'TALUK',
+          parentId: district.id,
+        );
+        if (taluks.any((t) => t.id == talukId)) {
+          if (mounted) {
+            setState(() {
+              _selectedDistrict = district;
+            });
+          }
+          break;
+        }
+      }
+    } catch (e) {
+      debugPrint('_initLocationForAdmin: error resolving district: $e');
+    }
+
+    // Now load Areas under admin's taluk
+    await _onTalukChanged(adminTaluk);
   }
 
   Future<void> _onTalukChanged(LocationModel? taluk) async {
@@ -344,32 +348,12 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── District ─────────────────────────────────
-              _loadingDistricts
-                  ? _buildLoadingField('District')
-                  : NTKDropdownField<LocationModel>(
-                      label: 'District',
-                      items: _districts,
-                      selectedValue: _selectedDistrict,
-                      hintText: 'Select District',
-                      onChanged: _onDistrictChanged,
-                      itemLabel: (item) => item.name,
-                    ),
+              // ── District (Locked – Admin's district) ─────
+              _buildLockedField('District', _selectedDistrict?.name ?? 'Loading...'),
               const SizedBox(height: 16),
 
-              // ── Taluk ─────────────────────────────────────
-              _loadingTaluks
-                  ? _buildLoadingField('Taluk')
-                  : _selectedDistrict == null
-                  ? _buildDisabledField('Taluk', 'Select District first')
-                  : NTKDropdownField<LocationModel>(
-                      label: 'Taluk',
-                      items: _taluks,
-                      selectedValue: _selectedTaluk,
-                      hintText: 'Select Taluk',
-                      onChanged: _onTalukChanged,
-                      itemLabel: (item) => item.name,
-                    ),
+              // ── Taluk (Locked – Admin's taluk) ────────────
+              _buildLockedField('Taluk', _selectedTaluk?.name ?? 'Loading...'),
               const SizedBox(height: 16),
 
               // ── Area ──────────────────────────────────────
@@ -386,6 +370,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
                       itemLabel: (item) => item.name,
                     ),
               const SizedBox(height: 16),
+
 
               // ── Blood Group ──────────────────────────────
               NTKDropdownField<String>(
@@ -585,6 +570,58 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
               Text(
                 message,
                 style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Shows a non-editable field with the value pre-filled (e.g. locked district).
+  Widget _buildLockedField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF374151),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFBFDBFE)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.location_city_rounded,
+                size: 18,
+                color: Color(0xFF3B82F6),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: Color(0xFF1D4ED8),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.lock_rounded,
+                size: 14,
+                color: Color(0xFF93C5FD),
               ),
             ],
           ),

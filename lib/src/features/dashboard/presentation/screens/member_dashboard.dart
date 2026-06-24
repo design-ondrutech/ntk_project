@@ -10,6 +10,7 @@ import 'package:ntk_project/src/features/notifications/presentation/bloc/notific
 import 'package:ntk_project/src/features/dashboard/presentation/screens/main_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 import 'package:ntk_project/l10n/app_localizations.dart';
+import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 
 class MemberDashboard extends StatelessWidget {
   const MemberDashboard({super.key, required this.authState});
@@ -143,7 +144,7 @@ class MemberDashboard extends StatelessWidget {
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
-                                      locationName,
+                                      localizeLocationName(context, locationName),
                                       style: const TextStyle(
                                         fontSize: 14,
                                         color: Colors.white70,

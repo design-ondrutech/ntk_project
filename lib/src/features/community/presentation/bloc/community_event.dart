@@ -72,16 +72,27 @@ class AddComment extends CommunityEvent {
   final String content;
   final String authorName;
   final String authorRole;
+  final int? parentId;
 
   const AddComment({
     required this.postId,
     required this.content,
     required this.authorName,
     required this.authorRole,
+    this.parentId,
   });
 
   @override
-  List<Object?> get props => [postId, content, authorName, authorRole];
+  List<Object?> get props => [postId, content, authorName, authorRole, parentId];
+}
+
+class LikeComment extends CommunityEvent {
+  final int commentId;
+
+  const LikeComment(this.commentId);
+
+  @override
+  List<Object?> get props => [commentId];
 }
 
 class CreateCommunityPost extends CommunityEvent {
@@ -144,6 +155,22 @@ class ReportPost extends CommunityEvent {
   @override
   List<Object?> get props => [postId, reason];
 }
+
+class ModeratePost extends CommunityEvent {
+  final int postId;
+  final String action;
+  final String? warningMessage;
+
+  const ModeratePost({
+    required this.postId,
+    required this.action,
+    this.warningMessage,
+  });
+
+  @override
+  List<Object?> get props => [postId, action, warningMessage];
+}
+
 
 class CreateCommunity extends CommunityEvent {
   final String name;

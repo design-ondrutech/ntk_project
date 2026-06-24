@@ -9,10 +9,14 @@ class AdminLoginModel extends Equatable {
   final String approvalStatus;
   final int? locationId;
   final String? locationName;
+  /// The type of the assigned location: DISTRICT | TALUK | AREA | STREET
+  final String? locationType;
   final bool? isActive;
   final String? addedBy;
   final String? image;
   final String? token;
+  final String? bloodGroup;
+  final String? professionName;
 
   const AdminLoginModel({
     required this.id,
@@ -23,10 +27,13 @@ class AdminLoginModel extends Equatable {
     required this.approvalStatus,
     this.locationId,
     this.locationName,
+    this.locationType,
     this.isActive,
     this.addedBy,
     this.image,
     this.token,
+    this.bloodGroup,
+    this.professionName,
   });
 
   factory AdminLoginModel.fromJson(Map<String, dynamic> json, {String? token}) {
@@ -48,10 +55,17 @@ class AdminLoginModel extends Equatable {
       locationName: locationJson != null
           ? locationJson['name'] as String?
           : json['locationName'] as String?,
+      locationType: locationJson != null
+          ? locationJson['type'] as String?
+          : json['locationType'] as String?,
       isActive: json['isActive'] as bool?,
       addedBy: json['addedBy'] as String?,
       image: json['image'] as String?,
       token: token ?? json['token'] as String?,
+      bloodGroup: json['bloodGroup'] as String?,
+      professionName: json['profession'] is Map
+          ? (json['profession']['name'] as String?)
+          : (json['profession'] as String? ?? json['professionName'] as String?),
     );
   }
 
@@ -65,10 +79,13 @@ class AdminLoginModel extends Equatable {
       'approvalStatus': approvalStatus,
       'locationId': locationId,
       'locationName': locationName,
+      'locationType': locationType,
       'isActive': isActive,
       'addedBy': addedBy,
       'image': image,
       'token': token,
+      'bloodGroup': bloodGroup,
+      'professionName': professionName,
     };
   }
 
@@ -81,10 +98,13 @@ class AdminLoginModel extends Equatable {
     String? approvalStatus,
     int? locationId,
     String? locationName,
+    String? locationType,
     bool? isActive,
     String? addedBy,
     String? image,
     String? token,
+    String? bloodGroup,
+    String? professionName,
   }) {
     return AdminLoginModel(
       id: id ?? this.id,
@@ -95,10 +115,13 @@ class AdminLoginModel extends Equatable {
       approvalStatus: approvalStatus ?? this.approvalStatus,
       locationId: locationId ?? this.locationId,
       locationName: locationName ?? this.locationName,
+      locationType: locationType ?? this.locationType,
       isActive: isActive ?? this.isActive,
       addedBy: addedBy ?? this.addedBy,
       image: image ?? this.image,
       token: token ?? this.token,
+      bloodGroup: bloodGroup ?? this.bloodGroup,
+      professionName: professionName ?? this.professionName,
     );
   }
 
@@ -112,9 +135,12 @@ class AdminLoginModel extends Equatable {
     approvalStatus,
     locationId,
     locationName,
+    locationType,
     isActive,
     addedBy,
     image,
     token,
+    bloodGroup,
+    professionName,
   ];
 }

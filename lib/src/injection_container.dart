@@ -6,6 +6,8 @@ import 'package:ntk_project/src/core/services/fcm_service.dart';
 import 'package:ntk_project/src/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:ntk_project/src/features/auth/domain/repositories/auth_repository.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/edit_profile_bloc.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/change_password_bloc.dart';
 import 'package:ntk_project/src/features/auth/data/models/admin_login_model.dart';
 
 // Location feature
@@ -93,6 +95,8 @@ Future<void> init() async {
   sl.registerFactoryParam<AuthBloc, AdminLoginModel?, void>(
     (initialSession, _) => AuthBloc(sl(), initialSession: initialSession),
   );
+  sl.registerFactory<EditProfileBloc>(() => EditProfileBloc(sl()));
+  sl.registerFactory<ChangePasswordBloc>(() => ChangePasswordBloc(sl()));
   sl.registerFactory<LocationBloc>(() => LocationBloc(sl()));
   sl.registerFactory<DashboardBloc>(() => DashboardBloc(sl()));
   sl.registerFactory<MemberBloc>(() => MemberBloc(sl()));

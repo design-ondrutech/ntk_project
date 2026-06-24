@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
@@ -117,7 +118,7 @@ PreferredSizeWidget buildFigmaAppBar(BuildContext context, String subtitle) {
           ),
         ),
         Text(
-          subtitle,
+          localizeLocationName(context, subtitle),
           style: const TextStyle(
             color: Colors.white70,
             fontSize: 12,

@@ -62,4 +62,9 @@ abstract class MemberRepository {
   });
 
   Future<List<String>> getProfessions();
+
+  Future<void> changePassword({
+    required int id,
+    required String password,
+  });
 }

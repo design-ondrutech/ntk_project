@@ -20,9 +20,12 @@ class AuthRepositoryImpl implements AuthRepository {
         approvalStatus
         addedBy
         image
+        bloodGroup
+        profession
         location {
           id
           name
+          type
         }
       }
     }
@@ -49,6 +52,7 @@ class AuthRepositoryImpl implements AuthRepository {
             location {
               id
               name
+              type
             }
           }
         }
@@ -65,11 +69,17 @@ class AuthRepositoryImpl implements AuthRepository {
       final graphqlErrors = result.exception?.graphqlErrors;
       if (graphqlErrors != null && graphqlErrors.isNotEmpty) {
         final rawMsg = graphqlErrors.first.message.toLowerCase();
-        if (rawMsg.contains('invalid password') || rawMsg.contains('wrong password') || rawMsg.contains('incorrect password')) {
+        if (rawMsg.contains('invalid password') ||
+            rawMsg.contains('wrong password') ||
+            rawMsg.contains('incorrect password')) {
           throw Exception('Invalid password');
-        } else if (rawMsg.contains('user not found') || rawMsg.contains('phone not found') || rawMsg.contains('not found') || rawMsg.contains('no user')) {
+        } else if (rawMsg.contains('user not found') ||
+            rawMsg.contains('phone not found') ||
+            rawMsg.contains('not found') ||
+            rawMsg.contains('no user')) {
           throw Exception('User not found');
-        } else if (rawMsg.contains('not approved') || rawMsg.contains('pending')) {
+        } else if (rawMsg.contains('not approved') ||
+            rawMsg.contains('pending')) {
           throw Exception('Your account is pending approval');
         } else if (rawMsg.contains('inactive') || rawMsg.contains('disabled')) {
           throw Exception('Your account has been deactivated');
@@ -145,10 +155,13 @@ class AuthRepositoryImpl implements AuthRepository {
             approvalStatus: meModel.approvalStatus,
             locationId: meModel.locationId ?? model.locationId,
             locationName: meModel.locationName ?? model.locationName,
+            locationType: meModel.locationType ?? model.locationType,
             isActive: meModel.isActive ?? model.isActive,
             addedBy: meModel.addedBy ?? model.addedBy,
             image: meModel.image ?? model.image,
             token: model.token,
+            bloodGroup: meModel.bloodGroup ?? model.bloodGroup,
+            professionName: meModel.professionName ?? model.professionName,
           );
         }
       } catch (_) {}
@@ -283,6 +296,7 @@ class AuthRepositoryImpl implements AuthRepository {
       throw Exception('பதிவு செய்ய முடியவில்லை');
     }
   }
+
   @override
   Future<void> updateFcmToken(String token) async {
     const String mutation = r'''

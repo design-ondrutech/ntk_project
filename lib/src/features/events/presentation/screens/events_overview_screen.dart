@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
@@ -230,8 +230,8 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
         color: const Color(0xFFF5F5F5),
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -744,7 +744,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                                     ),
                                                     CupertinoDialogAction(
                                                       isDestructiveAction: true,
-                                                      child: Text(AppLocalizations.of(context)!.recall),
+                                                      child: const Text('Recall'),
                                                       onPressed: () {
                                                         context
                                                             .read<RequestBloc>()

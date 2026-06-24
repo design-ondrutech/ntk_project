@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/events/data/models/emergency_model.dart';
 import 'package:ntk_project/src/core/utils/date_helper.dart';
@@ -389,11 +390,18 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
       final isSelected = myStatus == statusValue;
       return Expanded(
         child: ElevatedButton(
-          onPressed: () => _onRespond(statusValue),
+          onPressed: hasResponded ? null : () => _onRespond(statusValue),
           style: ElevatedButton.styleFrom(
             backgroundColor: isSelected ? color : Colors.white,
             foregroundColor: isSelected ? Colors.white : color,
-            side: BorderSide(color: color, width: 1.5),
+            disabledBackgroundColor: isSelected ? color.withOpacity(0.8) : Colors.grey.shade100,
+            disabledForegroundColor: isSelected ? Colors.white : Colors.grey.shade400,
+            side: BorderSide(
+              color: hasResponded 
+                  ? (isSelected ? color.withOpacity(0.8) : Colors.grey.shade300) 
+                  : color, 
+              width: 1.5,
+            ),
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             elevation: 0,
@@ -863,7 +871,7 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            if (!isCompleted && !isRejected && !isExpired) ...[
+            if (!isCompleted && !isRejected && !isExpired && userRole != 'SUPER_ADMIN') ...[
               OutlinedButton.icon(
                 onPressed: () => _onReviewRequest('FORWARD'),
                 icon: const Icon(Icons.arrow_forward, size: 18, color: Color(0xFF2563EB)),
@@ -1659,12 +1667,6 @@ class _EmergencyDetailsScreenState extends State<EmergencyDetailsScreen> {
           'Emergency Details',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(CupertinoIcons.share, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(

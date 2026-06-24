@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
 import 'package:ntk_project/src/features/community/data/models/poll_model.dart';
+import 'package:ntk_project/src/features/community/data/models/comment_model.dart';
 import 'package:ntk_project/src/features/community/data/community_socket_service.dart';
 import 'dart:async';
 import 'community_polls_event.dart';
@@ -11,6 +12,7 @@ class CommunityPollsBloc
   final CommunityRepository _repository;
   final CommunitySocketService _socketService;
   StreamSubscription? _pollDeletedSub;
+  final Set<int> _processingPollCommentLikes = {};
 
   CommunityPollsBloc(this._repository, this._socketService) : super(const CommunityPollsState()) {
     on<FetchPollsEvent>(_onFetchPolls);
@@ -18,6 +20,8 @@ class CommunityPollsBloc
     on<VoteInPollEvent>(_onVoteInPoll);
     on<LikePollEvent>(_onLikePoll);
     on<AddPollCommentEvent>(_onAddPollComment);
+    on<LikePollCommentEvent>(_onLikePollComment);
+    on<FetchPollDetailsEvent>(_onFetchPollDetails);
     on<ClearPollsMessage>(
       (event, emit) => emit(state.copyWith(clearSuccess: true)),
     );
@@ -171,7 +175,20 @@ class CommunityPollsBloc
     emit(state.copyWith(polls: updatedPolls));
 
     try {
-      await _repository.likePoll(pollId: event.pollId);
+      final result = await _repository.likePoll(pollId: event.pollId);
+      final likesCount = result['likesCount'] as int? ?? 0;
+      final isLiked = result['isLiked'] as bool? ?? false;
+
+      final syncedPolls = state.polls.map((p) {
+        if (p.id == event.pollId) {
+          return p.copyWith(
+            likes: likesCount,
+            isLiked: isLiked,
+          );
+        }
+        return p;
+      }).toList();
+      emit(state.copyWith(polls: syncedPolls));
     } catch (e) {
       // Revert on error
       final revertedPolls = state.polls.map((p) {
@@ -192,19 +209,37 @@ class CommunityPollsBloc
     AddPollCommentEvent event,
     Emitter<CommunityPollsState> emit,
   ) async {
-    // Optimistic UI update
-    final updatedPolls = state.polls.map((p) {
+    final updatedPollsOptimistic = state.polls.map((p) {
       if (p.id == event.pollId) {
         return p.copyWith(commentCount: p.commentCount + 1);
       }
       return p;
     }).toList();
-    emit(state.copyWith(polls: updatedPolls));
+    emit(state.copyWith(polls: updatedPollsOptimistic));
 
     try {
-      await _repository.addPollComment(pollId: event.pollId, content: event.content);
+      final comment = await _repository.addPollComment(
+        pollId: event.pollId,
+        content: event.content,
+        authorName: event.authorName,
+        authorRole: event.authorRole,
+        parentId: event.parentId,
+      );
+
+      final updatedPolls = state.polls.map((poll) {
+        if (poll.id == event.pollId) {
+          final newComments = event.parentId == null
+              ? [...poll.comments, comment]
+              : _addCommentToTree(poll.comments, comment, event.parentId!);
+          return poll.copyWith(
+            comments: newComments,
+          );
+        }
+        return poll;
+      }).toList();
+
+      emit(state.copyWith(polls: updatedPolls, clearError: true));
     } catch (e) {
-      // Revert on error
       final revertedPolls = state.polls.map((p) {
         if (p.id == event.pollId) {
           return p.copyWith(commentCount: p.commentCount > 0 ? p.commentCount - 1 : 0);
@@ -213,5 +248,149 @@ class CommunityPollsBloc
       }).toList();
       emit(state.copyWith(polls: revertedPolls, error: e.toString(), clearSuccess: true));
     }
+  }
+
+  Future<void> _onFetchPollDetails(
+    FetchPollDetailsEvent event,
+    Emitter<CommunityPollsState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final detailedPoll = await _repository.getPollDetails(id: event.pollId);
+      final listContainsPoll = state.polls.any((p) => p.id == event.pollId);
+      final updatedList = listContainsPoll
+          ? state.polls.map((p) => p.id == event.pollId ? detailedPoll : p).toList()
+          : [...state.polls, detailedPoll];
+      emit(state.copyWith(isLoading: false, polls: updatedList));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onLikePollComment(
+    LikePollCommentEvent event,
+    Emitter<CommunityPollsState> emit,
+  ) async {
+    if (_processingPollCommentLikes.contains(event.pollCommentId)) return;
+    _processingPollCommentLikes.add(event.pollCommentId);
+
+    try {
+      CommentModel? targetComment;
+      for (final poll in state.polls) {
+        targetComment = _findCommentInTree(poll.comments, event.pollCommentId);
+        if (targetComment != null) break;
+      }
+
+      if (targetComment == null) return;
+
+      final wasLiked = targetComment.isLiked;
+
+      // 1. Optimistic Update
+      final updatedPolls = state.polls.map((poll) {
+        return poll.copyWith(
+          comments: _updateCommentLikeInTree(
+            comments: poll.comments,
+            targetCommentId: event.pollCommentId,
+            isLikedUpdater: (c) => !c.isLiked,
+            likesCount: (c) => c.isLiked ? (c.likesCount - 1).clamp(0, 999999) : c.likesCount + 1,
+          ),
+        );
+      }).toList();
+
+      emit(state.copyWith(polls: updatedPolls, clearError: true));
+
+      try {
+        // 2. Call API
+        final result = await _repository.likePollComment(pollCommentId: event.pollCommentId);
+        final isLikedFromServer = result['isLiked'] as bool;
+        final likesCountFromServer = result['likesCount'] as int;
+
+        // 3. Sync with server values
+        final syncedPolls = state.polls.map((poll) {
+          return poll.copyWith(
+            comments: _updateCommentLikeInTree(
+              comments: poll.comments,
+              targetCommentId: event.pollCommentId,
+              isLikedUpdater: (_) => isLikedFromServer,
+              likesCount: (_) => likesCountFromServer,
+            ),
+          );
+        }).toList();
+
+        emit(state.copyWith(polls: syncedPolls, clearError: true));
+      } catch (e) {
+        // 4. Rollback on failure
+        final rollbackPolls = state.polls.map((poll) {
+          return poll.copyWith(
+            comments: _updateCommentLikeInTree(
+              comments: poll.comments,
+              targetCommentId: event.pollCommentId,
+              isLikedUpdater: (_) => wasLiked,
+              likesCount: (_) => targetComment!.likesCount,
+            ),
+          );
+        }).toList();
+
+        emit(state.copyWith(
+          polls: rollbackPolls,
+          error: 'லைக் செய்ய முடியவில்லை: $e',
+          clearSuccess: true,
+        ));
+      }
+    } finally {
+      _processingPollCommentLikes.remove(event.pollCommentId);
+    }
+  }
+
+  List<CommentModel> _addCommentToTree(List<CommentModel> comments, CommentModel newComment, int parentId) {
+    return comments.map((comment) {
+      if (comment.id == parentId) {
+        return comment.copyWith(
+          replies: [...comment.replies, newComment],
+        );
+      } else if (comment.replies.isNotEmpty) {
+        return comment.copyWith(
+          replies: _addCommentToTree(comment.replies, newComment, parentId),
+        );
+      }
+      return comment;
+    }).toList();
+  }
+
+  CommentModel? _findCommentInTree(List<CommentModel> comments, int commentId) {
+    for (final comment in comments) {
+      if (comment.id == commentId) return comment;
+      if (comment.replies.isNotEmpty) {
+        final nested = _findCommentInTree(comment.replies, commentId);
+        if (nested != null) return nested;
+      }
+    }
+    return null;
+  }
+
+  List<CommentModel> _updateCommentLikeInTree({
+    required List<CommentModel> comments,
+    required int targetCommentId,
+    required bool Function(CommentModel) isLikedUpdater,
+    required int Function(CommentModel) likesCount,
+  }) {
+    return comments.map((comment) {
+      if (comment.id == targetCommentId) {
+        return comment.copyWith(
+          isLiked: isLikedUpdater(comment),
+          likesCount: likesCount(comment),
+        );
+      } else if (comment.replies.isNotEmpty) {
+        return comment.copyWith(
+          replies: _updateCommentLikeInTree(
+            comments: comment.replies,
+            targetCommentId: targetCommentId,
+            isLikedUpdater: isLikedUpdater,
+            likesCount: likesCount,
+          ),
+        );
+      }
+      return comment;
+    }).toList();
   }
 }

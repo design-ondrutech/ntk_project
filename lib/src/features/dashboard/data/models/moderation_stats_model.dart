@@ -1,36 +1,36 @@
 import 'package:equatable/equatable.dart';
 
 class ModerationStatsModel extends Equatable {
-  final int totalReported;
+  final int totalReportedPosts;
   final int pendingReviews;
-  final int warningSent;
-  final int deletedPosts;
-  final int highPriority;
+  final int warningSentCount;
+  final int deletedPostsCount;
+  final int highPriorityReportsCount;
 
   const ModerationStatsModel({
-    required this.totalReported,
+    required this.totalReportedPosts,
     required this.pendingReviews,
-    required this.warningSent,
-    required this.deletedPosts,
-    required this.highPriority,
+    required this.warningSentCount,
+    required this.deletedPostsCount,
+    required this.highPriorityReportsCount,
   });
 
   factory ModerationStatsModel.fromJson(Map<String, dynamic> json) {
     return ModerationStatsModel(
-      totalReported: json['totalReported'] ?? 0,
+      totalReportedPosts: json['totalReportedPosts'] ?? 0,
       pendingReviews: json['pendingReviews'] ?? 0,
-      warningSent: json['warningSent'] ?? 0,
-      deletedPosts: json['deletedPosts'] ?? 0,
-      highPriority: json['highPriority'] ?? 0,
+      warningSentCount: json['warningSentCount'] ?? 0,
+      deletedPostsCount: json['deletedPostsCount'] ?? 0,
+      highPriorityReportsCount: json['highPriorityReportsCount'] ?? 0,
     );
   }
 
   @override
   List<Object?> get props => [
-        totalReported,
+        totalReportedPosts,
         pendingReviews,
-        warningSent,
-        deletedPosts,
-        highPriority,
+        warningSentCount,
+        deletedPostsCount,
+        highPriorityReportsCount,
       ];
 }

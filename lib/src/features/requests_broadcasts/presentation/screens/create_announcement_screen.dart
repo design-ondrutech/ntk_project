@@ -479,7 +479,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       final hospital = _hospitalNameController.text.trim();
       
       if (bloodGroup.isEmpty) {
-        NTKSnackbar.showError(context, message: 'Blood Group is required');
+        NTKSnackbar.showError(context, message: 'Please select blood group');
         return;
       }
       if (units.isEmpty) {
@@ -1249,14 +1249,38 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           const Text('Blood Group *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
-            child: TextField(
-              key: const ValueKey('blood_group_field'),
-              controller: _bloodGroupController,
-              decoration: const InputDecoration(
-                hintText: 'Enter blood group (e.g. O+, A-)',
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                key: const ValueKey('blood_group_field'),
+                value: _bloodGroupController.text.isNotEmpty && [
+                  'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
+                ].contains(_bloodGroupController.text) ? _bloodGroupController.text : null,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 24, color: Color(0xFF6B7280)),
+                hint: const Text(
+                  'Select Blood Group',
+                  style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                ),
+                items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((group) {
+                  return DropdownMenuItem<String>(
+                    value: group,
+                    child: Text(
+                      group,
+                      style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _bloodGroupController.text = val ?? '';
+                  });
+                },
               ),
             ),
           ),

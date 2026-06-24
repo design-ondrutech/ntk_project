@@ -10,7 +10,10 @@ abstract class CommunityRepository {
 
   Future<List<PostModel>> getCommunityFeed({int? locationId});
 
-  Future<List<PostModel>> getCommunityPosts({required int communityId, String? category});
+  Future<List<PostModel>> getCommunityPosts({
+    required int communityId,
+    String? category,
+  });
   Future<PostModel> getPostDetails({required int id});
 
   Future<List<CommunityMessageModel>> getCommunityMessages({
@@ -32,12 +35,14 @@ abstract class CommunityRepository {
 
   Future<int> likePost({required int id});
   Future<int> unlikePost({required int id});
+  Future<Map<String, dynamic>> likeComment({required int commentId});
 
   Future<CommentModel> addComment({
     required int postId,
     required String content,
     required String authorName,
     required String authorRole,
+    int? parentId,
   });
 
   Future<PostModel> createFeedPost({
@@ -69,7 +74,10 @@ abstract class CommunityRepository {
 
   Future<void> reportPost({required int postId, required String reason});
 
-  Future<List<PostModel>> getReportedPostsList({int? locationId});
+  Future<List<PostModel>> getReportedPostsList({
+    int? locationId,
+    String? status,
+  });
 
   Future<PostModel> moderatePost({
     required int postId,
@@ -158,7 +166,14 @@ abstract class CommunityRepository {
   });
 
   Future<int> voteInPoll({required int pollId, required int optionId});
-  Future<void> likePoll({required int pollId});
-  Future<CommentModel> addPollComment({required int pollId, required String content});
+  Future<Map<String, dynamic>> likePoll({required int pollId});
+  Future<Map<String, dynamic>> likePollComment({required int pollCommentId});
+  Future<CommentModel> addPollComment({
+    required int pollId,
+    required String content,
+    required String authorName,
+    required String authorRole,
+    int? parentId,
+  });
   Future<PollModel> getPollDetails({required int id});
 }

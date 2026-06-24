@@ -416,7 +416,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _PollDetailSheet(pollId: pollId, title: item.title),
+      builder: (_) => PollDetailSheet(pollId: pollId, title: item.title),
     );
   }
 
@@ -540,17 +540,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 // ---------------------------------------------------------------------------
 // Poll Detail Sheet — shown when tapping a POLL notification
 // ---------------------------------------------------------------------------
-class _PollDetailSheet extends StatefulWidget {
+class PollDetailSheet extends StatefulWidget {
   final int pollId;
   final String title;
 
-  const _PollDetailSheet({required this.pollId, required this.title});
+  const PollDetailSheet({required this.pollId, required this.title});
 
   @override
-  State<_PollDetailSheet> createState() => _PollDetailSheetState();
+  State<PollDetailSheet> createState() => _PollDetailSheetState();
 }
 
-class _PollDetailSheetState extends State<_PollDetailSheet> {
+class _PollDetailSheetState extends State<PollDetailSheet> {
   PollModel? _poll;
   bool _isLoading = true;
   String? _error;

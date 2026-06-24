@@ -33,13 +33,9 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   LocationModel? _selectedArea;
   LocationModel? _selectedStreet;
 
-  List<LocationModel> _districts = [];
-  List<LocationModel> _taluks = [];
   List<LocationModel> _areas = [];
   List<LocationModel> _streets = [];
 
-  bool _loadingDistricts = false;
-  bool _loadingTaluks = false;
   bool _loadingAreas = false;
   bool _loadingStreets = false;
 
@@ -126,6 +122,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
     final locationId = authState.loginData?.locationId;
 
     if (role == 'SUB_ADMIN' && locationId != null) {
+      // SUB_ADMIN's locationId = Area ID → lock Area and load Streets
       final assignedArea = LocationModel(
         id: locationId,
         name: authState.loginData?.locationName ?? 'Assigned Area',
@@ -154,9 +151,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
               if (mounted) {
                 setState(() {
                   _selectedDistrict = district;
-                  _districts = [district];
                   _selectedTaluk = taluk;
-                  _taluks = [taluk];
                 });
               }
               found = true;
@@ -168,48 +163,41 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
       } catch (e) {
         debugPrint('Error finding parent district/taluk: $e');
       }
+    } else if (role == 'ADMIN' && locationId != null) {
+      // ADMIN's locationId = Taluk ID → lock District and Taluk
+      final talukId = locationId;
+      final talukName = authState.loginData?.locationName ?? 'Taluk';
+
+      final adminTaluk = LocationModel(id: talukId, name: talukName);
+      setState(() {
+        _selectedTaluk = adminTaluk;
+      });
+
+      // Resolve parent District
+      try {
+        final allDistricts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        for (final district in allDistricts) {
+          final taluks = await _locationRepo.getLocationList(
+            type: 'TALUK',
+            parentId: district.id,
+          );
+          if (taluks.any((t) => t.id == talukId)) {
+            if (mounted) {
+              setState(() {
+                _selectedDistrict = district;
+              });
+            }
+            break;
+          }
+        }
+      } catch (e) {
+        debugPrint('_initLocationForRole: error resolving district: $e');
+      }
+
+      await _onTalukChanged(adminTaluk);
     } else {
-      _loadDistricts();
     }
-  }
-
-  Future<void> _loadDistricts() async {
-    setState(() => _loadingDistricts = true);
-    try {
-      final list = await _locationRepo.getLocationList(type: 'DISTRICT');
-      setState(() {
-        _districts = list;
-        _loadingDistricts = false;
-      });
-    } catch (_) {
-      setState(() => _loadingDistricts = false);
-    }
-  }
-
-  Future<void> _onDistrictChanged(LocationModel? district) async {
-    setState(() {
-      _selectedDistrict = district;
-      _selectedTaluk = null;
-      _selectedArea = null;
-      _selectedStreet = null;
-      _taluks = [];
-      _areas = [];
-      _streets = [];
-    });
-    if (district == null) return;
-    setState(() => _loadingTaluks = true);
-    try {
-      final list = await _locationRepo.getLocationList(
-        type: 'TALUK',
-        parentId: district.id,
-      );
-      setState(() {
-        _taluks = list;
-        _loadingTaluks = false;
-      });
-    } catch (_) {
-      setState(() => _loadingTaluks = false);
-    }
+    // No fallback needed – all roles have location assigned
   }
 
   Future<void> _onTalukChanged(LocationModel? taluk) async {
@@ -442,32 +430,13 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
               const SizedBox(height: 16),
 
               // ── District ─────────────────────────────────
-              if (!isSubAdmin) ...[
-                _loadingDistricts
-                    ? _buildLoadingField('District')
-                    : NTKDropdownField<LocationModel>(
-                        label: 'District',
-                        items: _districts,
-                        selectedValue: _selectedDistrict,
-                        hintText: 'Select District',
-                        onChanged: _onDistrictChanged,
-                        itemLabel: (item) => item.name,
-                      ),
+              if (!isSubAdmin) ...[ 
+                // ADMIN: District is auto-locked to admin's district
+                _buildLockedField('District', _selectedDistrict?.name ?? 'Loading...'),
                 const SizedBox(height: 16),
 
-                // ── Taluk ─────────────────────────────────────
-                _loadingTaluks
-                    ? _buildLoadingField('Taluk')
-                    : _selectedDistrict == null
-                    ? _buildDisabledField('Taluk', 'Select District first')
-                    : NTKDropdownField<LocationModel>(
-                        label: 'Taluk',
-                        items: _taluks,
-                        selectedValue: _selectedTaluk,
-                        hintText: 'Select Taluk',
-                        onChanged: _onTalukChanged,
-                        itemLabel: (item) => item.name,
-                      ),
+                // ── Taluk (Locked – Admin's taluk) ────────────
+                _buildLockedField('Taluk', _selectedTaluk?.name ?? 'Loading...'),
                 const SizedBox(height: 16),
 
                 // ── Area ──────────────────────────────────────
@@ -486,6 +455,12 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
                 const SizedBox(height: 16),
               ],
 
+              // SUB_ADMIN: Show their locked Area
+              if (isSubAdmin) ...[
+                _buildLockedField('Area', _selectedArea?.name ?? 'Loading...'),
+                const SizedBox(height: 16),
+              ],
+
               // ── Street ────────────────────────────────────
               _loadingStreets
                   ? _buildLoadingField('Street')
@@ -500,6 +475,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
                       itemLabel: (item) => item.name,
                     ),
               const SizedBox(height: 16),
+
 
               // ── Blood Group ──────────────────────────────
               NTKDropdownField<String>(
@@ -699,6 +675,58 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
               Text(
                 message,
                 style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Shows a non-editable field with the value pre-filled (e.g. locked district/area).
+  Widget _buildLockedField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF374151),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFBFDBFE)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.location_city_rounded,
+                size: 18,
+                color: Color(0xFF3B82F6),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: Color(0xFF1D4ED8),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.lock_rounded,
+                size: 14,
+                color: Color(0xFF93C5FD),
               ),
             ],
           ),

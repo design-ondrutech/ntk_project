@@ -27,7 +27,11 @@ class EventModel {
     final createdByJson = json['createdBy'];
     
     int? parsedCreatedById;
-    if (createdByJson != null && createdByJson['id'] != null) {
+    if (json['createdById'] != null) {
+      parsedCreatedById = json['createdById'] is int 
+          ? json['createdById'] as int 
+          : int.tryParse(json['createdById'].toString());
+    } else if (createdByJson != null && createdByJson['id'] != null) {
       parsedCreatedById = createdByJson['id'] is int 
           ? createdByJson['id'] as int 
           : int.tryParse(createdByJson['id'].toString());

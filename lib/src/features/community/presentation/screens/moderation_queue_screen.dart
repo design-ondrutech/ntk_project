@@ -130,8 +130,32 @@ class _ModerationPostCard extends StatelessWidget {
 
   const _ModerationPostCard({required this.post});
 
+  Widget _buildHeaderBadge({
+    required String label,
+    required Color bgColor,
+    required Color textColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: textColor,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isModerating = context.watch<ModerationQueueBloc>().state.isModerating;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -149,62 +173,62 @@ class _ModerationPostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Location & Warning
-          if (post.isHighPriority || post.hasWarning)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: post.isHighPriority ? Colors.red.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
+          // Header Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    post.isHighPriority ? Icons.warning_rounded : Icons.info_outline,
-                    color: post.isHighPriority ? Colors.red : Colors.orange,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    post.isHighPriority ? 'High Priority' : 'Warning Sent',
-                    style: TextStyle(
-                      color: post.isHighPriority ? Colors.red : Colors.orange,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (post.location?['name'] != null)
-                    Row(
-                      children: [
-                        const Icon(Icons.location_on, size: 12, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          post.location!['name'],
-                          style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            )
-          else if (post.location?['name'] != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
-                children: [
-                  const Icon(Icons.location_on, size: 12, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    post.location!['name'],
-                    style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey[100]!)),
             ),
+            child: Row(
+              children: [
+                if (post.location?['name'] != null)
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Color(0xFF64748B)),
+                      const SizedBox(width: 4),
+                      Text(
+                        post.location!['name'],
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                const Spacer(),
+                // Badges
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    if (post.isHighPriority)
+                      _buildHeaderBadge(
+                        label: 'High Priority',
+                        bgColor: Colors.red.withOpacity(0.1),
+                        textColor: Colors.red,
+                      ),
+                    if (post.isUnderReview)
+                      _buildHeaderBadge(
+                        label: 'Under Review',
+                        bgColor: Colors.orange.withOpacity(0.1),
+                        textColor: Colors.orange,
+                      ),
+                    if (post.hasWarning)
+                      _buildHeaderBadge(
+                        label: 'Warning Sent',
+                        bgColor: Colors.amber.withOpacity(0.1),
+                        textColor: Colors.amber[800]!,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -227,9 +251,31 @@ class _ModerationPostCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            post.authorName,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          Row(
+                            children: [
+                              Text(
+                                post.authorName,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              if (post.authorRole != null && post.authorRole!.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF004D2A).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    post.authorRole!,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF004D2A),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           Text(
                             post.createdAt ?? '',
@@ -272,26 +318,28 @@ class _ModerationPostCard extends StatelessWidget {
                       itemBuilder: (context, idx) {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8.0),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              post.images[idx],
-                              height: 120,
-                              width: 120,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => Container(
-                                color: Colors.grey[200],
-                                height: 120,
-                                width: 120,
-                                child: const Icon(Icons.broken_image, color: Colors.grey),
-                              ),
-                            ),
-                          ),
+                          child: post.images[idx].startsWith('http')
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    post.images[idx],
+                                    height: 120,
+                                    width: 120,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      color: Colors.grey[200],
+                                      height: 120,
+                                      width: 120,
+                                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
                         );
                       },
                     ),
                   ),
-                ] else if (post.image != null) ...[
+                ] else if (post.image != null && post.image!.startsWith('http')) ...[
                   const SizedBox(height: 12),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -312,95 +360,111 @@ class _ModerationPostCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 const Divider(),
                 
-                // Report Details
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Reports: ${post.reportCount}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                // Report Details: Count Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.withOpacity(0.15)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.report_problem_outlined, size: 14, color: Colors.red),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Reported by ${post.reportCount} members',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
                         ),
-                        Text(
-                          'Reported by ${post.reportedUsersCount} users',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Report Reasons: Joined Array
+                if (post.reportReasons.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      children: [
+                        const TextSpan(
+                          text: 'Reasons: ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        TextSpan(
+                          text: post.reportReasons.join(', '),
                         ),
                       ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: post.reportReasons.map((reason) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.05),
-                        border: Border.all(color: Colors.red.withOpacity(0.2)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        reason,
-                        style: const TextStyle(fontSize: 10, color: Colors.red),
-                      ),
-                    );
-                  }).toList(),
-                ),
+                  ),
+                ],
                 
                 const SizedBox(height: 16),
                 
                 // Admin Actions
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          _showKeepPostDialog(context);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF004D2A),
-                          side: const BorderSide(color: Color(0xFF004D2A)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text('Keep Post'),
+                if (isModerating)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF004D2A)),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          _showWarningDialog(context);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.orange,
-                          side: const BorderSide(color: Colors.orange),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  )
+                else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            _showKeepPostDialog(context);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF004D2A),
+                            side: const BorderSide(color: Color(0xFF004D2A)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Keep Post'),
                         ),
-                        child: const Text('Send Warning'),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      _showDeleteDialog(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Delete Post'),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            _showWarningDialog(context);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.orange,
+                            side: const BorderSide(color: Colors.orange),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Send Warning'),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        _showDeleteDialog(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      label: const Text('Delete Post'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -476,7 +540,7 @@ class _ModerationPostCard extends StatelessWidget {
                 context.read<ModerationQueueBloc>().add(
                   ModeratePost(
                     postId: post.id,
-                    action: 'WARNING',
+                    action: 'WARN',
                     warningMessage: msgController.text.trim().isNotEmpty ? msgController.text.trim() : null,
                   ),
                 );

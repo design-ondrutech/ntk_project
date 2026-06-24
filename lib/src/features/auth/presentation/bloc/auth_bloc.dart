@@ -111,6 +111,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         addedBy: me.addedBy,
         image: me.image,
         token: state.loginData?.token,
+        bloodGroup: me.bloodGroup,
+        professionName: me.professionName,
       );
       await _authRepository.persistSession(updatedModel);
       emit(

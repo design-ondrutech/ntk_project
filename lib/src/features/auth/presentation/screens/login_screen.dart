@@ -216,20 +216,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          foregroundColor: NTKColors.primary,
-                          padding: const EdgeInsets.only(top: 12, bottom: 8),
-                        ),
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 18),
                     // ── Login button ─────────────────────────────────────
                     ElevatedButton(
