@@ -46,20 +46,35 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   static const List<String> _roles = ['MEMBER', 'ADMIN', 'SUB_ADMIN'];
   static const List<String> _bloodGroups = [
-    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-',
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'AB+',
+    'AB-',
+    'O+',
+    'O-',
   ];
   static const List<String> _professions = [
-    'Farmer', 'Teacher', 'Doctor', 'Engineer', 'Lawyer',
-    'Business', 'Government Employee', 'Private Employee', 'Student', 'Other',
+    'Farmer',
+    'Teacher',
+    'Doctor',
+    'Engineer',
+    'Lawyer',
+    'Business',
+    'Government Employee',
+    'Private Employee',
+    'Student',
+    'Other',
   ];
 
   void _resolveParentLocations(MemberModel member) async {
     if (_resolvedForMemberId == member.id || _isResolvingLocation) return;
     _resolvedForMemberId = member.id;
-    
+
     final loc = member.location;
     if (loc == null) return;
-    
+
     // Set immediate street name first and placeholders for parent fields
     setState(() {
       _resolvedStreet = loc.name;
@@ -71,33 +86,46 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
     try {
       final graphQLService = sl<GraphQLService>();
-      
+
       // We will resolve sequentially upwards based on type
       int? currentParentId = loc.parentId;
       String currentType = loc.type ?? 'STREET';
-      
+
       if (currentType == 'STREET') {
         if (currentParentId != null) {
           // 1. Fetch Area details
-          final areaData = await _fetchSingleLocationDetails(graphQLService, currentParentId);
+          final areaData = await _fetchSingleLocationDetails(
+            graphQLService,
+            currentParentId,
+          );
           if (areaData != null && mounted) {
             setState(() {
               _resolvedArea = areaData['name'];
             });
-            currentParentId = areaData['parentId'] != null ? int.tryParse(areaData['parentId'].toString()) : null;
-            
+            currentParentId = areaData['parentId'] != null
+                ? int.tryParse(areaData['parentId'].toString())
+                : null;
+
             if (currentParentId != null) {
               // 2. Fetch Taluk details
-              final talukData = await _fetchSingleLocationDetails(graphQLService, currentParentId);
+              final talukData = await _fetchSingleLocationDetails(
+                graphQLService,
+                currentParentId,
+              );
               if (talukData != null && mounted) {
                 setState(() {
                   _resolvedConstituency = talukData['name'];
                 });
-                currentParentId = talukData['parentId'] != null ? int.tryParse(talukData['parentId'].toString()) : null;
-                
+                currentParentId = talukData['parentId'] != null
+                    ? int.tryParse(talukData['parentId'].toString())
+                    : null;
+
                 if (currentParentId != null) {
                   // 3. Fetch District details
-                  final districtData = await _fetchSingleLocationDetails(graphQLService, currentParentId);
+                  final districtData = await _fetchSingleLocationDetails(
+                    graphQLService,
+                    currentParentId,
+                  );
                   if (districtData != null && mounted) {
                     setState(() {
                       _resolvedDistrict = districtData['name'];
@@ -115,16 +143,24 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         });
         if (currentParentId != null) {
           // Fetch Taluk details
-          final talukData = await _fetchSingleLocationDetails(graphQLService, currentParentId);
+          final talukData = await _fetchSingleLocationDetails(
+            graphQLService,
+            currentParentId,
+          );
           if (talukData != null && mounted) {
             setState(() {
               _resolvedConstituency = talukData['name'];
             });
-            currentParentId = talukData['parentId'] != null ? int.tryParse(talukData['parentId'].toString()) : null;
-            
+            currentParentId = talukData['parentId'] != null
+                ? int.tryParse(talukData['parentId'].toString())
+                : null;
+
             if (currentParentId != null) {
               // Fetch District details
-              final districtData = await _fetchSingleLocationDetails(graphQLService, currentParentId);
+              final districtData = await _fetchSingleLocationDetails(
+                graphQLService,
+                currentParentId,
+              );
               if (districtData != null && mounted) {
                 setState(() {
                   _resolvedDistrict = districtData['name'];
@@ -141,7 +177,10 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         });
         if (currentParentId != null) {
           // Fetch District details
-          final districtData = await _fetchSingleLocationDetails(graphQLService, currentParentId);
+          final districtData = await _fetchSingleLocationDetails(
+            graphQLService,
+            currentParentId,
+          );
           if (districtData != null && mounted) {
             setState(() {
               _resolvedDistrict = districtData['name'];
@@ -167,7 +206,10 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     }
   }
 
-  Future<Map<String, dynamic>?> _fetchSingleLocationDetails(GraphQLService service, int id) async {
+  Future<Map<String, dynamic>?> _fetchSingleLocationDetails(
+    GraphQLService service,
+    int id,
+  ) async {
     const String query = r'''
       query GetLocationDetails($id: Int!) {
         getLocationDetails(id: $id) {
@@ -196,7 +238,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           children: [
             const SizedBox(height: 8),
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: const Color(0xFFE2E8F0),
                 borderRadius: BorderRadius.circular(2),
@@ -209,7 +252,10 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: Color(0xFF166534)),
+              leading: const Icon(
+                Icons.camera_alt_outlined,
+                color: Color(0xFF166534),
+              ),
               title: const Text('Take Photo'),
               onTap: () async {
                 Navigator.pop(context);
@@ -221,7 +267,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                   final cropped = await Navigator.push<File>(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ImageCropDialog(imageFile: File(picked.path)),
+                      builder: (_) =>
+                          ImageCropDialog(imageFile: File(picked.path)),
                     ),
                   );
                   if (cropped != null && mounted) {
@@ -250,7 +297,10 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: Color(0xFF166534)),
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                color: Color(0xFF166534),
+              ),
               title: const Text('Choose from Gallery'),
               onTap: () async {
                 Navigator.pop(context);
@@ -262,7 +312,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                   final cropped = await Navigator.push<File>(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ImageCropDialog(imageFile: File(picked.path)),
+                      builder: (_) =>
+                          ImageCropDialog(imageFile: File(picked.path)),
                     ),
                   );
                   if (cropped != null && mounted) {
@@ -290,10 +341,14 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                 }
               },
             ),
-            if (_pickedImage != null || (member.image != null && member.image!.isNotEmpty))
+            if (_pickedImage != null ||
+                (member.image != null && member.image!.isNotEmpty))
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                title: const Text(
+                  'Remove Photo',
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   setState(() => _pickedImage = null);
@@ -332,7 +387,11 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     }
     final uri = Uri(scheme: scheme, path: cleanPhone);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      _showSnack(scheme == 'tel' ? 'Unable to open phone dialer' : 'Unable to open message app');
+      _showSnack(
+        scheme == 'tel'
+            ? 'Unable to open phone dialer'
+            : 'Unable to open message app',
+      );
     }
   }
 
@@ -356,7 +415,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   }
 
   List<String> _availableRolesForCurrentUser() {
-    final currentRole = context.read<AuthBloc>().state.loginData?.role.toUpperCase();
+    final currentRole = context
+        .read<AuthBloc>()
+        .state
+        .loginData
+        ?.role
+        .toUpperCase();
     if (currentRole == 'SUB_ADMIN') return const ['MEMBER', 'SUB_ADMIN'];
     if (currentRole == 'ADMIN' || currentRole == 'SUPER_ADMIN') return _roles;
     return const ['MEMBER'];
@@ -366,14 +430,22 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     if (bloodGroup == null) return null;
     final bg = bloodGroup.trim().toUpperCase();
     switch (bg) {
-      case 'A_POSITIVE': return 'A+';
-      case 'A_NEGATIVE': return 'A-';
-      case 'B_POSITIVE': return 'B+';
-      case 'B_NEGATIVE': return 'B-';
-      case 'AB_POSITIVE': return 'AB+';
-      case 'AB_NEGATIVE': return 'AB-';
-      case 'O_POSITIVE': return 'O+';
-      case 'O_NEGATIVE': return 'O-';
+      case 'A_POSITIVE':
+        return 'A+';
+      case 'A_NEGATIVE':
+        return 'A-';
+      case 'B_POSITIVE':
+        return 'B+';
+      case 'B_NEGATIVE':
+        return 'B-';
+      case 'AB_POSITIVE':
+        return 'AB+';
+      case 'AB_NEGATIVE':
+        return 'AB-';
+      case 'O_POSITIVE':
+        return 'O+';
+      case 'O_NEGATIVE':
+        return 'O-';
       default:
         if (_bloodGroups.contains(bg)) return bg;
         if (_bloodGroups.contains(bloodGroup)) return bloodGroup;
@@ -404,11 +476,15 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     if (isSuperAdmin) {
       selectedRole = member.role;
     } else {
-      selectedRole = availableRoles.contains(memberRole) ? memberRole : availableRoles.first;
+      selectedRole = availableRoles.contains(memberRole)
+          ? memberRole
+          : availableRoles.first;
     }
     int? selectedLocationId = member.location?.id;
     String? selectedBloodGroup = _mapBloodGroupToUi(member.bloodGroup);
-    String? selectedProfession = _professions.contains(member.professionName) ? member.professionName : null;
+    String? selectedProfession = _professions.contains(member.professionName)
+        ? member.professionName
+        : null;
     Future<List<LocationModel>>? locationsFuture;
     String? lastLoadedRole;
 
@@ -453,7 +529,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
               );
               if (picked != null) {
                 setSheetState(() {
-                  dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                  dobController.text =
+                      "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
                 });
               }
             }
@@ -467,13 +544,16 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                 return Container(
                   decoration: const BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
                   ),
                   child: Column(
                     children: [
                       Container(
                         margin: const EdgeInsets.only(top: 12),
-                        width: 40, height: 4,
+                        width: 40,
+                        height: 4,
                         decoration: BoxDecoration(
                           color: const Color(0xFFE2E8F0),
                           borderRadius: BorderRadius.circular(2),
@@ -486,11 +566,18 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                             const Expanded(
                               child: Text(
                                 'Edit Profile',
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B),
+                                ),
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(CupertinoIcons.xmark_circle_fill, color: Color(0xFF94A3B8)),
+                              icon: const Icon(
+                                CupertinoIcons.xmark_circle_fill,
+                                color: Color(0xFF94A3B8),
+                              ),
                               onPressed: () => Navigator.pop(sheetContext),
                             ),
                           ],
@@ -501,15 +588,46 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                         child: ListView(
                           controller: scrollController,
                           padding: EdgeInsets.only(
-                            left: 20, right: 20, top: 20,
-                            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+                            left: 20,
+                            right: 20,
+                            top: 20,
+                            bottom:
+                                MediaQuery.of(sheetContext).viewInsets.bottom +
+                                24,
                           ),
                           children: [
-                            _buildSheetField(label: 'Name', child: TextField(controller: nameController, decoration: _sheetInputDecoration('Enter name'))),
+                            _buildSheetField(
+                              label: 'Name',
+                              child: TextField(
+                                controller: nameController,
+                                decoration: _sheetInputDecoration('Enter name'),
+                              ),
+                            ),
                             const SizedBox(height: 16),
-                            _buildSheetField(label: 'Surname', child: TextField(controller: surnameController, decoration: _sheetInputDecoration('Enter surname'))),
+                            _buildSheetField(
+                              label: 'Surname',
+                              child: TextField(
+                                controller: surnameController,
+                                decoration: _sheetInputDecoration(
+                                  'Enter surname',
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 16),
-                            _buildSheetField(label: 'Phone', child: TextField(controller: phoneController, keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)], decoration: _sheetInputDecoration('Enter phone number'))),
+                            _buildSheetField(
+                              label: 'Phone',
+                              child: TextField(
+                                controller: phoneController,
+                                keyboardType: TextInputType.phone,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(10),
+                                ],
+                                decoration: _sheetInputDecoration(
+                                  'Enter phone number',
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 16),
                             if (!isSuperAdmin) ...[
                               _buildSheetField(
@@ -517,8 +635,17 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                 child: DropdownButtonFormField<String>(
                                   value: selectedRole,
                                   isExpanded: true,
-                                  decoration: _sheetInputDecoration('Select role'),
-                                  items: availableRoles.map((role) => DropdownMenuItem(value: role, child: Text(role))).toList(),
+                                  decoration: _sheetInputDecoration(
+                                    'Select role',
+                                  ),
+                                  items: availableRoles
+                                      .map(
+                                        (role) => DropdownMenuItem(
+                                          value: role,
+                                          child: Text(role),
+                                        ),
+                                      )
+                                      .toList(),
                                   onChanged: (value) {
                                     if (value != selectedRole) {
                                       setSheetState(() {
@@ -536,15 +663,27 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                               child: DropdownButtonFormField<String>(
                                 value: selectedBloodGroup,
                                 isExpanded: true,
-                                decoration: _sheetInputDecoration('Select blood group'),
-                                items: _bloodGroups.map((group) => DropdownMenuItem(value: group, child: Text(group))).toList(),
-                                onChanged: (value) => setSheetState(() => selectedBloodGroup = value),
+                                decoration: _sheetInputDecoration(
+                                  'Select blood group',
+                                ),
+                                items: _bloodGroups
+                                    .map(
+                                      (group) => DropdownMenuItem(
+                                        value: group,
+                                        child: Text(group),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) => setSheetState(
+                                  () => selectedBloodGroup = value,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),
                             StatefulBuilder(
                               builder: (context, setFieldState) {
-                                if (locationsFuture == null || lastLoadedRole != selectedRole) {
+                                if (locationsFuture == null ||
+                                    lastLoadedRole != selectedRole) {
                                   lastLoadedRole = selectedRole;
                                   String targetType = 'STREET';
                                   if (selectedRole == 'ADMIN') {
@@ -552,39 +691,66 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                   } else if (selectedRole == 'SUB_ADMIN') {
                                     targetType = 'AREA';
                                   }
-                                  locationsFuture = sl<LocationRepository>().getLocationList(type: targetType);
+                                  locationsFuture = sl<LocationRepository>()
+                                      .getLocationList(type: targetType);
                                 }
                                 return _buildSheetField(
                                   label: selectedRole == 'ADMIN'
                                       ? 'Constituency'
-                                      : (selectedRole == 'SUB_ADMIN' ? 'Area' : 'Street'),
+                                      : (selectedRole == 'SUB_ADMIN'
+                                            ? 'Area'
+                                            : 'Street'),
                                   child: FutureBuilder<List<LocationModel>>(
                                     future: locationsFuture,
                                     builder: (context, snapshot) {
                                       final locations = snapshot.data ?? [];
-                                      final hasSelected = locations.any((loc) => loc.id == selectedLocationId);
+                                      final hasSelected = locations.any(
+                                        (loc) => loc.id == selectedLocationId,
+                                      );
                                       return DropdownButtonFormField<int>(
-                                        value: hasSelected ? selectedLocationId : null,
+                                        value: hasSelected
+                                            ? selectedLocationId
+                                            : null,
                                         isExpanded: true,
                                         decoration: _sheetInputDecoration(
-                                          snapshot.connectionState == ConnectionState.waiting
+                                          snapshot.connectionState ==
+                                                  ConnectionState.waiting
                                               ? 'Loading...'
                                               : (selectedRole == 'ADMIN'
-                                                  ? 'Select constituency'
-                                                  : (selectedRole == 'SUB_ADMIN' ? 'Select area' : 'Select street')),
+                                                    ? 'Select constituency'
+                                                    : (selectedRole ==
+                                                              'SUB_ADMIN'
+                                                          ? 'Select area'
+                                                          : 'Select street')),
                                         ),
-                                        items: locations.map((loc) => DropdownMenuItem(value: loc.id, child: Text(loc.name, overflow: TextOverflow.ellipsis))).toList(),
-                                        onChanged: snapshot.connectionState == ConnectionState.waiting
+                                        items: locations
+                                            .map(
+                                              (loc) => DropdownMenuItem(
+                                                value: loc.id,
+                                                child: Text(
+                                                  loc.name,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged:
+                                            snapshot.connectionState ==
+                                                ConnectionState.waiting
                                             ? null
                                             : (value) {
-                                                setSheetState(() => selectedLocationId = value);
+                                                setSheetState(
+                                                  () => selectedLocationId =
+                                                      value,
+                                                );
                                                 setFieldState(() {});
                                               },
                                       );
                                     },
                                   ),
                                 );
-                              }
+                              },
                             ),
                             const SizedBox(height: 16),
                             _buildSheetField(
@@ -592,9 +758,20 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                               child: DropdownButtonFormField<String>(
                                 value: selectedProfession,
                                 isExpanded: true,
-                                decoration: _sheetInputDecoration('Select profession'),
-                                items: _professions.map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
-                                onChanged: (value) => setSheetState(() => selectedProfession = value),
+                                decoration: _sheetInputDecoration(
+                                  'Select profession',
+                                ),
+                                items: _professions
+                                    .map(
+                                      (p) => DropdownMenuItem(
+                                        value: p,
+                                        child: Text(p),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) => setSheetState(
+                                  () => selectedProfession = value,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -606,7 +783,10 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                 onTap: () => selectDOB(context),
                                 decoration: _sheetInputDecoration(
                                   'Select date of birth',
-                                  suffixIcon: const Icon(CupertinoIcons.calendar, color: Color(0xFF94A3B8)),
+                                  suffixIcon: const Icon(
+                                    CupertinoIcons.calendar,
+                                    color: Color(0xFF94A3B8),
+                                  ),
                                 ),
                               ),
                             ),
@@ -616,47 +796,93 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                               child: DropdownButtonFormField<String>(
                                 value: selectedGender,
                                 isExpanded: true,
-                                decoration: _sheetInputDecoration('Select gender'),
-                                items: const ['Male', 'Female', 'Other'].map((g) => DropdownMenuItem(value: g, child: Text(g))).toList(),
-                                onChanged: (value) => setSheetState(() => selectedGender = value),
+                                decoration: _sheetInputDecoration(
+                                  'Select gender',
+                                ),
+                                items: const ['Male', 'Female', 'Other']
+                                    .map(
+                                      (g) => DropdownMenuItem(
+                                        value: g,
+                                        child: Text(g),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) =>
+                                    setSheetState(() => selectedGender = value),
                               ),
                             ),
                             const SizedBox(height: 28),
                             SizedBox(
-                              width: double.infinity, height: 52,
+                              width: double.infinity,
+                              height: 52,
                               child: ElevatedButton(
                                 onPressed: () {
+                                  void showError(String msg) {
+                                    showDialog(
+                                      context: sheetContext,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Invalid Input'),
+                                        content: Text(msg),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(ctx),
+                                            child: const Text('OK'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }
+
                                   if (nameController.text.trim().isEmpty) {
-                                    _showSnack('Please enter name');
+                                    showError('Please enter name');
                                     return;
                                   }
-                                  if (!Validators.isValidName(nameController.text)) {
-                                    _showSnack('Name can only contain English and Tamil alphabets and spaces');
+                                  if (!Validators.isValidName(
+                                    nameController.text,
+                                  )) {
+                                    showError(
+                                      'Name can only contain English and Tamil alphabets, spaces, and dots',
+                                    );
                                     return;
                                   }
-                                  if (surnameController.text.trim().isNotEmpty && !Validators.isValidName(surnameController.text)) {
-                                    _showSnack('Surname can only contain English and Tamil alphabets and spaces');
+                                  if (surnameController.text
+                                          .trim()
+                                          .isNotEmpty &&
+                                      !Validators.isValidName(
+                                        surnameController.text,
+                                      )) {
+                                    showError(
+                                      'Surname can only contain English and Tamil alphabets, spaces, and dots',
+                                    );
                                     return;
                                   }
                                   if (phoneController.text.trim().isEmpty) {
-                                    _showSnack('Please enter phone number');
+                                    showError('Please enter phone number');
                                     return;
                                   }
                                   if (phoneController.text.trim().length < 10) {
-                                    _showSnack('Please enter a valid 10-digit phone number');
+                                    showError(
+                                      'Please enter a valid 10-digit phone number',
+                                    );
                                     return;
                                   }
                                   context.read<MemberBloc>().add(
                                     UpdateMemberDetails(
                                       id: member.id,
                                       name: nameController.text.trim(),
-                                      surname: surnameController.text.trim().isEmpty ? null : surnameController.text.trim(),
+                                      surname:
+                                          surnameController.text.trim().isEmpty
+                                          ? null
+                                          : surnameController.text.trim(),
                                       phone: phoneController.text.trim(),
                                       role: selectedRole,
                                       bloodGroup: selectedBloodGroup,
                                       professionName: selectedProfession,
                                       locationId: selectedLocationId,
-                                      dateOfBirth: dobController.text.trim().isEmpty ? null : dobController.text.trim(),
+                                      dateOfBirth:
+                                          dobController.text.trim().isEmpty
+                                          ? null
+                                          : dobController.text.trim(),
                                       gender: selectedGender,
                                       image: member.image,
                                     ),
@@ -666,9 +892,19 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: NTKColors.primary,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                                child: const Text('SAVE CHANGES', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.5)),
+                                child: const Text(
+                                  'SAVE CHANGES',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -689,7 +925,15 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B), letterSpacing: 0.3)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF64748B),
+            letterSpacing: 0.3,
+          ),
+        ),
         const SizedBox(height: 6),
         child,
       ],
@@ -704,9 +948,18 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       fillColor: const Color(0xFFF8FAFC),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       suffixIcon: suffixIcon,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: NTKColors.primary, width: 1.5)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: NTKColors.primary, width: 1.5),
+      ),
     );
   }
 
@@ -715,7 +968,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     super.didChangeDependencies();
     if (!_hasFetched) {
       final args = ModalRoute.of(context)?.settings.arguments;
-      final memberId = args is int ? args : int.tryParse(args?.toString() ?? '');
+      final memberId = args is int
+          ? args
+          : int.tryParse(args?.toString() ?? '');
       if (memberId != null) {
         _memberId = memberId;
         context.read<MemberBloc>().add(LoadMemberDetails(id: _memberId!));
@@ -743,31 +998,55 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         if (state.isLoadingDetails || _isResolvingLocation) {
           return Scaffold(
             backgroundColor: Colors.white,
-            appBar: const NTKAppBar(title: 'Member Profile', subtitle: 'Loading...', showNotification: false),
+            appBar: const NTKAppBar(
+              title: 'Member Profile',
+              subtitle: 'Loading...',
+              showNotification: false,
+            ),
             body: _buildShimmerSkeleton(),
           );
         }
 
         if (state.detailsError != null && state.selectedMember == null) {
           return Scaffold(
-            appBar: const NTKAppBar(title: 'Member Profile', subtitle: 'Error', showNotification: false),
+            appBar: const NTKAppBar(
+              title: 'Member Profile',
+              subtitle: 'Error',
+              showNotification: false,
+            ),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(CupertinoIcons.exclamationmark_triangle, color: theme.colorScheme.error, size: 48),
+                    Icon(
+                      CupertinoIcons.exclamationmark_triangle,
+                      color: theme.colorScheme.error,
+                      size: 48,
+                    ),
                     const SizedBox(height: 16),
-                    Text('Failed to load member', style: theme.textTheme.titleLarge),
+                    Text(
+                      'Failed to load member',
+                      style: theme.textTheme.titleLarge,
+                    ),
                     const SizedBox(height: 8),
-                    Text(state.detailsError!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                    Text(
+                      state.detailsError!,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () {
-                        if (_memberId != null) context.read<MemberBloc>().add(LoadMemberDetails(id: _memberId!));
+                        if (_memberId != null)
+                          context.read<MemberBloc>().add(
+                            LoadMemberDetails(id: _memberId!),
+                          );
                       },
-                      style: ElevatedButton.styleFrom(minimumSize: const Size(120, 45)),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(120, 45),
+                      ),
                       child: const Text('Retry'),
                     ),
                   ],
@@ -780,7 +1059,11 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         final member = state.selectedMember;
         if (member == null) {
           return Scaffold(
-            appBar: const NTKAppBar(title: 'Member Profile', subtitle: 'Not Found', showNotification: false),
+            appBar: const NTKAppBar(
+              title: 'Member Profile',
+              subtitle: 'Not Found',
+              showNotification: false,
+            ),
             body: const Center(child: Text('No member data found')),
           );
         }
@@ -801,20 +1084,58 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                 onSelected: (value) {
                   if (value == 'edit') {
                     _showEditMemberSheet(member);
+                  } else if (value == 'locations') {
+                    Navigator.pushNamed(
+                      context,
+                      '/user-locations',
+                      arguments: member.id,
+                    );
                   }
                 },
-                itemBuilder: (BuildContext context) => [
-                  const PopupMenuItem<String>(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(CupertinoIcons.pencil, color: Colors.black87, size: 20),
-                        SizedBox(width: 8),
-                        Text('Edit Profile'),
-                      ],
+                itemBuilder: (BuildContext context) {
+                  final currentUserRole = context
+                      .read<AuthBloc>()
+                      .state
+                      .loginData
+                      ?.role;
+                  final List<PopupMenuEntry<String>> items = [
+                    const PopupMenuItem<String>(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.pencil,
+                            color: Colors.black87,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Edit Profile'),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ];
+
+                  if (currentUserRole == 'SUPER_ADMIN' &&
+                      member.role != 'MEMBER') {
+                    items.add(
+                      const PopupMenuItem<String>(
+                        value: 'locations',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              color: Colors.black87,
+                              size: 20,
+                            ),
+                            SizedBox(width: 8),
+                            Text('Manage Locations'),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return items;
+                },
               ),
             ],
           ),
@@ -842,7 +1163,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                         ? FileImage(_pickedImage!)
                                         : null,
                                     child: (_pickedImage == null)
-                                        ? ClipOval(child: _buildProfileImage(member.image, member.name))
+                                        ? ClipOval(
+                                            child: _buildProfileImage(
+                                              member.image,
+                                              member.name,
+                                            ),
+                                          )
                                         : null,
                                   ),
                                   // Camera badge
@@ -855,9 +1181,16 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                       decoration: BoxDecoration(
                                         color: NTKColors.primary,
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.white, width: 2),
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 2,
+                                        ),
                                       ),
-                                      child: const Icon(Icons.camera_alt, size: 12, color: Colors.white),
+                                      child: const Icon(
+                                        Icons.camera_alt,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -871,7 +1204,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                 children: [
                                   // Name row — overflow fixed with Flexible
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       Flexible(
                                         child: Text(
@@ -887,14 +1221,23 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFDBEAFE),
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
                                         ),
                                         child: Text(
                                           _roleLabel(member.role),
-                                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF)),
+                                          style: const TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF1E40AF),
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
@@ -904,12 +1247,20 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                   // Phone row only — message icon & email row removed
                                   Row(
                                     children: [
-                                      const Icon(Icons.phone, size: 15, color: Color(0xFF166534)),
+                                      const Icon(
+                                        Icons.phone,
+                                        size: 15,
+                                        color: Color(0xFF166534),
+                                      ),
                                       const SizedBox(width: 6),
                                       Flexible(
                                         child: Text(
                                           member.phone ?? 'N/A',
-                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFF1E293B),
+                                          ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
@@ -926,10 +1277,23 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                         _buildInfoCard(
                           title: 'Basic Information',
                           children: [
-                            _buildInfoRow('Blood Group', member.bloodGroup ?? '—'),
-                            _buildInfoRow('Profession', member.professionName ?? '—'),
-                            _buildInfoRow('Date of Birth', member.dateOfBirth ?? '—'),
-                            _buildInfoRow('Gender', member.gender ?? '—', isLast: true),
+                            _buildInfoRow(
+                              'Blood Group',
+                              member.bloodGroup ?? '—',
+                            ),
+                            _buildInfoRow(
+                              'Profession',
+                              member.professionName ?? '—',
+                            ),
+                            _buildInfoRow(
+                              'Date of Birth',
+                              member.dateOfBirth ?? '—',
+                            ),
+                            _buildInfoRow(
+                              'Gender',
+                              member.gender ?? '—',
+                              isLast: true,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -937,27 +1301,37 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                         // ── Location Details ─────────────────────────────
                         Builder(
                           builder: (context) {
-                            final street = _resolvedStreet ?? member.location?.name ?? '—';
+                            final street =
+                                _resolvedStreet ?? member.location?.name ?? '—';
                             final area = _resolvedArea ?? '—';
                             final constituency = _resolvedConstituency ?? '—';
                             final district = _resolvedDistrict ?? '—';
 
                             final role = member.role?.toUpperCase();
                             final showArea = role != 'ADMIN';
-                            final showStreet = role != 'ADMIN' && role != 'SUB_ADMIN';
+                            final showStreet =
+                                role != 'ADMIN' && role != 'SUB_ADMIN';
 
                             return _buildInfoCard(
                               title: 'Location Details',
                               children: [
                                 _buildInfoRow('District', district),
-                                _buildInfoRow('Constituency', constituency, isLast: !showArea && !showStreet),
+                                _buildInfoRow(
+                                  'Constituency',
+                                  constituency,
+                                  isLast: !showArea && !showStreet,
+                                ),
                                 if (showArea)
-                                  _buildInfoRow('Area', area, isLast: showArea && !showStreet),
+                                  _buildInfoRow(
+                                    'Area',
+                                    area,
+                                    isLast: showArea && !showStreet,
+                                  ),
                                 if (showStreet)
                                   _buildInfoRow('Street', street, isLast: true),
                               ],
                             );
-                          }
+                          },
                         ),
                         const SizedBox(height: 16),
 
@@ -982,31 +1356,68 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                           title: 'Actions',
                           children: [
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: ElevatedButton.icon(
-                                      onPressed: () => _launchPhoneAction(member.phone, 'tel'),
-                                      icon: const Icon(Icons.phone, size: 18, color: Colors.white),
-                                      label: const Text('Call', style: TextStyle(color: Colors.white)),
+                                      onPressed: () => _launchPhoneAction(
+                                        member.phone,
+                                        'tel',
+                                      ),
+                                      icon: const Icon(
+                                        Icons.phone,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                      label: const Text(
+                                        'Call',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF064E3B),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        backgroundColor: const Color(
+                                          0xFF064E3B,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: ElevatedButton.icon(
-                                      onPressed: () => _launchWhatsApp(member.phone),
-                                      icon: const Icon(Icons.wechat_rounded, size: 18, color: Colors.white),
-                                      label: const Text('WhatsApp', style: TextStyle(color: Colors.white)),
+                                      onPressed: () =>
+                                          _launchWhatsApp(member.phone),
+                                      icon: const Icon(
+                                        Icons.wechat_rounded,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                      label: const Text(
+                                        'WhatsApp',
+                                        style: TextStyle(color: Colors.white),
+                                      ),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFF25D366),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        backgroundColor: const Color(
+                                          0xFF25D366,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1036,7 +1447,11 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       alignment: Alignment.center,
       child: Text(
         name != null && name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: NTKColors.primary),
+        style: const TextStyle(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: NTKColors.primary,
+        ),
       ),
     );
   }
@@ -1067,20 +1482,40 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   String _roleLabel(String? role) {
     switch (role?.toUpperCase()) {
-      case 'ADMIN':       return 'ADMIN';
-      case 'SUB_ADMIN':   return 'SUB ADM';
+      case 'ADMIN':
+        return 'ADMIN';
+      case 'SUB_ADMIN':
+        return 'SUB ADM';
       case 'SUPER_ADMIN':
-      case 'SUPER':       return 'SUPER';
-      default:            return 'MEMBER';
+      case 'SUPER':
+        return 'SUPER';
+      default:
+        return 'MEMBER';
     }
   }
 
   String _monthName(int month) {
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return months[(month - 1).clamp(0, 11)];
   }
 
-  Widget _buildInfoCard({required String title, required List<Widget> children}) {
+  Widget _buildInfoCard({
+    required String title,
+    required List<Widget> children,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1098,7 +1533,11 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             ),
             child: Text(
               title,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
             ),
           ),
           ...children,
@@ -1109,7 +1548,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   Widget _buildInfoRow(String key, String value, {bool isLast = false}) {
     return Padding(
-      padding: EdgeInsets.only(left: 16, right: 16, top: 12, bottom: isLast ? 12 : 0),
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 12,
+        bottom: isLast ? 12 : 0,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1117,14 +1561,22 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             flex: 2,
             child: Text(
               key,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF334155),
+              ),
             ),
           ),
           Expanded(
             flex: 3,
             child: Text(
               value,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E293B),
+              ),
             ),
           ),
         ],
@@ -1188,12 +1640,23 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           ),
           for (int i = 0; i < rows; i++)
             Padding(
-              padding: EdgeInsets.only(left: 16, right: 16, top: 12, bottom: (i == rows - 1) ? 12 : 0),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 12,
+                bottom: (i == rows - 1) ? 12 : 0,
+              ),
               child: const Row(
                 children: [
-                  Expanded(flex: 2, child: ShimmerLoader(width: double.infinity, height: 14)),
+                  Expanded(
+                    flex: 2,
+                    child: ShimmerLoader(width: double.infinity, height: 14),
+                  ),
                   SizedBox(width: 16),
-                  Expanded(flex: 3, child: ShimmerLoader(width: double.infinity, height: 14)),
+                  Expanded(
+                    flex: 3,
+                    child: ShimmerLoader(width: double.infinity, height: 14),
+                  ),
                 ],
               ),
             ),

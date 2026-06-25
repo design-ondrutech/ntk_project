@@ -8,6 +8,7 @@ class CommunityListBloc extends Bloc<CommunityListEvent, CommunityListState> {
 
   CommunityListBloc(this._repository) : super(const CommunityListState()) {
     on<FetchCommunitiesList>(_onFetchCommunities);
+    on<SearchCommunitiesEvent>(_onSearchCommunities);
     on<CreateNewCommunity>(_onCreateNewCommunity);
     on<JoinCommunityGroup>(_onJoinCommunity);
     on<LeaveCommunityGroup>(_onLeaveCommunity);
@@ -21,6 +22,19 @@ class CommunityListBloc extends Bloc<CommunityListEvent, CommunityListState> {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
       final communities = await _repository.getCommunities(joinedOnly: false);
+      emit(state.copyWith(isLoading: false, communities: communities));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onSearchCommunities(
+    SearchCommunitiesEvent event,
+    Emitter<CommunityListState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      final communities = await _repository.searchCommunities(query: event.query, locationId: event.locationId);
       emit(state.copyWith(isLoading: false, communities: communities));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
@@ -65,22 +79,28 @@ class CommunityListBloc extends Bloc<CommunityListEvent, CommunityListState> {
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
-      final success = await _repository.joinCommunity(communityId: event.communityId);
-      if (success) {
-        // Refresh the list after joining
+      final status = await _repository.joinCommunityOrRequest(
+        communityId: event.communityId,
+        reason: event.reason,
+        inviteCode: event.inviteCode,
+      );
+      if (status == 'JOINED' || status == 'PENDING_APPROVAL') {
+        // Refresh the list after joining/requesting
         final communities = await _repository.getCommunities(joinedOnly: false);
         emit(
           state.copyWith(
             isLoading: false,
             communities: communities,
-            successMessage: 'Successfully joined community',
+            successMessage: status == 'PENDING_APPROVAL' 
+                ? 'Request sent. Waiting for approval.' 
+                : 'Successfully joined community',
           ),
         );
       } else {
         emit(
           state.copyWith(
             isLoading: false,
-            error: 'Failed to join community',
+            error: 'Failed to join community. Status: $status',
           ),
         );
       }

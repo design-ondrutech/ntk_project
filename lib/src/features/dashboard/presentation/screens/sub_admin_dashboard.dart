@@ -15,8 +15,11 @@ import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/p
 import 'package:ntk_project/src/features/users/presentation/screens/pending_requests_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_widgets.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/widgets/dashboard_location_filter.dart';
 import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/features/users/data/models/user_location_assignment.dart';
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 
 class SubAdminDashboard extends StatelessWidget {
   const SubAdminDashboard({super.key, required this.authState});
@@ -28,6 +31,7 @@ class SubAdminDashboard extends StatelessWidget {
     final name = authState.loginData?.name ?? 'Sub Admin';
     final locationNameFromLogin = authState.loginData?.locationName;
     final authLocationId = authState.loginData?.locationId;
+    final userId = authState.loginData?.id;
 
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
@@ -39,58 +43,36 @@ class SubAdminDashboard extends StatelessWidget {
                     : 'Tamil Nadu');
 
         final stats = state.stats;
+        final selectedFilterLocationId = state.globalLocation?.id ?? authLocationId;
+
+        // Combine primary location with secondary assigned locations
+        final List<UserLocationAssignment> combinedAssignments = [];
+        if (authLocationId != null) {
+          combinedAssignments.add(UserLocationAssignment(
+            id: 0,
+            userId: userId ?? 0,
+            locationId: authLocationId,
+            isPrimary: true,
+            location: LocationModel(
+              id: authLocationId,
+              name: authState.loginData?.locationName ?? 'Primary',
+              type: 'AREA',
+            ),
+          ));
+        }
+        for (var a in state.assignedLocations) {
+          if (a.locationId != authLocationId) combinedAssignments.add(a);
+        }
 
         return Scaffold(
           backgroundColor: const Color(0xFFF9FAFB),
-          appBar: AppBar(
-            backgroundColor: const Color(0xFF004D2A),
-            elevation: 0,
-            centerTitle: false,
-            automaticallyImplyLeading: false,
-            leading: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: buildDashboardAvatar(context),
-            ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppLocalizations.of(context)!.ntkParty,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                Text(
-                  AppLocalizations.of(context)!.subAdminPortal,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(
-                  Icons.notifications_none_rounded,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/notifications');
-                },
-              ),
-            ],
-          ),
-          body: state.isLoading
+          appBar: buildFigmaAppBar(context, locationName),
+          body: authState.loginData == null
               ? const Center(child: CircularProgressIndicator())
               : RefreshIndicator(
                   onRefresh: () async {
                     context.read<DashboardBloc>().add(
-                      LoadDashboardStats(state.globalLocation?.id ?? authLocationId),
+                      LoadDashboardStats(authLocationId, filterLocationId: selectedFilterLocationId, userId: userId),
                     );
                     context.read<DashboardBloc>().add(
                       LoadModerationStats(state.globalLocation?.id ?? authLocationId),
@@ -133,27 +115,22 @@ class SubAdminDashboard extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.location_on,
-                                            color: Colors.white70,
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              localizeLocationName(context, locationName),
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.white70,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
+                                      DashboardLocationFilter(
+                                        assignments: combinedAssignments,
+                                        selectedLocationId: selectedFilterLocationId,
+                                        isDarkTheme: true,
+                                        onLocationChanged: (newLocId) {
+                                          if (newLocId != null) {
+                                            final assignment = state.assignedLocations.firstWhere((a) => a.location?.id == newLocId);
+                                            if (assignment.location != null) {
+                                              context.read<DashboardBloc>().add(UpdateGlobalLocation(assignment.location));
+                                              context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, filterLocationId: newLocId, userId: userId));
+                                            }
+                                          } else {
+                                            context.read<DashboardBloc>().add(const UpdateGlobalLocation(null));
+                                            context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, userId: userId));
+                                          }
+                                        },
                                       ),
                                     ],
                                   ),

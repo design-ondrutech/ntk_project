@@ -175,6 +175,21 @@
   "patientDetails": "நோயாளி விவரங்கள்",
   "requiredSupport": "தேவையான உதவி",
   "contactDetails": "தொடர்பு விவரங்கள்",
-  "actionRequired": "நடவடிக்கை தேவை"
+  "actionRequired": "நடவடிக்கை தேவை",
+  "account": "கணக்கு",
+  "active": "செயலில்",
+  "inactive": "செயலற்றது",
+  "verification": "சரிபார்ப்பு",
+  "verified": "சரிபார்க்கப்பட்டது",
+  "pending": "நிலுவையில் உள்ளது",
+  "joinPrivateGroup": "தனியார் குழுவில் சேரவும்",
+  "joinSecretGroup": "ரகசிய குழுவில் சேரவும்",
+  "provideReason": "இந்த சமூகத்தில் சேருவதற்கான காரணத்தை வழங்கவும்.",
+  "enterInviteCode": "அழைப்பு குறியீட்டை உள்ளிடவும்.",
+  "yourReason": "உங்கள் காரணம்...",
+  "inviteCodeHint": "அழைப்பு குறியீடு...",
+  "sendRequest": "கோரிக்கையை அனுப்பு",
+  "adminDashboard": "நிர்வாகி டாஷ்போர்டு",
+  "communityArchivedMessage": "இந்த சமூகம் காப்பகப்படுத்தப்பட்டுள்ளது. முந்தைய செய்திகளை நீங்கள் படிக்கலாம், ஆனால் புதிய செய்திகளை அனுப்ப முடியாது.",
+  "joinGroup": "சேர"
 }
-

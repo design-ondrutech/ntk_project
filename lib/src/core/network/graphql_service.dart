@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 class GraphQLService {
   final ValueNotifier<bool> connectionStatus = ValueNotifier<bool>(true);
+  final ValueNotifier<String?> lastNetworkError = ValueNotifier<String?>(null);
   String? _token;
   String _languageCode = 'en'; // Default to English
   late GraphQLClient _client;
@@ -119,7 +120,7 @@ class GraphQLService {
       // Catch and ignore late errors from the original future to prevent unhandled exceptions after timeout
       requestFuture.ignore();
       
-      final response = await requestFuture.timeout(const Duration(seconds: 60));
+      final response = await requestFuture.timeout(const Duration(seconds: 120));
 
       Map<String, dynamic> json;
       try {
@@ -162,11 +163,14 @@ class GraphQLService {
       );
     } on TimeoutException {
       connectionStatus.value = false;
-      throw const NetworkException('No Internet Connection. Please check your network and try again.');
+      lastNetworkError.value = 'TimeoutException';
+      throw const NetworkException('Server is taking too long to respond. It might be waking up. Please try again.');
     } catch (e, stack) {
+      debugPrint('GraphQL Network Error: $e');
       if (_isNetworkError(e)) {
         connectionStatus.value = false;
-        throw const NetworkException('No Internet Connection. Please check your network and try again.');
+        lastNetworkError.value = e.toString();
+        throw const NetworkException('Network error. Please check your internet connection and try again.');
       }
       connectionStatus.value = true;
       return QueryResult(

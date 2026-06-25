@@ -25,6 +25,8 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
     on<MarkMessagesReadEvent>(_onMarkMessagesRead);
     on<EditMessageEvent>(_onEditMessage);
     on<DeleteMessageEvent>(_onDeleteMessage);
+    on<StarMessageEvent>(_onStarMessage);
+    on<UnstarMessageEvent>(_onUnstarMessage);
 
     on<ConnectChatSocket>(_onConnectChatSocket);
     on<DisconnectChatSocket>(_onDisconnectChatSocket);
@@ -227,6 +229,36 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
       emit(state.copyWith(messages: updatedList, clearError: true));
     } catch (e) {
       emit(state.copyWith(error: 'Failed to delete message: $e'));
+    }
+  }
+
+  Future<void> _onStarMessage(
+    StarMessageEvent event,
+    Emitter<CommunityChatState> emit,
+  ) async {
+    try {
+      await _repository.starCommunityMessage(messageId: event.messageId);
+      final updatedList = state.messages
+          .map((m) => m.id == event.messageId ? m.copyWith(isStarred: true) : m)
+          .toList();
+      emit(state.copyWith(messages: updatedList, clearError: true));
+    } catch (e) {
+      emit(state.copyWith(error: 'Failed to star message: $e'));
+    }
+  }
+
+  Future<void> _onUnstarMessage(
+    UnstarMessageEvent event,
+    Emitter<CommunityChatState> emit,
+  ) async {
+    try {
+      await _repository.unstarCommunityMessage(messageId: event.messageId);
+      final updatedList = state.messages
+          .map((m) => m.id == event.messageId ? m.copyWith(isStarred: false) : m)
+          .toList();
+      emit(state.copyWith(messages: updatedList, clearError: true));
+    } catch (e) {
+      emit(state.copyWith(error: 'Failed to unstar message: $e'));
     }
   }
 

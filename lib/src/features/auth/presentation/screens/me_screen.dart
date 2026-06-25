@@ -995,6 +995,22 @@ class _QuickActionsCard extends StatelessWidget {
         iconColor: const Color(0xFF2563EB),
         onTap: () => Navigator.pushNamed(context, '/change-password'),
       ),
+      if (profile.role.toUpperCase() != 'SUPER_ADMIN') ...[
+        _ActionItem(
+          icon: Icons.add_location_alt_outlined,
+          label: 'Request Location / Role Access',
+          iconBg: const Color(0xFFFFF7ED),
+          iconColor: const Color(0xFFEA580C),
+          onTap: () => Navigator.pushNamed(context, '/location-access-request'),
+        ),
+        _ActionItem(
+          icon: Icons.history_rounded,
+          label: 'My Location Requests',
+          iconBg: const Color(0xFFF3E8FF), // light purple
+          iconColor: const Color(0xFF9333EA), // purple
+          onTap: () => Navigator.pushNamed(context, '/my-location-requests'),
+        ),
+      ],
       _ActionItem(
         icon: Icons.logout_rounded,
         label: loc.logout,

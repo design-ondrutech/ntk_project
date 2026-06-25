@@ -12,12 +12,14 @@ import 'package:ntk_project/src/features/location/presentation/bloc/location_blo
 import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/main_screen.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/widgets/dashboard_location_filter.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_widgets.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
-
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
+import 'package:ntk_project/src/features/users/data/models/user_location_assignment.dart';
 class SuperAdminDashboard extends StatelessWidget {
   const SuperAdminDashboard({super.key, required this.authState});
 
@@ -26,72 +28,52 @@ class SuperAdminDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = authState.loginData?.name ?? 'Thalaivar Seeman';
+    final authLocationId = authState.loginData?.locationId;
+    final userId = authState.loginData?.id;
+
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
-        final locationName = state.globalLocation?.name ?? state.stats?.locationName ?? authState.loginData?.locationName ?? 'Tamil Nadu';
+        final locationName = state.globalLocation?.name ?? authState.loginData?.locationName ?? state.stats?.locationName ?? 'Tamil Nadu';
+        final selectedFilterLocationId = state.globalLocation?.id ?? authLocationId;
+
+        // Combine primary location with secondary assigned locations
+        final List<UserLocationAssignment> combinedAssignments = [];
+        if (authLocationId != null) {
+          combinedAssignments.add(UserLocationAssignment(
+            id: 0,
+            userId: userId ?? 0,
+            locationId: authLocationId,
+            isPrimary: true,
+            location: LocationModel(
+              id: authLocationId,
+              name: authState.loginData?.locationName ?? 'Primary',
+              type: 'STATE',
+            ),
+          ));
+        }
+        for (var a in state.assignedLocations) {
+          if (a.locationId != authLocationId) combinedAssignments.add(a);
+        }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5), // Light Gray
-          appBar: AppBar(
-            backgroundColor: const Color(0xFF004D2A), // Dark Green
-            elevation: 0,
-            centerTitle: false,
-            automaticallyImplyLeading: false,
-            leading: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: buildDashboardAvatar(context),
-            ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(AppLocalizations.of(context)!.ntkParty, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                Text(localizeLocationName(context, locationName), style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500, fontSize: 11, letterSpacing: 1.2)),
-              ],
-            ),
-            actions: [
-              BlocBuilder<NotificationBloc, NotificationState>(
-                builder: (context, notifState) {
-                  final unreadCount = notifState.notifications.where((n) => !n.isRead).length;
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/notifications');
-                        },
-                      ),
-                      if (unreadCount > 0)
-                        Positioned(
-                          right: 12,
-                          top: 12,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                            child: Text(
-                              unreadCount > 99 ? '99+' : '$unreadCount',
-                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-          drawer: const Drawer(), // Placeholder drawer
-          body: state.isLoading
+          backgroundColor: const Color(0xFFF9FAFB),
+          appBar: buildFigmaAppBar(context, locationName),
+          body: authState.loginData == null
               ? const Center(child: CircularProgressIndicator())
               : RefreshIndicator(
                   onRefresh: () async {
-                    context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authState.loginData?.locationId));
-                    context.read<DashboardBloc>().add(LoadModerationStats(state.globalLocation?.id ?? authState.loginData?.locationId));
+                    context.read<DashboardBloc>().add(
+                      LoadDashboardStats(authLocationId, filterLocationId: selectedFilterLocationId, userId: userId),
+                    );
+                    context.read<DashboardBloc>().add(
+                      LoadModerationStats(selectedFilterLocationId),
+                    );
+                    context.read<PendingRequestsBloc>().add(
+                      LoadPendingRequests(
+                        locationId: selectedFilterLocationId,
+                        role: 'All',
+                      ),
+                    );
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -101,6 +83,27 @@ class SuperAdminDashboard extends StatelessWidget {
                       children: [
                         buildGreetingText(AppLocalizations.of(context)!.vanakkam(name), AppLocalizations.of(context)!.overviewPartyAdministration),
                         const SizedBox(height: 20),
+                        
+                        // User Location Assignment Filter
+                        DashboardLocationFilter(
+                          assignments: combinedAssignments,
+                          selectedLocationId: selectedFilterLocationId,
+                          onLocationChanged: (newLocId) {
+                            if (newLocId != null) {
+                              final assignment = combinedAssignments.firstWhere((a) => a.location?.id == newLocId);
+                              if (assignment.location != null) {
+                                context.read<DashboardBloc>().add(UpdateGlobalLocation(assignment.location));
+                                context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, filterLocationId: newLocId, userId: userId));
+                                context.read<DashboardBloc>().add(LoadModerationStats(newLocId));
+                              }
+                            } else {
+                              context.read<DashboardBloc>().add(const UpdateGlobalLocation(null));
+                              context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, userId: userId));
+                              context.read<DashboardBloc>().add(LoadModerationStats(authLocationId));
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
                         
                         // Location Filter (District)
                         BlocBuilder<LocationBloc, LocationState>(
@@ -136,7 +139,7 @@ class SuperAdminDashboard extends StatelessWidget {
                                       value: null,
                                       child: Text(AppLocalizations.of(context)!.allDistricts, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                                     ),
-                                    ...locationState.districts.map((d) => DropdownMenuItem(
+                                    ...{ for (var d in locationState.districts) d.id: d }.values.map((d) => DropdownMenuItem(
                                       value: d.id,
                                       child: Text(d.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                                     )).toList(),
@@ -227,6 +230,68 @@ class SuperAdminDashboard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 24),
+                        
+                        // Location Requests Review Section
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(context, '/location-requests-management');
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFF59E0B).withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.transfer_within_a_station_rounded, color: Colors.white, size: 24),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Review Location Requests',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Approve or reject role and location changes',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 16),
+                              ],
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 24),
                         
                         // Moderation Section

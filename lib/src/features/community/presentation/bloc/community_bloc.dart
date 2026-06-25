@@ -34,6 +34,8 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
     on<ModeratePost>(_onModeratePost);
     on<CreateCommunity>(_onCreateCommunity);
     on<JoinCommunity>(_onJoinCommunity);
+    on<ReviewJoinRequest>(_onReviewJoinRequest);
+    on<CreateComplaint>(_onCreateComplaint);
     on<ReactToMessage>(_onReactToMessage);
     on<MarkMessagesRead>(_onMarkMessagesRead);
     on<EditMessage>(_onEditMessage);
@@ -524,6 +526,8 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
         description: event.description,
         image: event.image,
         allowMemberMessages: event.allowMemberMessages,
+        locationId: event.locationId,
+        privacyType: event.privacyType,
       );
 
       emit(
@@ -551,16 +555,39 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
-      await _repository.joinCommunity(
+      final status = await _repository.joinCommunityOrRequest(
         communityId: event.communityId,
+        reason: event.reason,
+        inviteCode: event.inviteCode,
       );
-      emit(
-        state.copyWith(
-          isLoading: false,
-          message: 'Successfully joined community',
-          clearError: true,
-        ),
-      );
+      if (status == 'PENDING_APPROVAL') {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            isJoinPending: true,
+            message: 'Request sent. Waiting for approval.',
+            clearError: true,
+          ),
+        );
+      } else if (status == 'JOINED') {
+        add(const FetchCommunities());
+        emit(
+          state.copyWith(
+            isLoading: false,
+            isJoinPending: false,
+            message: 'Successfully joined community',
+            clearError: true,
+          ),
+        );
+      } else {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            error: 'Failed to join community. Status: $status',
+            clearMessage: true,
+          ),
+        );
+      }
     } catch (e) {
       emit(
         state.copyWith(
@@ -569,6 +596,40 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
           clearMessage: true,
         ),
       );
+    }
+  }
+
+  Future<void> _onReviewJoinRequest(
+    ReviewJoinRequest event,
+    Emitter<CommunityState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      await _repository.reviewCommunityJoinRequest(
+        requestId: event.requestId,
+        action: event.action,
+        rejectionReason: event.rejectionReason,
+      );
+      emit(state.copyWith(isLoading: false, message: 'Request ${event.action.toLowerCase()}d successfully', clearError: true));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: 'Failed to review request: $e', clearMessage: true));
+    }
+  }
+
+  Future<void> _onCreateComplaint(
+    CreateComplaint event,
+    Emitter<CommunityState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true, clearError: true));
+    try {
+      await _repository.createCommunityComplaint(
+        communityId: event.communityId,
+        title: event.title,
+        description: event.description,
+      );
+      emit(state.copyWith(isLoading: false, message: 'Complaint submitted successfully', clearError: true));
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: 'Failed to submit complaint: $e', clearMessage: true));
     }
   }
 

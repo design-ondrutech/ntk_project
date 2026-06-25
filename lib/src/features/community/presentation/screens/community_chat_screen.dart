@@ -11,14 +11,20 @@ import 'package:ntk_project/src/features/community/data/models/community_message
 import 'package:ntk_project/src/features/community/presentation/bloc/community_chat_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_chat_event.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_chat_state.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/starred_messages_screen.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:intl/intl.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class CommunityChatScreen extends StatefulWidget {
   final CommunityModel community;
+  final bool showAppBar;
 
-  const CommunityChatScreen({Key? key, required this.community})
-    : super(key: key);
+  const CommunityChatScreen({
+    Key? key,
+    required this.community,
+    this.showAppBar = true,
+  }) : super(key: key);
 
   @override
   State<CommunityChatScreen> createState() => _CommunityChatScreenState();
@@ -88,13 +94,9 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
     final myId = context.watch<AuthBloc>().state.loginData?.id;
     final myName = context.watch<AuthBloc>().state.loginData?.name;
 
-    return Scaffold(
-      appBar: NTKAppBar(
-        title: widget.community.name,
-        subtitle: 'Community Chat',
-      ),
-      backgroundColor: const Color(0xFFEFEFEF),
-      body: Column(
+    final body = Container(
+      color: const Color(0xFFEFEFEF),
+      child: Column(
         children: [
           Expanded(
             child: BlocConsumer<CommunityChatBloc, CommunityChatState>(
@@ -134,9 +136,54 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
               },
             ),
           ),
-          _buildMessageComposer(),
+          if (widget.community.isArchived)
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: const Color(0xFFFFFBEB),
+              width: double.infinity,
+              child: Row(
+                children: [
+                  const Icon(Icons.archive_rounded, color: Color(0xFFD97706)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      AppLocalizations.of(context)?.communityArchivedMessage ?? 'This community is archived. You can read previous messages, but cannot send new ones.',
+                      style: const TextStyle(color: Color(0xFF92400E), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            _buildMessageComposer(),
         ],
       ),
+    );
+
+    if (!widget.showAppBar) {
+      return body;
+    }
+
+    return Scaffold(
+      appBar: NTKAppBar(
+        title: widget.community.name,
+        subtitle: 'Community Chat',
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.star, color: Colors.amber),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => StarredMessagesScreen(communityId: widget.community.id),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      backgroundColor: const Color(0xFFEFEFEF),
+      body: body,
     );
   }
 
@@ -178,84 +225,139 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
       );
     }
 
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-        ),
-        decoration: BoxDecoration(
-          color: isMe ? const Color(0xFFDCFCE7) : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isMe ? 16 : 0),
-            bottomRight: Radius.circular(isMe ? 0 : 16),
+    return GestureDetector(
+      onLongPress: () {
+        _showMessageOptions(context, message, isMe);
+      },
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.78,
           ),
-          border: Border.all(
-            color: isMe ? const Color(0xFFBBF7D0) : const Color(0xFFE5E7EB),
-            width: 0.8,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1.5),
+          decoration: BoxDecoration(
+            color: isMe ? const Color(0xFFDCFCE7) : Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomLeft: Radius.circular(isMe ? 16 : 0),
+              bottomRight: Radius.circular(isMe ? 0 : 16),
             ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!isMe)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4.0),
-                  child: Text(
-                    message.senderName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: _getSenderColor(message.senderName),
-                      fontSize: 12.5,
-                    ),
-                  ),
-                ),
-              _buildMessageContent(message, isMe),
-              const SizedBox(height: 6),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _formatTime(message.createdAt),
-                      style: TextStyle(
-                        color: isMe
-                            ? const Color(0xFF166534).withOpacity(0.7)
-                            : const Color(0xFF6B7280),
-                        fontSize: 10,
-                      ),
-                    ),
-                    if (isMe) ...[
-                      const SizedBox(width: 4),
-                      Icon(
-                        message.readByCount > 0 ? Icons.done_all : Icons.done,
-                        size: 14,
-                        color: message.readByCount > 0
-                            ? Colors.blue[600]
-                            : const Color(0xFF166534).withOpacity(0.7),
-                      ),
-                    ],
-                  ],
-                ),
+            border: Border.all(
+              color: isMe ? const Color(0xFFBBF7D0) : const Color(0xFFE5E7EB),
+              width: 0.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 1.5),
               ),
             ],
           ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isMe)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4.0),
+                    child: Text(
+                      message.senderName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _getSenderColor(message.senderName),
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+                _buildMessageContent(message, isMe),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (message.isStarred)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 4.0),
+                          child: Icon(Icons.star, size: 14, color: Colors.amber),
+                        ),
+                      Text(
+                        _formatTime(message.createdAt),
+                        style: TextStyle(
+                          color: isMe
+                              ? const Color(0xFF166534).withOpacity(0.7)
+                              : const Color(0xFF6B7280),
+                          fontSize: 10,
+                        ),
+                      ),
+                      if (isMe) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          message.readByCount > 0 ? Icons.done_all : Icons.done,
+                          size: 14,
+                          color: message.readByCount > 0
+                              ? Colors.blue[600]
+                              : const Color(0xFF166534).withOpacity(0.7),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
+    );
+  }
+
+  void _showMessageOptions(BuildContext context, CommunityMessageModel message, bool isMe) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (message.isStarred)
+                ListTile(
+                  leading: const Icon(Icons.star_border),
+                  title: const Text('Unstar Message'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.read<CommunityChatBloc>().add(UnstarMessageEvent(message.id));
+                  },
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.star, color: Colors.amber),
+                  title: const Text('Star Message'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.read<CommunityChatBloc>().add(StarMessageEvent(message.id));
+                  },
+                ),
+              if (isMe)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text('Delete Message', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.read<CommunityChatBloc>().add(DeleteMessageEvent(message.id));
+                  },
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

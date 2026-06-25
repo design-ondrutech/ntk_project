@@ -25,6 +25,9 @@ import 'package:ntk_project/src/features/community/presentation/bloc/community_p
 import 'package:ntk_project/src/features/community/presentation/bloc/community_state.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_chat_screen.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_details_screen.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_admin_screen.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_settings_screen.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/create_community_group_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
@@ -146,65 +149,12 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
     );
   }
 
-  void _showCreateGroupDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Create Community Group', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Group Name',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'Description',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nameController.text.isNotEmpty) {
-                  context.read<CommunityBloc>().add(
-                        CreateCommunity(
-                          name: nameController.text,
-                          description: descriptionController.text,
-                          allowMemberMessages: true,
-                        ),
-                      );
-                  Navigator.pop(context);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
+  void _openCreateGroupScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CreateCommunityGroupScreen(),
+      ),
     );
   }
 
@@ -265,7 +215,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                   }
                   return IconButton(
                     icon: const Icon(CupertinoIcons.add, color: Colors.white),
-                    onPressed: () => _showCreateGroupDialog(context),
+                    onPressed: () => _openCreateGroupScreen(context),
                   );
                 }
                 return const SizedBox.shrink();
@@ -3790,7 +3740,51 @@ class _CommunityCard extends StatelessWidget {
                   height: 36,
                   child: FilledButton(
                     onPressed: () {
-                      context.read<CommunityBloc>().add(JoinCommunity(communityId: community.id));
+                      if (community.privacyType == 'PRIVATE' || community.privacyType == 'SECRET') {
+                        final inputController = TextEditingController();
+                        showDialog(
+                          context: context,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('Join Private Group', style: TextStyle(color: _primary, fontWeight: FontWeight.bold)),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Please provide a reason for joining this community.'),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: inputController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'Your reason',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  maxLines: 3,
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext),
+                                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: _primary),
+                                onPressed: () {
+                                  final text = inputController.text.trim();
+                                  Navigator.pop(dialogContext);
+                                  context.read<CommunityBloc>().add(JoinCommunity(
+                                    communityId: community.id,
+                                    reason: text,
+                                  ));
+                                },
+                                child: const Text('Send Request', style: TextStyle(color: Colors.white)),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        context.read<CommunityBloc>().add(JoinCommunity(communityId: community.id));
+                      }
                     },
                     style: FilledButton.styleFrom(
                       backgroundColor: _primary,

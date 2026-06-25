@@ -177,25 +177,65 @@ class CreateCommunity extends CommunityEvent {
   final String? description;
   final String? image;
   final bool allowMemberMessages;
+  final int? locationId;
+  final String? privacyType;
 
   const CreateCommunity({
     required this.name,
     this.description,
     this.image,
     required this.allowMemberMessages,
+    this.locationId,
+    this.privacyType,
   });
 
   @override
-  List<Object?> get props => [name, description, image, allowMemberMessages];
+  List<Object?> get props => [name, description, image, allowMemberMessages, locationId, privacyType];
 }
 
 class JoinCommunity extends CommunityEvent {
   final int communityId;
+  final String? reason;
+  final String? inviteCode;
 
-  const JoinCommunity({required this.communityId});
+  const JoinCommunity({
+    required this.communityId,
+    this.reason,
+    this.inviteCode,
+  });
 
   @override
-  List<Object?> get props => [communityId];
+  List<Object?> get props => [communityId, reason, inviteCode];
+}
+
+class ReviewJoinRequest extends CommunityEvent {
+  final int requestId;
+  final String action;
+  final String? rejectionReason;
+
+  const ReviewJoinRequest({
+    required this.requestId,
+    required this.action,
+    this.rejectionReason,
+  });
+
+  @override
+  List<Object?> get props => [requestId, action, rejectionReason];
+}
+
+class CreateComplaint extends CommunityEvent {
+  final int communityId;
+  final String title;
+  final String description;
+
+  const CreateComplaint({
+    required this.communityId,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  List<Object?> get props => [communityId, title, description];
 }
 
 // ─── Chat Interactions ────────────────────────────────────────────────────────

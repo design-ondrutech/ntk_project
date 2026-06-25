@@ -199,5 +199,21 @@
   "patientDetails": "Patient Details",
   "requiredSupport": "Required Support",
   "contactDetails": "Contact Details",
-  "actionRequired": "Action Required"
+  "actionRequired": "Action Required",
+  "account": "Account",
+  "active": "Active",
+  "inactive": "Inactive",
+  "verification": "Verification",
+  "verified": "Verified",
+  "pending": "Pending",
+  "joinPrivateGroup": "Join Private Group",
+  "joinSecretGroup": "Join Secret Group",
+  "provideReason": "Please provide a reason for joining this community.",
+  "enterInviteCode": "Please enter the invite code.",
+  "yourReason": "Your reason...",
+  "inviteCodeHint": "Invite code...",
+  "sendRequest": "Send Request",
+  "adminDashboard": "Admin Dashboard",
+  "communityArchivedMessage": "This community is archived. You can read previous messages, but cannot send new ones.",
+  "joinGroup": "Join"
 }

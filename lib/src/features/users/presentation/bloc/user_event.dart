@@ -22,6 +22,7 @@ class CreateUserRequested extends UserEvent {
   final String? professionName;
   final String? dateOfBirth;
   final String? gender;
+  final List<int>? additionalLocationIds;
 
   const CreateUserRequested({
     required this.name,
@@ -38,6 +39,7 @@ class CreateUserRequested extends UserEvent {
     this.professionName,
     this.dateOfBirth,
     this.gender,
+    this.additionalLocationIds,
   });
 
   @override
@@ -56,6 +58,7 @@ class CreateUserRequested extends UserEvent {
     professionName,
     dateOfBirth,
     gender,
+    additionalLocationIds,
   ];
 }
 

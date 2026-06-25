@@ -27,8 +27,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final loginData = authState.loginData;
     if (loginData != null) {
       final locationId = loginData.locationId;
+      final globalLocationId = context.read<DashboardBloc>().state.globalLocation?.id;
       context.read<DashboardBloc>().add(
-        LoadDashboardStats(locationId),
+        LoadDashboardStats(locationId, filterLocationId: globalLocationId != locationId ? globalLocationId : null, userId: loginData.id),
       );
       context.read<DashboardBloc>().add(
         LoadModerationStats(locationId),

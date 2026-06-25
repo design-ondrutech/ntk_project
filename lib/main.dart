@@ -32,13 +32,16 @@ import 'package:ntk_project/src/features/dashboard/presentation/screens/settings
 import 'package:ntk_project/src/features/dashboard/presentation/screens/activity_log_screen.dart';
 import 'package:ntk_project/src/features/auth/presentation/screens/edit_profile_screen.dart';
 import 'package:ntk_project/src/features/auth/presentation/screens/change_password_screen.dart';
+import 'package:ntk_project/src/features/users/presentation/screens/location_access_request_screen.dart';
+import 'package:ntk_project/src/features/users/presentation/screens/my_location_requests_screen.dart';
+import 'package:ntk_project/src/features/users/presentation/screens/location_requests_management_screen.dart';
+import 'package:ntk_project/src/features/users/presentation/screens/user_locations_management_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:convert';
 import 'package:ntk_project/src/core/services/fcm_service.dart';
-
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ntk_project/src/core/network/graphql_service.dart';
@@ -80,18 +83,25 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   // Show a local notification for data-only messages
   if (message.notification == null && message.data.isNotEmpty) {
-    String title = message.data['title'] ?? message.data['subject'] ?? 'New Notification';
-    String body = message.data['body'] ?? message.data['message'] ?? message.data['description'] ?? '';
+    String title =
+        message.data['title'] ?? message.data['subject'] ?? 'New Notification';
+    String body =
+        message.data['body'] ??
+        message.data['message'] ??
+        message.data['description'] ??
+        '';
 
-    final FlutterLocalNotificationsPlugin localNotificationsPlugin = FlutterLocalNotificationsPlugin();
-    
-    const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'high_importance_channel',
-      'High Importance Notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-      icon: '@mipmap/launcher_icon',
-    );
+    final FlutterLocalNotificationsPlugin localNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
+
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+          'high_importance_channel',
+          'High Importance Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/launcher_icon',
+        );
     const NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
       iOS: DarwinNotificationDetails(),
@@ -168,40 +178,62 @@ class MainApp extends StatelessWidget {
           create: (context) => di.sl<UserManagementBloc>(),
         ),
         BlocProvider<UserBloc>(create: (context) => di.sl<UserBloc>()),
-        BlocProvider<PendingRequestsBloc>(create: (context) => di.sl<PendingRequestsBloc>()),
+        BlocProvider<PendingRequestsBloc>(
+          create: (context) => di.sl<PendingRequestsBloc>(),
+        ),
         BlocProvider<RequestBloc>(create: (context) => di.sl<RequestBloc>()),
-        BlocProvider<CommunityBloc>(create: (context) => di.sl<CommunityBloc>()),
-        BlocProvider<CommunityListBloc>(create: (context) => di.sl<CommunityListBloc>()),
-        BlocProvider<CommunityMemberBloc>(create: (context) => di.sl<CommunityMemberBloc>()),
-        BlocProvider<CommunityChatBloc>(create: (context) => di.sl<CommunityChatBloc>()),
-        BlocProvider<CommunityPostsBloc>(create: (context) => di.sl<CommunityPostsBloc>()),
-        BlocProvider<CommunityPollsBloc>(create: (context) => di.sl<CommunityPollsBloc>()),
-        BlocProvider<ModerationQueueBloc>(create: (context) => di.sl<ModerationQueueBloc>()),
-        BlocProvider<NotificationBloc>(create: (context) => di.sl<NotificationBloc>()),
-        BlocProvider<NotificationSettingsBloc>(create: (context) => di.sl<NotificationSettingsBloc>()),
-        BlocProvider<LanguageCubit>(create: (context) => LanguageCubit(languageCode)),
+        BlocProvider<CommunityBloc>(
+          create: (context) => di.sl<CommunityBloc>(),
+        ),
+        BlocProvider<CommunityListBloc>(
+          create: (context) => di.sl<CommunityListBloc>(),
+        ),
+        BlocProvider<CommunityMemberBloc>(
+          create: (context) => di.sl<CommunityMemberBloc>(),
+        ),
+        BlocProvider<CommunityChatBloc>(
+          create: (context) => di.sl<CommunityChatBloc>(),
+        ),
+        BlocProvider<CommunityPostsBloc>(
+          create: (context) => di.sl<CommunityPostsBloc>(),
+        ),
+        BlocProvider<CommunityPollsBloc>(
+          create: (context) => di.sl<CommunityPollsBloc>(),
+        ),
+        BlocProvider<ModerationQueueBloc>(
+          create: (context) => di.sl<ModerationQueueBloc>(),
+        ),
+        BlocProvider<NotificationBloc>(
+          create: (context) => di.sl<NotificationBloc>(),
+        ),
+        BlocProvider<NotificationSettingsBloc>(
+          create: (context) => di.sl<NotificationSettingsBloc>(),
+        ),
+        BlocProvider<LanguageCubit>(
+          create: (context) => LanguageCubit(languageCode),
+        ),
       ],
       child: BlocBuilder<LanguageCubit, Locale>(
         builder: (context, locale) {
           return BlocListener<AuthBloc, AuthState>(
-            listenWhen: (previous, current) => previous.loginData != null && current.loginData == null,
+            listenWhen: (previous, current) =>
+                previous.loginData != null && current.loginData == null,
             listener: (context, state) {
               context.read<RequestBloc>().add(ResetRequests());
               context.read<EventBloc>().add(const ResetEvents());
               context.read<DashboardBloc>().add(const ResetDashboard());
               context.read<MemberBloc>().add(const ResetMembers());
               context.read<CommunityListBloc>().add(const ResetCommunityList());
-              context.read<CommunityPostsBloc>().add(const ResetCommunityPosts());
+              context.read<CommunityPostsBloc>().add(
+                const ResetCommunityPosts(),
+              );
             },
             child: MaterialApp(
               navigatorKey: navigatorKey,
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,
               locale: locale,
-              supportedLocales: const [
-                Locale('en'),
-                Locale('ta'),
-              ],
+              supportedLocales: const [Locale('en'), Locale('ta')],
               localizationsDelegates: const [
                 AppLocalizations.delegate,
                 GlobalMaterialLocalizations.delegate,
@@ -218,28 +250,50 @@ class MainApp extends StatelessWidget {
                         if (!isConnected)
                           Positioned.fill(
                             child: NoInternetOverlay(
+                              errorDetails: di.sl<GraphQLService>().lastNetworkError.value,
                               onRetry: () async {
                                 try {
-                                  final response = await http.get(Uri.parse('https://www.google.com')).timeout(const Duration(seconds: 5));
-                                  if (response.statusCode >= 200 && response.statusCode < 400) {
-                                    di.sl<GraphQLService>().connectionStatus.value = true;
+                                  final response = await http
+                                      .get(Uri.parse('https://www.google.com'))
+                                      .timeout(const Duration(seconds: 5));
+                                  if (response.statusCode >= 200 &&
+                                      response.statusCode < 400) {
+                                    di
+                                            .sl<GraphQLService>()
+                                            .connectionStatus
+                                            .value =
+                                        true;
                                     final ctx = navigatorKey.currentContext;
                                     if (ctx != null) {
                                       try {
-                                        final authState = ctx.read<AuthBloc>().state;
-                                        final locationId = authState.loginData?.locationId;
-                                        ctx.read<DashboardBloc>().add(LoadDashboardStats(locationId ?? 1));
+                                        final authState = ctx
+                                            .read<AuthBloc>()
+                                            .state;
+                                        final locationId =
+                                            authState.loginData?.locationId;
+                                        ctx.read<DashboardBloc>().add(
+                                          LoadDashboardStats(locationId ?? 1),
+                                        );
                                       } catch (_) {}
                                       try {
-                                        final authState = ctx.read<AuthBloc>().state;
-                                        final locationId = authState.loginData?.locationId;
-                                        ctx.read<MemberBloc>().add(LoadMembers(locationId: locationId));
+                                        final authState = ctx
+                                            .read<AuthBloc>()
+                                            .state;
+                                        final locationId =
+                                            authState.loginData?.locationId;
+                                        ctx.read<MemberBloc>().add(
+                                          LoadMembers(locationId: locationId),
+                                        );
                                       } catch (_) {}
                                       try {
-                                        ctx.read<EventBloc>().add(const FetchEvents());
+                                        ctx.read<EventBloc>().add(
+                                          const FetchEvents(),
+                                        );
                                       } catch (_) {}
                                       try {
-                                        ctx.read<RequestBloc>().add(LoadRequests());
+                                        ctx.read<RequestBloc>().add(
+                                          LoadRequests(),
+                                        );
                                       } catch (_) {}
                                     }
                                   }
@@ -247,7 +301,9 @@ class MainApp extends StatelessWidget {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Still no internet connection. Please check your network.'),
+                                        content: Text(
+                                          'Still no internet connection. Please check your network.',
+                                        ),
                                         behavior: SnackBarBehavior.floating,
                                       ),
                                     );
@@ -263,19 +319,36 @@ class MainApp extends StatelessWidget {
               },
               initialRoute: _getInitialRoute(initialSession),
               routes: {
+                '/location-access-request': (context) =>
+                    const LocationAccessRequestScreen(),
+                '/location-requests-management': (context) =>
+                    const LocationRequestsManagementScreen(),
+                '/my-location-requests': (context) =>
+                    const MyLocationRequestsScreen(),
+                '/user-locations': (context) {
+                  final userId =
+                      ModalRoute.of(context)!.settings.arguments as int;
+                  return UserLocationsManagementScreen(userId: userId);
+                },
                 '/login': (context) => const LoginScreen(),
                 '/dashboard': (context) => const MainScreen(),
                 '/requests': (context) => const RequestsBroadcastsScreen(),
-                '/broadcast_details': (context) => const BroadcastDetailsScreen(),
+                '/broadcast_details': (context) =>
+                    const BroadcastDetailsScreen(),
                 '/members': (context) => const MembersListScreen(),
                 '/profile': (context) => const MemberProfileScreen(),
                 '/events': (context) => const EventsOverviewScreen(),
                 '/create_event': (context) => const CreateEventScreen(),
-                '/create_announcement': (context) => const CreateAnnouncementScreen(),
+                '/create_announcement': (context) =>
+                    const CreateAnnouncementScreen(),
                 '/event_details': (context) => const EventDetailsScreen(),
-                '/emergency_details': (context) => const EmergencyDetailsScreen(),
+                '/emergency_details': (context) =>
+                    const EmergencyDetailsScreen(),
                 '/all_alerts': (context) {
-                  final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+                  final args =
+                      ModalRoute.of(context)?.settings.arguments
+                          as Map<String, dynamic>? ??
+                      {};
                   final type = args['type'] as String? ?? 'EMERGENCY';
                   return AllAlertsScreen(type: type);
                 },
@@ -310,7 +383,8 @@ class MainApp extends StatelessWidget {
                 '/user_management': (context) => const UserManagementScreen(),
                 '/settings': (context) => const SettingsScreen(),
                 '/event_responses': (context) => const EventResponsesScreen(),
-                '/member_event_response': (context) => const MemberEventResponseScreen(),
+                '/member_event_response': (context) =>
+                    const MemberEventResponseScreen(),
                 '/response_success': (context) => const ResponseSuccessScreen(),
                 '/activity_log': (context) => const ActivityLogScreen(),
                 '/edit-profile': (context) => const EditProfileScreen(),
@@ -326,8 +400,9 @@ class MainApp extends StatelessWidget {
 
 class NoInternetOverlay extends StatefulWidget {
   final Future<void> Function() onRetry;
+  final String? errorDetails;
 
-  const NoInternetOverlay({super.key, required this.onRetry});
+  const NoInternetOverlay({super.key, required this.onRetry, this.errorDetails});
 
   @override
   State<NoInternetOverlay> createState() => _NoInternetOverlayState();
@@ -364,7 +439,7 @@ class _NoInternetOverlayState extends State<NoInternetOverlay> {
               ),
               const SizedBox(height: 32),
               const Text(
-                'No Internet Connection',
+                'Connection Issue',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 22,
@@ -374,7 +449,7 @@ class _NoInternetOverlayState extends State<NoInternetOverlay> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Please check your network and try again.',
+                'Please check your network or wait a moment while our server wakes up, then try again.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -383,6 +458,18 @@ class _NoInternetOverlayState extends State<NoInternetOverlay> {
                 ),
               ),
               const Spacer(),
+              if (widget.errorDetails != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: Text(
+                    'Debug info: ${widget.errorDetails}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.redAccent,
+                    ),
+                  ),
+                ),
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -419,4 +506,3 @@ class _NoInternetOverlayState extends State<NoInternetOverlay> {
     );
   }
 }
-

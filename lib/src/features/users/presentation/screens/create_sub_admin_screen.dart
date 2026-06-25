@@ -30,7 +30,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
 
   LocationModel? _selectedDistrict;
   LocationModel? _selectedTaluk;
-  LocationModel? _selectedArea;
+  List<LocationModel> _selectedAreas = [];
 
   List<LocationModel> _areas = [];
 
@@ -159,7 +159,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
   Future<void> _onTalukChanged(LocationModel? taluk) async {
     setState(() {
       _selectedTaluk = taluk;
-      _selectedArea = null;
+      _selectedAreas.clear();
       _areas = [];
     });
     if (taluk == null) return;
@@ -227,8 +227,8 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
       _showSnack('Please select a Taluk');
       return;
     }
-    if (_selectedArea == null) {
-      _showSnack('Please select an Area');
+    if (_selectedAreas.isEmpty) {
+      _showSnack('Please select at least one Area');
       return;
     }
     if (_selectedBloodGroup == null) {
@@ -262,7 +262,10 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
         role: 'SUB_ADMIN',
-        locationId: _selectedArea!.id,
+        locationId: _selectedAreas.first.id,
+        additionalLocationIds: _selectedAreas.length > 1 
+            ? _selectedAreas.skip(1).map((e) => e.id).toList() 
+            : null,
         dateOfBirth: dob,
         gender: gender,
         bloodGroup: _selectedBloodGroup,
@@ -360,15 +363,60 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
               _loadingAreas
                   ? _buildLoadingField('Area')
                   : _selectedTaluk == null
-                  ? _buildDisabledField('Area', 'Select Taluk first')
-                  : NTKDropdownField<LocationModel>(
-                      label: 'Area',
-                      items: _areas,
-                      selectedValue: _selectedArea,
-                      hintText: 'Select Area',
-                      onChanged: (val) => setState(() => _selectedArea = val),
-                      itemLabel: (item) => item.name,
-                    ),
+                      ? _buildDisabledField('Area', 'Select Taluk first')
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 8, left: 4),
+                              child: Text(
+                                'Select Areas (Assign one or more)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF374151),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: NTKColors.border),
+                              ),
+                              child: _areas.isEmpty
+                                  ? const Text('No areas found', style: TextStyle(color: Colors.grey))
+                                  : Wrap(
+                                      spacing: 8.0,
+                                      runSpacing: 4.0,
+                                      children: _areas.map((area) {
+                                        final isSelected = _selectedAreas.contains(area);
+                                        return FilterChip(
+                                          label: Text(area.name),
+                                          selected: isSelected,
+                                          onSelected: (selected) {
+                                            setState(() {
+                                              if (selected) {
+                                                _selectedAreas.add(area);
+                                              } else {
+                                                _selectedAreas.remove(area);
+                                              }
+                                            });
+                                          },
+                                          selectedColor: NTKColors.primary.withOpacity(0.2),
+                                          checkmarkColor: NTKColors.primary,
+                                          labelStyle: TextStyle(
+                                            color: isSelected ? NTKColors.primary : Colors.black87,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                            ),
+                          ],
+                        ),
               const SizedBox(height: 16),
 
 

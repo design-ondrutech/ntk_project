@@ -4,6 +4,8 @@ import 'package:ntk_project/src/features/community/data/models/community_model.d
 import 'package:ntk_project/src/features/community/presentation/bloc/community_list_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_list_event.dart';
 import 'package:ntk_project/src/core/utils/date_helper.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_links_screen.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class AboutTab extends StatelessWidget {
   final CommunityModel community;
@@ -69,6 +71,56 @@ class AboutTab extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _showJoinDialog(BuildContext context) {
+    final inputController = TextEditingController();
+    final l10n = AppLocalizations.of(context)!;
+    final isSecret = community.privacyType == 'SECRET';
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(isSecret ? l10n.joinSecretGroup : l10n.joinPrivateGroup, style: const TextStyle(color: Color(0xFF0A3D28), fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(isSecret ? l10n.enterInviteCode : l10n.provideReason),
+            const SizedBox(height: 12),
+            TextField(
+              controller: inputController,
+              decoration: InputDecoration(
+                hintText: isSecret ? l10n.inviteCodeHint : l10n.yourReason,
+                border: const OutlineInputBorder(),
+              ),
+              maxLines: isSecret ? 1 : 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0A3D28)),
+            onPressed: () {
+              final text = inputController.text.trim();
+              Navigator.pop(dialogContext);
+              context.read<CommunityListBloc>().add(
+                JoinCommunityGroup(
+                  communityId: community.id, 
+                  reason: isSecret ? null : text,
+                  inviteCode: isSecret ? text : null,
+                ),
+              );
+              Navigator.pop(context); // close details screen
+            },
+            child: Text(isSecret ? l10n.joinGroup : l10n.sendRequest, style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -171,15 +223,61 @@ class AboutTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
+          if (community.isJoined)
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: () => _showLeaveConfirmation(context),
+                icon: const Icon(Icons.exit_to_app_rounded, color: Color(0xFFEF4444)),
+                label: const Text('Leave Group', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w800, fontSize: 15)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFEF4444)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  if (community.privacyType == 'PRIVATE' || community.privacyType == 'SECRET') {
+                    _showJoinDialog(context);
+                  } else {
+                    context.read<CommunityListBloc>().add(JoinCommunityGroup(communityId: community.id));
+                    Navigator.pop(context); // close details screen
+                  }
+                },
+                icon: const Icon(Icons.group_add_rounded, color: Colors.white),
+                label: const Text('Join Group', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0A3D28),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             height: 52,
             child: OutlinedButton.icon(
-              onPressed: () => _showLeaveConfirmation(context),
-              icon: const Icon(Icons.exit_to_app_rounded, color: Color(0xFFEF4444)),
-              label: const Text('Leave Group', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w800, fontSize: 15)),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CommunityLinksScreen(
+                      communityId: community.id,
+                      isAdmin: false, // TODO: Fetch role properly
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.link_rounded, color: Color(0xFF0F8A4B)),
+              label: const Text('Links & Documents', style: TextStyle(color: Color(0xFF0F8A4B), fontWeight: FontWeight.w800, fontSize: 15)),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFEF4444)),
+                side: const BorderSide(color: Color(0xFF0F8A4B)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),

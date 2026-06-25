@@ -5,6 +5,13 @@ import 'package:ntk_project/src/features/community/data/models/community_model.d
 import 'package:ntk_project/src/features/community/data/models/post_model.dart';
 import 'package:ntk_project/src/features/community/data/models/poll_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_member_model.dart';
+import 'package:ntk_project/src/features/community/data/models/pending_join_request_model.dart';
+import 'package:ntk_project/src/features/community/data/models/complaint_model.dart';
+import 'package:ntk_project/src/features/community/data/models/announcement_model.dart';
+import 'package:ntk_project/src/features/community/data/models/community_settings_model.dart';
+import 'package:ntk_project/src/features/community/data/models/community_link_doc_model.dart';
+import 'package:ntk_project/src/features/community/data/models/community_analytics_model.dart';
+import 'package:ntk_project/src/features/community/data/models/community_ban_model.dart';
 import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
 
 class CommunityRepositoryImpl implements CommunityRepository {
@@ -13,10 +20,10 @@ class CommunityRepositoryImpl implements CommunityRepository {
   CommunityRepositoryImpl(this._graphQLService);
 
   @override
-  Future<List<CommunityModel>> getCommunities({bool? joinedOnly}) async {
+  Future<List<CommunityModel>> getCommunities({bool? joinedOnly, String? privacyType}) async {
     const String query = r'''
-      query GetCommunities($joinedOnly: Boolean) {
-        getCommunities(joinedOnly: $joinedOnly) {
+      query GetCommunities($joinedOnly: Boolean, $privacyType: CommunityPrivacyType) {
+        getCommunities(joinedOnly: $joinedOnly, privacyType: $privacyType) {
           id
           name
           description
@@ -24,6 +31,8 @@ class CommunityRepositoryImpl implements CommunityRepository {
           memberCount
           isJoined
           rules
+          privacyType
+          isArchived
           locationId
           location {
             id
@@ -37,7 +46,10 @@ class CommunityRepositoryImpl implements CommunityRepository {
 
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'joinedOnly': joinedOnly},
+      variables: {
+        'joinedOnly': joinedOnly,
+        if (privacyType != null) 'privacyType': privacyType,
+      },
     );
 
     if (result.hasException) {
@@ -53,23 +65,31 @@ class CommunityRepositoryImpl implements CommunityRepository {
   }
 
   @override
-  Future<bool> joinCommunity({required int communityId}) async {
+  Future<String> joinCommunityOrRequest({
+    required int communityId,
+    String? reason,
+    String? inviteCode,
+  }) async {
     const String mutation = r'''
-      mutation JoinCommunity($communityId: Int!) {
-        joinCommunity(communityId: $communityId)
+      mutation JoinCommunityOrRequest($communityId: Int!, $reason: String, $inviteCode: String) {
+        joinCommunityOrRequest(communityId: $communityId, reason: $reason, inviteCode: $inviteCode)
       }
     ''';
 
     final result = await _graphQLService.performMutation(
       mutation,
-      variables: {'communityId': communityId},
+      variables: {
+        'communityId': communityId,
+        'reason': reason,
+        'inviteCode': inviteCode,
+      },
     );
 
     if (result.hasException) {
       throw Exception('Failed to join community: ${result.exception}');
     }
 
-    return result.data?['joinCommunity'] as bool? ?? false;
+    return result.data?['joinCommunityOrRequest'] as String? ?? 'ERROR';
   }
 
   @override
@@ -453,7 +473,9 @@ class CommunityRepositoryImpl implements CommunityRepository {
 
     final data = result.data?['likePost'] as Map<String, dynamic>?;
     if (data == null) throw Exception('Like post failed');
-    return (data['likesCount'] ?? data['likes_count'] ?? data['likes']) as int? ?? 0;
+    return (data['likesCount'] ?? data['likes_count'] ?? data['likes'])
+            as int? ??
+        0;
   }
 
   @override
@@ -478,7 +500,9 @@ class CommunityRepositoryImpl implements CommunityRepository {
 
     final data = result.data?['unlikePost'] as Map<String, dynamic>?;
     if (data == null) throw Exception('Unlike post failed');
-    return (data['likesCount'] ?? data['likes_count'] ?? data['likes']) as int? ?? 0;
+    return (data['likesCount'] ?? data['likes_count'] ?? data['likes'])
+            as int? ??
+        0;
   }
 
   @override
@@ -895,7 +919,9 @@ class CommunityRepositoryImpl implements CommunityRepository {
     }
 
     final data = result.data?['likeCommunityPost'] as Map<String, dynamic>?;
-    return (data?['likesCount'] ?? data?['likes_count'] ?? data?['likes']) as int? ?? 0;
+    return (data?['likesCount'] ?? data?['likes_count'] ?? data?['likes'])
+            as int? ??
+        0;
   }
 
   @override
@@ -995,6 +1021,8 @@ class CommunityRepositoryImpl implements CommunityRepository {
     String? description,
     String? image,
     bool allowMemberMessages = true,
+    int? locationId,
+    String? privacyType,
   }) async {
     const String mutation = r'''
       mutation CreateCommunity(
@@ -1002,12 +1030,16 @@ class CommunityRepositoryImpl implements CommunityRepository {
         $description: String
         $image: String
         $allowMemberMessages: Boolean
+        $locationId: Int
+        $privacyType: String
       ) {
         createCommunity(
           name: $name
           description: $description
           image: $image
           allowMemberMessages: $allowMemberMessages
+          locationId: $locationId
+          privacyType: $privacyType
         ) {
           id
           name
@@ -1027,6 +1059,8 @@ class CommunityRepositoryImpl implements CommunityRepository {
         'description': description,
         'image': image,
         'allowMemberMessages': allowMemberMessages,
+        'locationId': locationId,
+        'privacyType': privacyType,
       },
     );
 
@@ -1106,7 +1140,6 @@ class CommunityRepositoryImpl implements CommunityRepository {
     if (result.hasException) {
       throw Exception('Failed to edit message: ${result.exception}');
     }
-
     final data = result.data?['editCommunityMessage'] as Map<String, dynamic>?;
     if (data == null) throw Exception('Edit message failed');
     return CommunityMessageModel.fromJson(data);
@@ -1148,29 +1181,44 @@ class CommunityRepositoryImpl implements CommunityRepository {
   @override
   Future<List<CommunityMemberModel>> getCommunityMembers({
     required int communityId,
+    String? role,
+    String? search,
   }) async {
     const String query = r'''
-      query GetCommunityMembers($communityId: Int!) {
-        getCommunityMembers(communityId: $communityId) {
+      query GetCommunityMembers($communityId: Int!, $role: String, $search: String) {
+        getCommunityMembers(communityId: $communityId, role: $role, search: $search) {
           id
-          name
-          phone
-          image
+          userId
           role
-          isGroupAdmin
-          isMuted
+          joinedAt
+          user {
+            id
+            name
+            phone
+            image
+          }
         }
       }
     ''';
+
     final result = await _graphQLService.performQuery(
       query,
-      variables: {'communityId': communityId},
+      variables: {
+        'communityId': communityId,
+        if (role != null) 'role': role,
+        if (search != null) 'search': search,
+      },
     );
-    if (result.hasException)
-      throw Exception('Failed to get members: ${result.exception}');
+
+    if (result.hasException) {
+      throw Exception('Failed to fetch community members: ${result.exception}');
+    }
+
     final List data = result.data?['getCommunityMembers'] as List? ?? [];
     return data
-        .map((e) => CommunityMemberModel.fromJson(e as Map<String, dynamic>))
+        .map<CommunityMemberModel>(
+          (json) => CommunityMemberModel.fromJson(json as Map<String, dynamic>),
+        )
         .toList();
   }
 
@@ -1484,7 +1532,9 @@ class CommunityRepositoryImpl implements CommunityRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> likePollComment({required int pollCommentId}) async {
+  Future<Map<String, dynamic>> likePollComment({
+    required int pollCommentId,
+  }) async {
     const String mutation = r'''
       mutation LikePollComment($pollCommentId: Int!) {
         likePollComment(pollCommentId: $pollCommentId) {
@@ -1561,5 +1611,773 @@ class CommunityRepositoryImpl implements CommunityRepository {
       throw Exception('Failed to add poll comment: No data returned');
     }
     return CommentModel.fromJson(data);
+  }
+
+  // --- Admin Methods ---
+
+  @override
+  Future<List<PendingJoinRequestModel>> getPendingCommunityJoinRequests({required int communityId, String? status}) async {
+    const String query = r'''
+      query GetPendingCommunityJoinRequests($communityId: Int!, $status: String) {
+        getPendingCommunityJoinRequests(communityId: $communityId, status: $status) {
+          id
+          reason
+          createdAt
+          user {
+            id
+            name
+            phone
+            location {
+              name
+              type
+            }
+          }
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: {'communityId': communityId, 'status': status},
+    );
+    if (result.hasException)
+      throw Exception('Failed to fetch pending requests: ${result.exception}');
+    final List data =
+        result.data?['getPendingCommunityJoinRequests'] as List? ?? [];
+    return data
+        .map(
+          (json) =>
+              PendingJoinRequestModel.fromJson(json as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  @override
+  Future<bool> reviewCommunityJoinRequest({
+    required int requestId,
+    required String action,
+    String? rejectionReason,
+  }) async {
+    const String mutation = r'''
+      mutation ReviewCommunityJoinRequest($requestId: Int!, $action: JoinRequestAction!, $rejectionReason: String) {
+        reviewCommunityJoinRequest(requestId: $requestId, action: $action, rejectionReason: $rejectionReason)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'requestId': requestId,
+        'action': action,
+        'rejectionReason': rejectionReason,
+      },
+    );
+    if (result.hasException)
+      throw Exception('Failed to review request: ${result.exception}');
+    return result.data?['reviewCommunityJoinRequest'] as bool? ?? false;
+  }
+
+  @override
+  Future<bool> updateCommunityMemberRole({
+    required int communityId,
+    required int targetUserId,
+    required String newRole,
+  }) async {
+    const String mutation = r'''
+      mutation UpdateCommunityMemberRole($communityId: Int!, $targetUserId: Int!, $newRole: CommunityGroupRole!) {
+        updateCommunityMemberRole(communityId: $communityId, targetUserId: $targetUserId, newRole: $newRole)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'communityId': communityId,
+        'targetUserId': targetUserId,
+        'newRole': newRole,
+      },
+    );
+    if (result.hasException)
+      throw Exception('Failed to update role: ${result.exception}');
+    return result.data?['updateCommunityMemberRole'] as bool? ?? false;
+  }
+
+  @override
+  Future<ComplaintModel> createCommunityComplaint({
+    required int communityId,
+    required String title,
+    required String description,
+  }) async {
+    const String mutation = r'''
+      mutation CreateCommunityComplaint($communityId: Int!, $title: String!, $description: String!) {
+        createCommunityComplaint(communityId: $communityId, title: $title, description: $description) {
+          id
+          title
+          status
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'communityId': communityId,
+        'title': title,
+        'description': description,
+      },
+    );
+    if (result.hasException)
+      throw Exception('Failed to create complaint: ${result.exception}');
+    return ComplaintModel.fromJson(
+      result.data?['createCommunityComplaint'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<List<ComplaintModel>> getCommunityComplaints({
+    required int communityId,
+    String? status,
+  }) async {
+    const String query = r'''
+      query GetCommunityComplaints($communityId: Int!, $status: ComplaintStatus) {
+        getCommunityComplaints(communityId: $communityId, status: $status) {
+          id
+          title
+          description
+          status
+          createdAt
+          reporter {
+            name
+          }
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: {'communityId': communityId, 'status': status},
+    );
+    if (result.hasException)
+      throw Exception('Failed to get complaints: ${result.exception}');
+    final List data = result.data?['getCommunityComplaints'] as List? ?? [];
+    return data
+        .map((json) => ComplaintModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<bool> banCommunityUser({
+    required int communityId,
+    required int userId,
+    String? reason,
+    int? durationDays,
+  }) async {
+    const String mutation = r'''
+      mutation BanCommunityUser($communityId: Int!, $userId: Int!, $reason: String, $durationDays: Int) {
+        banCommunityUser(communityId: $communityId, userId: $userId, reason: $reason, durationDays: $durationDays)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'communityId': communityId,
+        'userId': userId,
+        'reason': reason,
+        'durationDays': durationDays,
+      },
+    );
+    if (result.hasException)
+      throw Exception('Failed to ban user: ${result.exception}');
+    return result.data?['banCommunityUser'] as bool? ?? false;
+  }
+
+  @override
+  Future<bool> unbanCommunityUser({
+    required int communityId,
+    required int userId,
+  }) async {
+    const String mutation = r'''
+      mutation UnbanCommunityUser($communityId: Int!, $userId: Int!) {
+        unbanCommunityUser(communityId: $communityId, userId: $userId)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {'communityId': communityId, 'userId': userId},
+    );
+    if (result.hasException)
+      throw Exception('Failed to unban user: ${result.exception}');
+    return result.data?['unbanCommunityUser'] as bool? ?? false;
+  }
+
+  @override
+  Future<AnnouncementModel> createCommunityAnnouncement({
+    required int communityId,
+    required String title,
+    required String message,
+    bool? isPinned,
+    String? scheduledFor,
+  }) async {
+    const String mutation = r'''
+      mutation CreateCommunityAnnouncement($communityId: Int!, $title: String!, $message: String!, $isPinned: Boolean, $scheduledFor: String) {
+        createCommunityAnnouncement(communityId: $communityId, title: $title, message: $message, isPinned: $isPinned, scheduledFor: $scheduledFor) {
+          id
+          title
+          message
+          isPinned
+          scheduledFor
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'communityId': communityId,
+        'title': title,
+        'message': message,
+        'isPinned': isPinned,
+        'scheduledFor': scheduledFor,
+      },
+    );
+    if (result.hasException)
+      throw Exception('Failed to create announcement: ${result.exception}');
+    return AnnouncementModel.fromJson(
+      result.data?['createCommunityAnnouncement'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<List<AnnouncementModel>> getCommunityAnnouncements({
+    required int communityId,
+  }) async {
+    const String query = r'''
+      query GetCommunityAnnouncements($communityId: Int!) {
+        getCommunityAnnouncements(communityId: $communityId) {
+          id
+          title
+          message
+          isPinned
+          createdAt
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: {'communityId': communityId},
+    );
+    if (result.hasException)
+      throw Exception('Failed to get announcements: ${result.exception}');
+    final List data = result.data?['getCommunityAnnouncements'] as List? ?? [];
+    return data
+        .map((json) => AnnouncementModel.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+  @override
+  Future<List<CommunityModel>> getFeaturedCommunities() async {
+    const String query = r'''
+      query GetFeaturedCommunities {
+        getFeaturedCommunities {
+          id
+          name
+          description
+          image
+          memberCount
+          isJoined
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query);
+    if (result.hasException) throw Exception('Failed to fetch featured communities');
+    final List data = result.data?['getFeaturedCommunities'] as List? ?? [];
+    return data.map((json) => CommunityModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<List<CommunityModel>> getNearbyCommunities({int? locationId, int? radiusKm}) async {
+    const String query = r'''
+      query GetNearbyCommunities($locationId: Int, $radiusKm: Int) {
+        getNearbyCommunities(locationId: $locationId, radiusKm: $radiusKm) {
+          id
+          name
+          description
+          image
+          memberCount
+          locationId
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {
+      'locationId': locationId,
+      'radiusKm': radiusKm,
+    });
+    if (result.hasException) throw Exception('Failed to fetch nearby communities');
+    final List data = result.data?['getNearbyCommunities'] as List? ?? [];
+    return data.map((json) => CommunityModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<List<CommunityModel>> searchCommunities({String? query, int? locationId}) async {
+    const String gqlQuery = r'''
+      query SearchCommunities($query: String, $locationId: Int) {
+        searchCommunities(query: $query, locationId: $locationId) {
+          id
+          name
+          description
+          image
+          memberCount
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(gqlQuery, variables: {
+      'query': query,
+      'locationId': locationId,
+    });
+    if (result.hasException) throw Exception('Failed to search communities');
+    final List data = result.data?['searchCommunities'] as List? ?? [];
+    return data.map((json) => CommunityModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<CommunityModel> getCommunityDetails({required int communityId}) async {
+    const String query = r'''
+      query GetCommunityDetails($communityId: Int!) {
+        getCommunityDetails(communityId: $communityId) {
+          id
+          name
+          description
+          image
+          privacyType
+          memberCount
+          isJoined
+          rules
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch community details');
+    return CommunityModel.fromJson(result.data?['getCommunityDetails']);
+  }
+
+  @override
+  Future<String> getCommunityRules({required int communityId}) async {
+    const String query = r'''
+      query GetCommunityRules($communityId: Int!) {
+        getCommunityRules(communityId: $communityId)
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch community rules');
+    return result.data?['getCommunityRules'] as String? ?? '';
+  }
+
+  @override
+  Future<CommunitySettingsModel> getCommunitySettings({required int communityId}) async {
+    const String query = r'''
+      query GetCommunitySettings($communityId: Int!) {
+        getCommunitySettings(communityId: $communityId) {
+          communityId
+          notificationsEnabled
+          mediaAutoDownload
+          linksAndDocsEnabled
+          muted
+          starredMessagesEnabled
+          about
+          location
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch community settings');
+    return CommunitySettingsModel.fromJson(result.data?['getCommunitySettings']);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getCommunityRolesAndPermissions({required int communityId}) async {
+    const String query = r'''
+      query GetCommunityRolesAndPermissions($communityId: Int!) {
+        getCommunityRolesAndPermissions(communityId: $communityId) {
+          roleName
+          permissions
+          description
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch roles');
+    return List<Map<String, dynamic>>.from(result.data?['getCommunityRolesAndPermissions'] ?? []);
+  }
+
+  @override
+  Future<CommunityMemberModel> getMemberDetails({required int id, int? communityId}) async {
+    const String query = r'''
+      query GetMemberDetails($id: Int!, $communityId: Int) {
+        getMemberDetails(id: $id, communityId: $communityId) {
+          id
+          userId
+          role
+          joinedAt
+          user {
+            id
+            name
+            phone
+            image
+          }
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'id': id, 'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch member details');
+    return CommunityMemberModel.fromJson(result.data?['getMemberDetails']);
+  }
+
+  @override
+  Future<List<CommunityMemberModel>> getOnlineMembers({required int communityId}) async {
+    const String query = r'''
+      query GetOnlineMembers($communityId: Int!) {
+        getCommunityOnlineMembers(communityId: $communityId) {
+          id
+          userId
+          role
+          user {
+            id
+            name
+            image
+          }
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch online members');
+    final List data = result.data?['getCommunityOnlineMembers'] as List? ?? [];
+    return data.map((json) => CommunityMemberModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<bool> bulkApproveJoinRequests({required int communityId, required List<int> requestIds}) async {
+    const String mutation = r'''
+      mutation BulkApprove($communityId: Int!, $requestIds: [Int!]!) {
+        bulkApproveJoinRequests(communityId: $communityId, requestIds: $requestIds)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {
+      'communityId': communityId,
+      'requestIds': requestIds,
+    });
+    if (result.hasException) throw Exception('Failed to bulk approve requests');
+    return result.data?['bulkApproveJoinRequests'] as bool? ?? false;
+  }
+
+  @override
+  Future<CommunityMessageModel> starCommunityMessage({required int messageId}) async {
+    const String mutation = r'''
+      mutation StarMessage($messageId: Int!) {
+        starCommunityMessage(messageId: $messageId) {
+          id
+          message
+          messageType
+          mediaUrl
+          senderId
+          senderType
+          createdAt
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {'messageId': messageId});
+    if (result.hasException) throw Exception('Failed to star message');
+    return CommunityMessageModel.fromJson(result.data?['starCommunityMessage']);
+  }
+
+  @override
+  Future<CommunityMessageModel> unstarCommunityMessage({required int messageId}) async {
+    const String mutation = r'''
+      mutation UnstarMessage($messageId: Int!) {
+        unstarCommunityMessage(messageId: $messageId) {
+          id
+          message
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {'messageId': messageId});
+    if (result.hasException) throw Exception('Failed to unstar message');
+    return CommunityMessageModel.fromJson(result.data?['unstarCommunityMessage']);
+  }
+
+  @override
+  Future<List<CommunityMessageModel>> getCommunityStarredMessages({required int communityId}) async {
+    const String query = r'''
+      query GetStarredMessages($communityId: Int!) {
+        getCommunityStarredMessages(communityId: $communityId) {
+          id
+          message
+          messageType
+          mediaUrl
+          createdAt
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch starred messages');
+    final List data = result.data?['getCommunityStarredMessages'] as List? ?? [];
+    return data.map((json) => CommunityMessageModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<AnnouncementModel> pinCommunityAnnouncement({required int announcementId}) async {
+    const String mutation = r'''
+      mutation PinAnnouncement($announcementId: Int!) {
+        pinCommunityAnnouncement(announcementId: $announcementId) {
+          id
+          isPinned
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {'announcementId': announcementId});
+    if (result.hasException) throw Exception('Failed to pin announcement');
+    return AnnouncementModel.fromJson(result.data?['pinCommunityAnnouncement']);
+  }
+
+  @override
+  Future<AnnouncementModel> unpinCommunityAnnouncement({required int announcementId}) async {
+    const String mutation = r'''
+      mutation UnpinAnnouncement($announcementId: Int!) {
+        unpinCommunityAnnouncement(announcementId: $announcementId) {
+          id
+          isPinned
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {'announcementId': announcementId});
+    if (result.hasException) throw Exception('Failed to unpin announcement');
+    return AnnouncementModel.fromJson(result.data?['unpinCommunityAnnouncement']);
+  }
+
+  @override
+  Future<AnnouncementModel> updateCommunityAnnouncement({
+    required int announcementId,
+    String? title,
+    String? message,
+    bool? isPinned,
+    String? scheduledFor,
+  }) async {
+    const String mutation = r'''
+      mutation UpdateAnnouncement($announcementId: Int!, $title: String, $message: String, $isPinned: Boolean, $scheduledFor: String) {
+        updateCommunityAnnouncement(announcementId: $announcementId, title: $title, message: $message, isPinned: $isPinned, scheduledFor: $scheduledFor) {
+          id
+          title
+          message
+          isPinned
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {
+      'announcementId': announcementId,
+      'title': title,
+      'message': message,
+      'isPinned': isPinned,
+      'scheduledFor': scheduledFor,
+    });
+    if (result.hasException) throw Exception('Failed to update announcement');
+    return AnnouncementModel.fromJson(result.data?['updateCommunityAnnouncement']);
+  }
+
+  @override
+  Future<bool> deleteCommunityAnnouncement({required int announcementId}) async {
+    const String mutation = r'''
+      mutation DeleteAnnouncement($announcementId: Int!) {
+        deleteCommunityAnnouncement(announcementId: $announcementId)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {'announcementId': announcementId});
+    if (result.hasException) throw Exception('Failed to delete announcement');
+    return result.data?['deleteCommunityAnnouncement'] as bool? ?? false;
+  }
+
+  @override
+  Future<List<CommunityLinkDocModel>> getCommunityLinksAndDocs({required int communityId}) async {
+    const String query = r'''
+      query GetLinksDocs($communityId: Int!) {
+        getCommunityLinksAndDocs(communityId: $communityId) {
+          id
+          title
+          url
+          type
+          uploadedAt
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch links and docs');
+    final List data = result.data?['getCommunityLinksAndDocs'] as List? ?? [];
+    return data.map((json) => CommunityLinkDocModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<CommunityLinkDocModel> uploadCommunityLinkOrDoc({
+    required int communityId,
+    required String title,
+    required String url,
+    required String type,
+  }) async {
+    const String mutation = r'''
+      mutation UploadLinkDoc($communityId: Int!, $title: String!, $url: String!, $type: String!) {
+        uploadCommunityLinkOrDoc(communityId: $communityId, title: $title, url: $url, type: $type) {
+          id
+          title
+          url
+          type
+          uploadedAt
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {
+      'communityId': communityId,
+      'title': title,
+      'url': url,
+      'type': type,
+    });
+    if (result.hasException) throw Exception('Failed to upload link/doc');
+    return CommunityLinkDocModel.fromJson(result.data?['uploadCommunityLinkOrDoc']);
+  }
+
+  @override
+  Future<bool> deleteCommunityLinkOrDoc({required int linkOrDocId}) async {
+    const String mutation = r'''
+      mutation DeleteLinkDoc($linkOrDocId: Int!) {
+        deleteCommunityLinkOrDoc(linkOrDocId: $linkOrDocId)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {'linkOrDocId': linkOrDocId});
+    if (result.hasException) throw Exception('Failed to delete link/doc');
+    return result.data?['deleteCommunityLinkOrDoc'] as bool? ?? false;
+  }
+
+  @override
+  Future<CommunitySettingsModel> updateCommunitySettings({
+    required int communityId,
+    required CommunitySettingsModel settings,
+  }) async {
+    const String mutation = r'''
+      mutation UpdateSettings($communityId: Int!, $settings: CommunitySettingsInput!) {
+        updateCommunitySettings(communityId: $communityId, settings: $settings) {
+          communityId
+          notificationsEnabled
+          mediaAutoDownload
+          linksAndDocsEnabled
+          muted
+          starredMessagesEnabled
+          about
+          location
+        }
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {
+      'communityId': communityId,
+      'settings': settings.toJson()..remove('communityId'),
+    });
+    if (result.hasException) throw Exception('Failed to update community settings');
+    return CommunitySettingsModel.fromJson(result.data?['updateCommunitySettings']);
+  }
+
+  @override
+  Future<String> generateCommunityInviteCode({required int communityId, int? expiryDays}) async {
+    const String mutation = r'''
+      mutation GenerateInviteCode($communityId: Int!, $expiryDays: Int) {
+        generateCommunityInviteCode(communityId: $communityId, expiryDays: $expiryDays)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {
+      'communityId': communityId,
+      'expiryDays': expiryDays,
+    });
+    if (result.hasException) throw Exception('Failed to generate invite code');
+    return result.data?['generateCommunityInviteCode'] as String? ?? '';
+  }
+
+  @override
+  Future<String> getCommunityInviteCode({required int communityId}) async {
+    const String query = r'''
+      query GetInviteCode($communityId: Int!) {
+        getCommunityInviteCode(communityId: $communityId)
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch invite code');
+    return result.data?['getCommunityInviteCode'] as String? ?? '';
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getCommunityEvents({required int communityId}) async {
+    const String query = r'''
+      query GetEvents($communityId: Int!) {
+        getCommunityEvents(communityId: $communityId) {
+          id
+          title
+          description
+          date
+          location {
+            name
+          }
+          createdBy {
+            name
+          }
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch events');
+    return List<Map<String, dynamic>>.from(result.data?['getCommunityEvents'] ?? []);
+  }
+
+  @override
+  Future<CommunityAnalyticsModel> getCommunityAnalytics({required int communityId}) async {
+    const String query = r'''
+      query GetAnalytics($communityId: Int!) {
+        getCommunityAnalytics(communityId: $communityId) {
+          totalMembers
+          activeMembersCount
+          pendingJoinRequestsCount
+          newMembersThisWeek
+          eventsCreatedCount
+          complaintResolutionRate
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch analytics');
+    return CommunityAnalyticsModel.fromJson(result.data?['getCommunityAnalytics']);
+  }
+
+  @override
+  Future<List<CommunityBanModel>> getCommunityBans({required int communityId}) async {
+    const String query = r'''
+      query GetBans($communityId: Int!) {
+        getCommunityBans(communityId: $communityId) {
+          id
+          userId
+          reason
+          bannedUntil
+          user {
+            id
+            name
+            phone
+          }
+        }
+      }
+    ''';
+    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
+    if (result.hasException) throw Exception('Failed to fetch bans');
+    final List data = result.data?['getCommunityBans'] as List? ?? [];
+    return data.map((json) => CommunityBanModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<bool> reportCommunityMember({required int communityId, required int reportedUserId, required String reason}) async {
+    const String mutation = r'''
+      mutation ReportMember($communityId: Int!, $reportedUserId: Int!, $reason: String!) {
+        reportCommunityMember(communityId: $communityId, reportedUserId: $reportedUserId, reason: $reason)
+      }
+    ''';
+    final result = await _graphQLService.performMutation(mutation, variables: {
+      'communityId': communityId,
+      'reportedUserId': reportedUserId,
+      'reason': reason,
+    });
+    if (result.hasException) throw Exception('Failed to report member');
+    return result.data?['reportCommunityMember'] as bool? ?? false;
   }
 }

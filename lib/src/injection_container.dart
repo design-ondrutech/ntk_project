@@ -8,7 +8,6 @@ import 'package:ntk_project/src/features/auth/domain/repositories/auth_repositor
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/edit_profile_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/change_password_bloc.dart';
-import 'package:ntk_project/src/features/auth/data/models/admin_login_model.dart';
 
 // Location feature
 import 'package:ntk_project/src/features/location/data/repositories/location_repository_impl.dart';
@@ -52,6 +51,10 @@ import 'package:ntk_project/src/features/community/presentation/bloc/community_c
 import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_polls_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/moderation_queue/moderation_queue_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/settings/community_settings_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/links/community_links_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/admin/community_admin_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/details/community_details_bloc.dart';
 import 'package:ntk_project/src/features/community/data/community_socket_service.dart';
 
 // Notifications feature
@@ -98,7 +101,7 @@ Future<void> init() async {
   sl.registerFactory<EditProfileBloc>(() => EditProfileBloc(sl()));
   sl.registerFactory<ChangePasswordBloc>(() => ChangePasswordBloc(sl()));
   sl.registerFactory<LocationBloc>(() => LocationBloc(sl()));
-  sl.registerFactory<DashboardBloc>(() => DashboardBloc(sl()));
+  sl.registerFactory<DashboardBloc>(() => DashboardBloc(sl(), sl()));
   sl.registerFactory<MemberBloc>(() => MemberBloc(sl()));
   sl.registerFactory<EventBloc>(() => EventBloc(sl()));
   sl.registerFactory<UserManagementBloc>(() => UserManagementBloc(sl(), sl()));
@@ -112,6 +115,10 @@ Future<void> init() async {
   sl.registerFactory<CommunityPostsBloc>(() => CommunityPostsBloc(sl()));
   sl.registerFactory<CommunityPollsBloc>(() => CommunityPollsBloc(sl(), sl()));
   sl.registerFactory<ModerationQueueBloc>(() => ModerationQueueBloc(sl(), sl()));
+  sl.registerFactory<CommunitySettingsBloc>(() => CommunitySettingsBloc(sl()));
+  sl.registerFactory<CommunityLinksBloc>(() => CommunityLinksBloc(sl()));
+  sl.registerFactory<CommunityAdminBloc>(() => CommunityAdminBloc(sl()));
+  sl.registerFactory<CommunityDetailsBloc>(() => CommunityDetailsBloc(sl()));
   sl.registerFactory<NotificationBloc>(() => NotificationBloc(sl(), sl()));
   sl.registerFactory<NotificationSettingsBloc>(() => NotificationSettingsBloc(sl()));
 }

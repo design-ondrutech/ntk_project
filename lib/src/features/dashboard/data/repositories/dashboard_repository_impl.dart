@@ -10,10 +10,10 @@ class DashboardRepositoryImpl implements DashboardRepository {
   DashboardRepositoryImpl(this._graphQLService);
 
   @override
-  Future<DashboardStatsModel> getDashboardStats(int? locationId) async {
+  Future<DashboardStatsModel> getDashboardStats(int? locationId, {int? filterLocationId}) async {
     const String query = r'''
-      query DashboardStats($locationId: Int) {
-        dashboardStats(locationId: $locationId) {
+      query DashboardStats($locationId: Int, $filterLocationId: Int) {
+        dashboardStats(locationId: $locationId, filterLocationId: $filterLocationId) {
           totalMembers
           totalStreets
           activeEvents
@@ -30,9 +30,13 @@ class DashboardRepositoryImpl implements DashboardRepository {
       }
     ''';
 
+    final variables = <String, dynamic>{};
+    if (locationId != null) variables['locationId'] = locationId;
+    if (filterLocationId != null) variables['filterLocationId'] = filterLocationId;
+
     final result = await _graphQLService.performQuery(
       query,
-      variables: locationId != null ? {'locationId': locationId} : {},
+      variables: variables,
     );
 
     if (result.hasException) {

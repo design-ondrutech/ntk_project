@@ -3,7 +3,7 @@ import 'package:ntk_project/src/features/dashboard/data/models/moderation_stats_
 import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
 
 abstract class DashboardRepository {
-  Future<DashboardStatsModel> getDashboardStats(int? locationId);
+  Future<DashboardStatsModel> getDashboardStats(int? locationId, {int? filterLocationId});
   Future<List<RecentActivityModel>> getRecentActivity({
     int? locationId,
     int? limit,

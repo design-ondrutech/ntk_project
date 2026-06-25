@@ -1,13 +1,17 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
+import 'package:ntk_project/src/features/dashboard/data/models/dashboard_stats_model.dart';
+import 'package:ntk_project/src/features/users/data/models/user_location_assignment.dart';
 import 'package:ntk_project/src/features/dashboard/domain/repositories/dashboard_repository.dart';
+import 'package:ntk_project/src/features/users/domain/repositories/user_repository.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final DashboardRepository _dashboardRepository;
+  final UserRepository _userRepository;
 
-  DashboardBloc(this._dashboardRepository) : super(const DashboardState()) {
+  DashboardBloc(this._dashboardRepository, this._userRepository) : super(const DashboardState()) {
     on<LoadDashboardStats>(_onLoadDashboardStats);
     on<LoadModerationStats>(_onLoadModerationStats);
     on<UpdateGlobalLocation>(_onUpdateGlobalLocation);
@@ -20,19 +24,25 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
-      final stats = await _dashboardRepository.getDashboardStats(
+      final statsFuture = _dashboardRepository.getDashboardStats(
         event.locationId,
+        filterLocationId: event.filterLocationId,
       );
-      // recentActivity failure must NOT crash the dashboard
-      List<RecentActivityModel> activity = [];
-      try {
-        activity = await _dashboardRepository.getRecentActivity(
-          locationId: event.locationId,
-          limit: 10,
-        );
-      } catch (_) {
-        // silently ignore — stats still show correctly
-      }
+
+      final assignedLocationsFuture = (event.userId != null && state.assignedLocations.isEmpty)
+          ? _userRepository.getUserAssignedLocations(userId: event.userId!)
+          : Future.value(state.assignedLocations);
+
+      final activityFuture = _dashboardRepository.getRecentActivity(
+        locationId: event.locationId,
+        limit: 10,
+      ).catchError((_) => <RecentActivityModel>[]); // silently ignore — stats still show correctly
+
+      final results = await Future.wait([statsFuture, assignedLocationsFuture, activityFuture]);
+
+      final stats = results[0] as DashboardStatsModel;
+      final assignedLocations = results[1] as List<UserLocationAssignment>;
+      final activity = results[2] as List<RecentActivityModel>;
 
       activity.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
 
@@ -41,6 +51,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           isLoading: false,
           stats: stats,
           recentActivity: activity,
+          assignedLocations: assignedLocations,
           clearError: true,
         ),
       );

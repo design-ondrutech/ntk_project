@@ -1,5 +1,5 @@
 class Validators {
-  static final RegExp _nameRegExp = RegExp(r'^[a-zA-Z\u0B80-\u0BFF\s]+$');
+  static final RegExp _nameRegExp = RegExp(r'^[a-zA-Z\u0B80-\u0BFF\s.]+$');
 
   /// Validates a name/surname string. Returns true if it contains only
   /// English letters, Tamil letters, and spaces, and is not empty.

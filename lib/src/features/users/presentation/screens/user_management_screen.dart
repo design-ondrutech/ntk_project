@@ -203,10 +203,17 @@ class UserManagementScreenState extends State<UserManagementScreen> {
         }
 
       } else if (role == 'ADMIN' && authLocationId != null) {
-        final taluks = await sl<LocationRepository>().getLocationList(
-          parentId: authLocationId,
+        final List<LocationModel> taluks = [];
+        taluks.add(LocationModel(
+          id: authLocationId,
+          name: authState.loginData?.locationName ?? 'Primary',
           type: 'TALUK',
-        );
+        ));
+        for (var a in dashState.assignedLocations) {
+          if (a.locationId != authLocationId && a.location != null) {
+            taluks.add(a.location!);
+          }
+        }
         if (!mounted) return;
         setState(() => _constituencies = taluks);
 

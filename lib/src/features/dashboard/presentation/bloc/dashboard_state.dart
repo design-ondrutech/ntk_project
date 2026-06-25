@@ -3,6 +3,7 @@ import 'package:ntk_project/src/features/dashboard/data/models/dashboard_stats_m
 import 'package:ntk_project/src/features/dashboard/data/models/recent_activity_model.dart';
 import 'package:ntk_project/src/features/dashboard/data/models/moderation_stats_model.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
+import 'package:ntk_project/src/features/users/data/models/user_location_assignment.dart';
 
 class DashboardState extends Equatable {
   final bool isLoading;
@@ -11,6 +12,7 @@ class DashboardState extends Equatable {
   final ModerationStatsModel? moderationStats;
   final String? error;
   final LocationModel? globalLocation;
+  final List<UserLocationAssignment> assignedLocations;
 
   const DashboardState({
     this.isLoading = false,
@@ -19,6 +21,7 @@ class DashboardState extends Equatable {
     this.moderationStats,
     this.error,
     this.globalLocation,
+    this.assignedLocations = const [],
   });
 
   DashboardState copyWith({
@@ -30,6 +33,7 @@ class DashboardState extends Equatable {
     bool clearError = false,
     LocationModel? globalLocation,
     bool clearGlobalLocation = false,
+    List<UserLocationAssignment>? assignedLocations,
   }) {
     return DashboardState(
       isLoading: isLoading ?? this.isLoading,
@@ -38,9 +42,10 @@ class DashboardState extends Equatable {
       recentActivity: recentActivity ?? this.recentActivity,
       error: clearError ? null : (error ?? this.error),
       globalLocation: clearGlobalLocation ? null : (globalLocation ?? this.globalLocation),
+      assignedLocations: assignedLocations ?? this.assignedLocations,
     );
   }
 
   @override
-  List<Object?> get props => [isLoading, stats, moderationStats, recentActivity, error, globalLocation];
+  List<Object?> get props => [isLoading, stats, moderationStats, recentActivity, error, globalLocation, assignedLocations];
 }

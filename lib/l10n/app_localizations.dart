@@ -1123,6 +1123,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Action Required'**
   String get actionRequired;
+
+  /// No description provided for @joinPrivateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Private Group'**
+  String get joinPrivateGroup;
+
+  /// No description provided for @joinSecretGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Join Secret Group'**
+  String get joinSecretGroup;
+
+  /// No description provided for @provideReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Please provide a reason for joining this community.'**
+  String get provideReason;
+
+  /// No description provided for @enterInviteCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter the invite code.'**
+  String get enterInviteCode;
+
+  /// No description provided for @yourReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Your reason...'**
+  String get yourReason;
+
+  /// No description provided for @inviteCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite code...'**
+  String get inviteCodeHint;
+
+  /// No description provided for @sendRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Request'**
+  String get sendRequest;
+
+  /// No description provided for @adminDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Dashboard'**
+  String get adminDashboard;
+
+  /// No description provided for @communityArchivedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'This community is archived. You can read previous messages, but cannot send new ones.'**
+  String get communityArchivedMessage;
+
+  /// No description provided for @joinGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Join'**
+  String get joinGroup;
 }
 
 class _AppLocalizationsDelegate

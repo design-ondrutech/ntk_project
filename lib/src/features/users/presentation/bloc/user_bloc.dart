@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/users/domain/repositories/user_repository.dart';
 import 'package:ntk_project/src/features/members/domain/repositories/member_repository.dart';
@@ -33,6 +34,22 @@ class UserBloc extends Bloc<UserEvent, UserState> {
         bloodGroup: event.bloodGroup,
         professionName: event.professionName,
       );
+      
+      final userId = user['id'];
+      if (userId != null && event.additionalLocationIds != null && event.additionalLocationIds!.isNotEmpty) {
+        try {
+          final int parsedUserId = userId is int ? userId : int.parse(userId.toString());
+          await _userRepository.assignUserLocations(
+            userId: parsedUserId,
+            locationIds: event.additionalLocationIds!,
+            isPrimary: 0,
+          );
+        } catch (e) {
+          debugPrint('Failed to assign secondary locations: $e');
+          throw Exception('User created, but failed to assign secondary locations: $e');
+        }
+      }
+
       emit(UserCreatedSuccess(user));
     } catch (e) {
       emit(UserFailure(e.toString()));

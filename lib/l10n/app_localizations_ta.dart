@@ -153,7 +153,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get quickActions => 'விரைவான செயல்கள்';
 
   @override
-  String get active => 'செயலில் உள்ளது';
+  String get active => 'செயலில்';
 
   @override
   String get inactive => 'செயலற்றது';
@@ -533,4 +533,35 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get actionRequired => 'நடவடிக்கை தேவை';
+
+  @override
+  String get joinPrivateGroup => 'தனியார் குழுவில் சேரவும்';
+
+  @override
+  String get joinSecretGroup => 'ரகசிய குழுவில் சேரவும்';
+
+  @override
+  String get provideReason => 'இந்த சமூகத்தில் சேருவதற்கான காரணத்தை வழங்கவும்.';
+
+  @override
+  String get enterInviteCode => 'அழைப்பு குறியீட்டை உள்ளிடவும்.';
+
+  @override
+  String get yourReason => 'உங்கள் காரணம்...';
+
+  @override
+  String get inviteCodeHint => 'அழைப்பு குறியீடு...';
+
+  @override
+  String get sendRequest => 'கோரிக்கையை அனுப்பு';
+
+  @override
+  String get adminDashboard => 'நிர்வாகி டாஷ்போர்டு';
+
+  @override
+  String get communityArchivedMessage =>
+      'இந்த சமூகம் காப்பகப்படுத்தப்பட்டுள்ளது. முந்தைய செய்திகளை நீங்கள் படிக்கலாம், ஆனால் புதிய செய்திகளை அனுப்ப முடியாது.';
+
+  @override
+  String get joinGroup => 'சேர';
 }

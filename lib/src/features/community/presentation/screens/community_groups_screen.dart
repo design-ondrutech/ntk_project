@@ -65,7 +65,15 @@ class _CommunityGroupsScreenState extends State<CommunityGroupsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const _SearchField(),
+                                _SearchField(
+                                  onChanged: (query) {
+                                    if (query.trim().isEmpty) {
+                                      context.read<CommunityListBloc>().add(FetchCommunitiesList());
+                                    } else {
+                                      context.read<CommunityListBloc>().add(SearchCommunitiesEvent(query: query));
+                                    }
+                                  },
+                                ),
                                 const SizedBox(height: 18),
                                 if (communities.isEmpty) ...[
                                   const SizedBox(height: 40),
@@ -131,11 +139,14 @@ class _CommunityGroupsScreenState extends State<CommunityGroupsScreen> {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField();
+  const _SearchField({this.onChanged});
+  
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      onChanged: onChanged,
       decoration: InputDecoration(
         hintText: 'Search Groups',
         prefixIcon: const Icon(Icons.search_rounded),
@@ -258,7 +269,7 @@ class _GroupCard extends StatelessWidget {
                 ],
               ),
             ),
-            joined ? const _StatusBadge() : _JoinButton(communityId: group.id),
+            joined ? const _StatusBadge() : _JoinButton(group: group),
           ],
         ),
       ),
@@ -290,9 +301,52 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _JoinButton extends StatelessWidget {
-  const _JoinButton({required this.communityId});
+  const _JoinButton({required this.group});
   
-  final int communityId;
+  final CommunityModel group;
+
+  void _showJoinDialog(BuildContext context) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Join Private Group', style: TextStyle(color: _primary, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Please provide a reason for joining this community.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                hintText: 'Your reason...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel', style: TextStyle(color: _muted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _primary),
+            onPressed: () {
+              final reason = reasonController.text.trim();
+              Navigator.pop(dialogContext);
+              context.read<CommunityListBloc>().add(
+                JoinCommunityGroup(communityId: group.id, reason: reason),
+              );
+            },
+            child: const Text('Send Request', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -300,9 +354,13 @@ class _JoinButton extends StatelessWidget {
       height: 34,
       child: OutlinedButton(
         onPressed: () {
-          context.read<CommunityListBloc>().add(
-            JoinCommunityGroup(communityId: communityId),
-          );
+          if (group.privacyType == 'PRIVATE') {
+            _showJoinDialog(context);
+          } else {
+            context.read<CommunityListBloc>().add(
+              JoinCommunityGroup(communityId: group.id),
+            );
+          }
         },
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 36),

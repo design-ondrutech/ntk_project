@@ -10,10 +10,12 @@ abstract class DashboardEvent extends Equatable {
 
 class LoadDashboardStats extends DashboardEvent {
   final int? locationId;
-  const LoadDashboardStats(this.locationId);
+  final int? filterLocationId;
+  final int? userId;
+  const LoadDashboardStats(this.locationId, {this.filterLocationId, this.userId});
 
   @override
-  List<Object?> get props => [locationId];
+  List<Object?> get props => [locationId, filterLocationId, userId];
 }
 
 class UpdateGlobalLocation extends DashboardEvent {

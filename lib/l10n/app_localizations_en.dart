@@ -529,4 +529,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get actionRequired => 'Action Required';
+
+  @override
+  String get joinPrivateGroup => 'Join Private Group';
+
+  @override
+  String get joinSecretGroup => 'Join Secret Group';
+
+  @override
+  String get provideReason =>
+      'Please provide a reason for joining this community.';
+
+  @override
+  String get enterInviteCode => 'Please enter the invite code.';
+
+  @override
+  String get yourReason => 'Your reason...';
+
+  @override
+  String get inviteCodeHint => 'Invite code...';
+
+  @override
+  String get sendRequest => 'Send Request';
+
+  @override
+  String get adminDashboard => 'Admin Dashboard';
+
+  @override
+  String get communityArchivedMessage =>
+      'This community is archived. You can read previous messages, but cannot send new ones.';
+
+  @override
+  String get joinGroup => 'Join';
 }

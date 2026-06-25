@@ -94,6 +94,20 @@ class DeleteMessageEvent extends CommunityChatEvent {
   List<Object?> get props => [messageId];
 }
 
+class StarMessageEvent extends CommunityChatEvent {
+  final int messageId;
+  const StarMessageEvent(this.messageId);
+  @override
+  List<Object?> get props => [messageId];
+}
+
+class UnstarMessageEvent extends CommunityChatEvent {
+  final int messageId;
+  const UnstarMessageEvent(this.messageId);
+  @override
+  List<Object?> get props => [messageId];
+}
+
 // Socket specific events triggered internally
 class LiveMessageReceived extends CommunityChatEvent {
   final CommunityMessageModel message;

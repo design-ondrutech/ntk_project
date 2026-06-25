@@ -16,6 +16,8 @@ class CommunityModel extends Equatable {
   final List<String> rules;
   final int? locationId;
   final Map<String, dynamic>? location;
+  final String privacyType;
+  final bool isArchived;
   final String createdAt;
 
   const CommunityModel({
@@ -34,6 +36,8 @@ class CommunityModel extends Equatable {
     this.rules = const [],
     this.locationId,
     this.location,
+    this.privacyType = 'PUBLIC',
+    this.isArchived = false,
     required this.createdAt,
   });
 
@@ -63,6 +67,8 @@ class CommunityModel extends Equatable {
           ? json['locationId'] as int
           : int.tryParse(json['locationId']?.toString() ?? ''),
       location: json['location'] as Map<String, dynamic>?,
+      privacyType: json['privacyType'] as String? ?? 'PUBLIC',
+      isArchived: json['isArchived'] as bool? ?? false,
       createdAt: json['createdAt'] as String? ?? '',
     );
   }
@@ -80,8 +86,12 @@ class CommunityModel extends Equatable {
     pinnedMessage,
     unreadCount,
     memberCount,
+    isJoined,
+    rules,
     locationId,
     location,
+    privacyType,
+    isArchived,
     createdAt,
   ];
 }

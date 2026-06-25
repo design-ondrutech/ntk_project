@@ -29,7 +29,7 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
   final _confirmPasswordController = TextEditingController();
 
   LocationModel? _selectedDistrict;
-  LocationModel? _selectedTaluk;
+  List<LocationModel> _selectedTaluks = [];
 
   List<LocationModel> _districts = [];
   List<LocationModel> _taluks = [];
@@ -126,7 +126,7 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
   Future<void> _onDistrictChanged(LocationModel? district) async {
     setState(() {
       _selectedDistrict = district;
-      _selectedTaluk = null;
+      _selectedTaluks.clear();
       _taluks = [];
     });
     if (district == null) return;
@@ -185,8 +185,8 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
       _showSnack('Please select a District');
       return;
     }
-    if (_selectedTaluk == null) {
-      _showSnack('Please select a Taluk');
+    if (_selectedTaluks.isEmpty) {
+      _showSnack('Please select at least one Taluk');
       return;
     }
     if (_selectedBloodGroup == null) {
@@ -218,7 +218,10 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
         role: 'ADMIN',
-        locationId: _selectedTaluk!.id,
+        locationId: _selectedTaluks.first.id,
+        additionalLocationIds: _selectedTaluks.length > 1 
+            ? _selectedTaluks.skip(1).map((e) => e.id).toList() 
+            : null,
         dateOfBirth: dob,
         gender: gender,
         bloodGroup: _selectedBloodGroup,
@@ -319,15 +322,60 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
               _loadingTaluks
                   ? _buildLoadingField('Taluk')
                   : _selectedDistrict == null
-                  ? _buildDisabledField('Taluk', 'Select District first')
-                  : NTKDropdownField<LocationModel>(
-                      label: 'Taluk',
-                      items: _taluks,
-                      selectedValue: _selectedTaluk,
-                      hintText: 'Select Taluk',
-                      onChanged: (val) => setState(() => _selectedTaluk = val),
-                      itemLabel: (item) => item.name,
-                    ),
+                      ? _buildDisabledField('Taluk', 'Select District first')
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 8, left: 4),
+                              child: Text(
+                                'Select Taluks (Assign one or more)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF374151),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: NTKColors.border),
+                              ),
+                              child: _taluks.isEmpty
+                                  ? const Text('No taluks found', style: TextStyle(color: Colors.grey))
+                                  : Wrap(
+                                      spacing: 8.0,
+                                      runSpacing: 4.0,
+                                      children: _taluks.map((taluk) {
+                                        final isSelected = _selectedTaluks.contains(taluk);
+                                        return FilterChip(
+                                          label: Text(taluk.name),
+                                          selected: isSelected,
+                                          onSelected: (selected) {
+                                            setState(() {
+                                              if (selected) {
+                                                _selectedTaluks.add(taluk);
+                                              } else {
+                                                _selectedTaluks.remove(taluk);
+                                              }
+                                            });
+                                          },
+                                          selectedColor: NTKColors.primary.withOpacity(0.2),
+                                          checkmarkColor: NTKColors.primary,
+                                          labelStyle: TextStyle(
+                                            color: isSelected ? NTKColors.primary : Colors.black87,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                            ),
+                          ],
+                        ),
               const SizedBox(height: 16),
 
               // ── Blood Group ──────────────────────────────

@@ -64,6 +64,7 @@ class CommunityMessageModel extends Equatable {
   final CommunityMessageModel? replyTo;
   final List<CommunityMessageReactionModel> reactions;
   final String? metadata;
+  final bool isStarred;
 
   const CommunityMessageModel({
     required this.id,
@@ -86,6 +87,7 @@ class CommunityMessageModel extends Equatable {
     this.replyTo,
     this.reactions = const [],
     this.metadata,
+    this.isStarred = false,
   });
 
   factory CommunityMessageModel.fromJson(Map<String, dynamic> json) {
@@ -124,6 +126,55 @@ class CommunityMessageModel extends Equatable {
           )
           .toList(),
       metadata: json['metadata'] as String?,
+      isStarred: json['isStarred'] as bool? ?? false,
+    );
+  }
+
+  CommunityMessageModel copyWith({
+    int? id,
+    int? communityId,
+    int? senderId,
+    String? senderType,
+    String? senderName,
+    String? message,
+    String? messageType,
+    String? mediaUrl,
+    String? mediaType,
+    String? fileName,
+    String? status,
+    int? replyToMessageId,
+    String? editedAt,
+    bool? isDeleted,
+    String? deletedAt,
+    int? readByCount,
+    String? createdAt,
+    CommunityMessageModel? replyTo,
+    List<CommunityMessageReactionModel>? reactions,
+    String? metadata,
+    bool? isStarred,
+  }) {
+    return CommunityMessageModel(
+      id: id ?? this.id,
+      communityId: communityId ?? this.communityId,
+      senderId: senderId ?? this.senderId,
+      senderType: senderType ?? this.senderType,
+      senderName: senderName ?? this.senderName,
+      message: message ?? this.message,
+      messageType: messageType ?? this.messageType,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      mediaType: mediaType ?? this.mediaType,
+      fileName: fileName ?? this.fileName,
+      status: status ?? this.status,
+      replyToMessageId: replyToMessageId ?? this.replyToMessageId,
+      editedAt: editedAt ?? this.editedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      readByCount: readByCount ?? this.readByCount,
+      createdAt: createdAt ?? this.createdAt,
+      replyTo: replyTo ?? this.replyTo,
+      reactions: reactions ?? this.reactions,
+      metadata: metadata ?? this.metadata,
+      isStarred: isStarred ?? this.isStarred,
     );
   }
 
@@ -149,5 +200,6 @@ class CommunityMessageModel extends Equatable {
     replyTo,
     reactions,
     metadata,
+    isStarred,
   ];
 }

@@ -8,6 +8,7 @@ import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_b
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_widgets.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/widgets/dashboard_location_filter.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/main_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_bloc.dart';
@@ -17,6 +18,8 @@ import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/p
 import 'package:ntk_project/src/features/events/presentation/screens/events_overview_screen.dart';
 import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
+import 'package:ntk_project/src/features/users/data/models/user_location_assignment.dart';
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key, required this.authState});
@@ -27,11 +30,33 @@ class AdminDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = authState.loginData?.name ?? 'Mannargudi Admin';
     final authLocationId = authState.loginData?.locationId;
+    final userId = authState.loginData?.id;
 
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
         final stats = state.stats;
-        final locationName = state.globalLocation?.name ?? stats?.locationName ?? authState.loginData?.locationName ?? 'Your Region';
+        final locationName = state.globalLocation?.name ?? authState.loginData?.locationName ?? stats?.locationName ?? 'Your Region';
+        
+        final selectedFilterLocationId = state.globalLocation?.id ?? authLocationId;
+
+        // Combine primary location with secondary assigned locations
+        final List<UserLocationAssignment> combinedAssignments = [];
+        if (authLocationId != null) {
+          combinedAssignments.add(UserLocationAssignment(
+            id: 0,
+            userId: userId ?? 0,
+            locationId: authLocationId,
+            isPrimary: true,
+            location: LocationModel(
+              id: authLocationId,
+              name: authState.loginData?.locationName ?? 'Primary',
+              type: 'TALUK',
+            ),
+          ));
+        }
+        for (var a in state.assignedLocations) {
+          if (a.locationId != authLocationId) combinedAssignments.add(a);
+        }
 
         return Scaffold(
           backgroundColor: const Color(0xFFF5F5F5),
@@ -39,7 +64,7 @@ class AdminDashboard extends StatelessWidget {
           body: RefreshIndicator(
             onRefresh: () async {
               context.read<DashboardBloc>().add(
-                LoadDashboardStats(state.globalLocation?.id ?? authLocationId),
+                LoadDashboardStats(authLocationId, filterLocationId: selectedFilterLocationId, userId: userId),
               );
             },
             child: SingleChildScrollView(
@@ -74,19 +99,22 @@ class AdminDashboard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on, color: Colors.white70, size: 16),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      localizeLocationName(context, locationName),
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.white70,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
+                                DashboardLocationFilter(
+                                  assignments: combinedAssignments,
+                                  selectedLocationId: selectedFilterLocationId,
+                                  isDarkTheme: true,
+                                  onLocationChanged: (newLocId) {
+                                    if (newLocId != null) {
+                                      final assignment = state.assignedLocations.firstWhere((a) => a.location?.id == newLocId);
+                                      if (assignment.location != null) {
+                                        context.read<DashboardBloc>().add(UpdateGlobalLocation(assignment.location));
+                                        context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, filterLocationId: newLocId, userId: userId));
+                                      }
+                                    } else {
+                                      context.read<DashboardBloc>().add(const UpdateGlobalLocation(null));
+                                      context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, userId: userId));
+                                    }
+                                  },
                                 ),
                               ],
                             ),

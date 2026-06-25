@@ -4,6 +4,11 @@ import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/tabs/discussion_tab.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/tabs/members_tab.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/tabs/about_tab.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_admin_screen.dart';
+import 'package:ntk_project/src/features/community/presentation/screens/community_settings_screen.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ntk_project/src/injection_container.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/settings/community_settings_bloc.dart';
 
 class CommunityDetailsScreen extends StatefulWidget {
   final CommunityModel community;
@@ -76,6 +81,35 @@ class _CommunityDetailsScreenState extends State<CommunityDetailsScreen> with Si
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.admin_panel_settings_rounded),
+            tooltip: 'Admin Dashboard',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CommunityAdminScreen(community: widget.community),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            tooltip: 'Community Settings',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider(
+                    create: (_) => sl<CommunitySettingsBloc>(),
+                    child: CommunitySettingsScreen(communityId: widget.community.id),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,

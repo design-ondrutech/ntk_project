@@ -9,6 +9,16 @@ abstract class CommunityListEvent extends Equatable {
 
 class FetchCommunitiesList extends CommunityListEvent {}
 
+class SearchCommunitiesEvent extends CommunityListEvent {
+  final String? query;
+  final int? locationId;
+
+  const SearchCommunitiesEvent({this.query, this.locationId});
+
+  @override
+  List<Object?> get props => [query, locationId];
+}
+
 class CreateNewCommunity extends CommunityListEvent {
   final String name;
   final String? description;
@@ -32,11 +42,17 @@ class ResetCommunityList extends CommunityListEvent {
 
 class JoinCommunityGroup extends CommunityListEvent {
   final int communityId;
+  final String? reason;
+  final String? inviteCode;
 
-  const JoinCommunityGroup({required this.communityId});
+  const JoinCommunityGroup({
+    required this.communityId,
+    this.reason,
+    this.inviteCode,
+  });
 
   @override
-  List<Object?> get props => [communityId];
+  List<Object?> get props => [communityId, reason, inviteCode];
 }
 
 class LeaveCommunityGroup extends CommunityListEvent {

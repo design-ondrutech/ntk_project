@@ -96,8 +96,8 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           context.read<EventBloc>().add(FetchEvents(locationId: locId));
           context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
           context.read<RequestBloc>().add(LoadRequests(locationId: locId));
-        } else if (screen is DashboardScreen && locId != null) {
-          context.read<DashboardBloc>().add(LoadDashboardStats(locId));
+        } else if (screen is DashboardScreen && authLocId != null) {
+          context.read<DashboardBloc>().add(LoadDashboardStats(authLocId, filterLocationId: globalLocId != authLocId ? globalLocId : null, userId: authState.loginData?.id));
           context.read<PendingRequestsBloc>().add(LoadPendingRequests(locationId: locId));
         }
       }
@@ -161,8 +161,8 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           context.read<EventBloc>().add(FetchEvents(locationId: locId));
           context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
           context.read<RequestBloc>().add(LoadRequests(locationId: locId));
-        } else if (screen is DashboardScreen && locId != null) {
-          context.read<DashboardBloc>().add(LoadDashboardStats(locId));
+        } else if (screen is DashboardScreen && authLocId != null) {
+          context.read<DashboardBloc>().add(LoadDashboardStats(authLocId, filterLocationId: globalLocId != authLocId ? globalLocId : null, userId: authState.loginData?.id));
           context.read<PendingRequestsBloc>().add(LoadPendingRequests(locationId: locId));
         }
       }
