@@ -12,6 +12,7 @@ import 'package:ntk_project/src/features/requests_broadcasts/data/models/emergen
 import 'package:ntk_project/src/features/events/data/models/emergency_model.dart';
 import 'package:ntk_project/src/injection_container.dart';
 import 'package:ntk_project/src/core/utils/date_helper.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 
 class RequestsBroadcastsScreen extends StatefulWidget {
   const RequestsBroadcastsScreen({super.key});
@@ -54,11 +55,13 @@ class _RequestsBroadcastsScreenState extends State<RequestsBroadcastsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
+    final globalLoc = context.watch<DashboardBloc>().state.globalLocation;
+
     return Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         appBar: NTKAppBar(
           title: 'Broadcast Update',
-          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Tamil Nadu',
+          subtitle: globalLoc?.name ?? context.read<AuthBloc>().state.loginData?.locationName ?? 'Tamil Nadu',
         ),
         body: Column(
           children: [

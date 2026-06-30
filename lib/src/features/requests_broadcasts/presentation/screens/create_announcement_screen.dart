@@ -39,18 +39,24 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   final TextEditingController _contactPersonController =
       TextEditingController();
   final TextEditingController _contactPhoneController = TextEditingController();
-  
+
   // Type-specific field controllers
   final TextEditingController _bloodGroupController = TextEditingController();
-  final TextEditingController _unitsRequiredController = TextEditingController();
+  final TextEditingController _unitsRequiredController =
+      TextEditingController();
   final TextEditingController _hospitalNameController = TextEditingController();
-  final TextEditingController _patientConditionController = TextEditingController();
+  final TextEditingController _patientConditionController =
+      TextEditingController();
   final TextEditingController _disasterTypeController = TextEditingController();
   final TextEditingController _affectedAreaController = TextEditingController();
-  final TextEditingController _requiredSupportController = TextEditingController();
-  final TextEditingController _volunteerTypeController = TextEditingController();
-  final TextEditingController _volunteerLocationController = TextEditingController();
-  final TextEditingController _volunteerContactDetailsController = TextEditingController();
+  final TextEditingController _requiredSupportController =
+      TextEditingController();
+  final TextEditingController _volunteerTypeController =
+      TextEditingController();
+  final TextEditingController _volunteerLocationController =
+      TextEditingController();
+  final TextEditingController _volunteerContactDetailsController =
+      TextEditingController();
 
   DateTime? _selectedExpiryDateTime;
   bool _collectResponse = true;
@@ -104,7 +110,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     _emergencyDescriptionController.dispose();
     _contactPersonController.dispose();
     _contactPhoneController.dispose();
-    
+
     // Dispose type-specific controllers
     _bloodGroupController.dispose();
     _unitsRequiredController.dispose();
@@ -134,8 +140,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     _isLocationInitialized = true;
 
     final authLocationId = authState.loginData?.locationId;
-    final globalLocation =
-        context.read<DashboardBloc>().state.globalLocation;
+    final globalLocation = context.read<DashboardBloc>().state.globalLocation;
 
     if (role == 'SUPER_ADMIN') {
       await _loadDistricts();
@@ -143,7 +148,22 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         setState(() => _selectedDistrict = globalLocation);
         await _loadConstituencies(globalLocation.id);
       }
-    } else if (role == 'ADMIN' && authLocationId != null) {
+    } else if (role == 'DISTRICT_INCHARGE' && authLocationId != null) {
+      final assignedDistrict = LocationModel(
+        id: authLocationId,
+        name: authState.loginData?.locationName ?? 'Assigned District',
+        type: 'DISTRICT',
+      );
+      setState(() {
+        _selectedDistrict = assignedDistrict;
+        _districts = [assignedDistrict];
+      });
+      await _loadConstituencies(authLocationId);
+      if (globalLocation != null) {
+        setState(() => _selectedConstituency = globalLocation);
+        await _loadAreas(globalLocation.id);
+      }
+    } else if ((role == 'ADMIN' || role == 'CONSTITUENCY_INCHARGE') && authLocationId != null) {
       final assignedConstituency = LocationModel(
         id: authLocationId,
         name: authState.loginData?.locationName ?? 'Assigned Constituency',
@@ -181,7 +201,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       } catch (e) {
         debugPrint('Error finding parent district: $e');
       }
-    } else if (role == 'SUB_ADMIN' && authLocationId != null) {
+    } else if ((role == 'SUB_ADMIN' || role == 'AREA_INCHARGE') && authLocationId != null) {
       final assignedArea = LocationModel(
         id: authLocationId,
         name: authState.loginData?.locationName ?? 'Assigned Area',
@@ -229,7 +249,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       } catch (e) {
         debugPrint('Error finding parent district/taluk: $e');
       }
-    } else if (role == 'MEMBER' && authLocationId != null) {
+    } else if ((role == 'MEMBER' || role == 'STREET_INCHARGE') && authLocationId != null) {
       final assignedStreet = LocationModel(
         id: authLocationId,
         name: authState.loginData?.locationName ?? 'Assigned Street',
@@ -428,7 +448,10 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       return;
     }
     if (message.length > 500) {
-      NTKSnackbar.showError(context, message: 'Broadcast message cannot exceed 500 characters.');
+      NTKSnackbar.showError(
+        context,
+        message: 'Broadcast message cannot exceed 500 characters.',
+      );
       return;
     }
     if (locationId == null) {
@@ -465,7 +488,10 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     }
     final remarks = _emergencyDescriptionController.text.trim();
     if (remarks.length > 500) {
-      NTKSnackbar.showError(context, message: 'Additional remarks cannot exceed 500 characters.');
+      NTKSnackbar.showError(
+        context,
+        message: 'Additional remarks cannot exceed 500 characters.',
+      );
       return;
     }
 
@@ -477,7 +503,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       final bloodGroup = _bloodGroupController.text.trim();
       final units = _unitsRequiredController.text.trim();
       final hospital = _hospitalNameController.text.trim();
-      
+
       if (bloodGroup.isEmpty) {
         NTKSnackbar.showError(context, message: 'Please select blood group');
         return;
@@ -501,9 +527,12 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     } else if (type == 'MEDICAL_HELP') {
       final patientCondition = _patientConditionController.text.trim();
       final hospital = _hospitalNameController.text.trim();
-      
+
       if (patientCondition.isEmpty) {
-        NTKSnackbar.showError(context, message: 'Patient Condition is required');
+        NTKSnackbar.showError(
+          context,
+          message: 'Patient Condition is required',
+        );
         return;
       }
       if (hospital.isEmpty) {
@@ -521,7 +550,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       final disasterType = _disasterTypeController.text.trim();
       final affectedArea = _affectedAreaController.text.trim();
       final reqSupport = _requiredSupportController.text.trim();
-      
+
       if (disasterType.isEmpty) {
         NTKSnackbar.showError(context, message: 'Disaster Type is required');
         return;
@@ -541,7 +570,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       final volunteerType = _volunteerTypeController.text.trim();
       final location = _volunteerLocationController.text.trim();
       final contactDetails = _volunteerContactDetailsController.text.trim();
-      
+
       if (volunteerType.isEmpty) {
         NTKSnackbar.showError(context, message: 'Volunteer Type is required');
         return;
@@ -580,7 +609,9 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         locationId: locationId,
         contactName: contactName.isNotEmpty ? contactName : null,
         contactPhone: contactPhone.isNotEmpty ? contactPhone : null,
-        expiryDate: _selectedExpiryDateTime?.toUtc().toIso8601String(), // UTC with 'Z'
+        expiryDate: _selectedExpiryDateTime
+            ?.toUtc()
+            .toIso8601String(), // UTC with 'Z'
         collectResponse: _collectResponse,
       ),
     );
@@ -590,7 +621,8 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     final DateTime? date = await showDatePicker(
       context: context,
       initialDate:
-          _selectedExpiryDateTime ?? DateTime.now().add(const Duration(days: 1)),
+          _selectedExpiryDateTime ??
+          DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 30)),
       builder: (context, child) => Theme(
@@ -627,7 +659,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     setState(() {
       // Store as local DateTime for display, but we'll convert to UTC on submit.
       _selectedExpiryDateTime = DateTime(
-        date.year, date.month, date.day, time.hour, time.minute,
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
       );
     });
   }
@@ -641,8 +677,18 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   /// user always sees the exact time they picked.
   String _formatExpiryForDisplay(DateTime dt) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
     final ampm = dt.hour < 12 ? 'AM' : 'PM';
@@ -742,10 +788,26 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
 
   Widget _buildEmergencyTypeSelector() {
     final types = [
-      {'key': 'BLOOD_REQUIRED', 'label': 'Blood', 'icon': Icons.bloodtype_rounded},
-      {'key': 'MEDICAL_HELP', 'label': 'Medical', 'icon': Icons.medical_services_rounded},
-      {'key': 'VOLUNTEER_NEEDED', 'label': 'Volunteer', 'icon': Icons.people_alt_rounded},
-      {'key': 'DISASTER_SUPPORT', 'label': 'Disaster', 'icon': Icons.thunderstorm_rounded},
+      {
+        'key': 'BLOOD_REQUIRED',
+        'label': 'Blood',
+        'icon': Icons.bloodtype_rounded,
+      },
+      {
+        'key': 'MEDICAL_HELP',
+        'label': 'Medical',
+        'icon': Icons.medical_services_rounded,
+      },
+      {
+        'key': 'VOLUNTEER_NEEDED',
+        'label': 'Volunteer',
+        'icon': Icons.people_alt_rounded,
+      },
+      {
+        'key': 'DISASTER_SUPPORT',
+        'label': 'Disaster',
+        'icon': Icons.thunderstorm_rounded,
+      },
       {'key': 'OTHER', 'label': 'Other', 'icon': Icons.more_horiz_rounded},
     ];
     return Column(
@@ -753,7 +815,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       children: [
         const Text(
           'Emergency Type *',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF1F2937),
+          ),
         ),
         const SizedBox(height: 8),
         SingleChildScrollView(
@@ -762,14 +828,20 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             children: types.map((t) {
               final isSelected = _selectedEmergencyType == t['key'];
               return GestureDetector(
-                onTap: () => setState(() => _selectedEmergencyType = t['key'] as String),
+                onTap: () =>
+                    setState(() => _selectedEmergencyType = t['key'] as String),
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected ? const Color(0xFFFEF2F2) : Colors.white,
                     border: Border.all(
-                      color: isSelected ? const Color(0xFFEF4444) : const Color(0xFFE5E7EB),
+                      color: isSelected
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFFE5E7EB),
                       width: isSelected ? 1.5 : 1.0,
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -778,15 +850,21 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                     children: [
                       Icon(
                         t['icon'] as IconData,
-                        color: isSelected ? const Color(0xFFEF4444) : const Color(0xFF4B5563),
+                        color: isSelected
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF4B5563),
                         size: 18,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         t['label'] as String,
                         style: TextStyle(
-                          color: isSelected ? const Color(0xFF991B1B) : const Color(0xFF1F2937),
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected
+                              ? const Color(0xFF991B1B)
+                              : const Color(0xFF1F2937),
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                           fontSize: 13,
                         ),
                       ),
@@ -807,7 +885,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       children: [
         const Text(
           'Collect Member Responses? *',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF1F2937),
+          ),
         ),
         const SizedBox(height: 8),
         Row(
@@ -819,9 +901,13 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: _collectResponse ? const Color(0xFFFEF2F2) : Colors.white,
+                    color: _collectResponse
+                        ? const Color(0xFFFEF2F2)
+                        : Colors.white,
                     border: Border.all(
-                      color: _collectResponse ? const Color(0xFFEF4444) : const Color(0xFFE5E7EB),
+                      color: _collectResponse
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFFE5E7EB),
                       width: _collectResponse ? 1.5 : 1.0,
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -832,9 +918,19 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                         value: true,
                         groupValue: _collectResponse,
                         activeColor: const Color(0xFFEF4444),
-                        onChanged: (val) { if (val != null) setState(() => _collectResponse = val); },
+                        onChanged: (val) {
+                          if (val != null)
+                            setState(() => _collectResponse = val);
+                        },
                       ),
-                      const Text('Yes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1F2937))),
+                      const Text(
+                        'Yes',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -848,9 +944,13 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: !_collectResponse ? const Color(0xFFFEF2F2) : Colors.white,
+                    color: !_collectResponse
+                        ? const Color(0xFFFEF2F2)
+                        : Colors.white,
                     border: Border.all(
-                      color: !_collectResponse ? const Color(0xFFEF4444) : const Color(0xFFE5E7EB),
+                      color: !_collectResponse
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFFE5E7EB),
                       width: !_collectResponse ? 1.5 : 1.0,
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -861,9 +961,19 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                         value: false,
                         groupValue: _collectResponse,
                         activeColor: const Color(0xFFEF4444),
-                        onChanged: (val) { if (val != null) setState(() => _collectResponse = val); },
+                        onChanged: (val) {
+                          if (val != null)
+                            setState(() => _collectResponse = val);
+                        },
                       ),
-                      const Text('No', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1F2937))),
+                      const Text(
+                        'No',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -884,7 +994,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       children: [
         const Text(
           'Expiry Date & Time',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF1F2937),
+          ),
         ),
         const SizedBox(height: 8),
         InkWell(
@@ -899,13 +1013,19 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             ),
             child: Row(
               children: [
-                const Icon(CupertinoIcons.calendar, color: Color(0xFFEF4444), size: 18),
+                const Icon(
+                  CupertinoIcons.calendar,
+                  color: Color(0xFFEF4444),
+                  size: 18,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: _selectedExpiryDateTime == null ? const Color(0xFF9CA3AF) : const Color(0xFF1F2937),
+                      color: _selectedExpiryDateTime == null
+                          ? const Color(0xFF9CA3AF)
+                          : const Color(0xFF1F2937),
                       fontSize: 14,
                     ),
                   ),
@@ -913,7 +1033,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 if (_selectedExpiryDateTime != null)
                   GestureDetector(
                     onTap: () => setState(() => _selectedExpiryDateTime = null),
-                    child: const Icon(CupertinoIcons.clear_circled_solid, color: Colors.grey, size: 18),
+                    child: const Icon(
+                      CupertinoIcons.clear_circled_solid,
+                      color: Colors.grey,
+                      size: 18,
+                    ),
                   ),
               ],
             ),
@@ -926,7 +1050,14 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
   Widget _buildFormLabel(String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF374151))),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          color: Color(0xFF374151),
+        ),
+      ),
     );
   }
 
@@ -937,8 +1068,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     required String hintText,
     required String allLabel,
   }) {
-    final bool hasSelectedValue = value != null && items.any((item) => item.id == value.id);
-    final LocationModel? valueToUse = hasSelectedValue ? items.firstWhere((item) => item.id == value.id) : null;
+    final bool hasSelectedValue =
+        value != null && items.any((item) => item.id == value.id);
+    final LocationModel? valueToUse = hasSelectedValue
+        ? items.firstWhere((item) => item.id == value.id)
+        : null;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
@@ -951,17 +1085,33 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         child: DropdownButton<LocationModel?>(
           value: valueToUse,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 24, color: Color(0xFF6B7280)),
-          hint: Text(hintText, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            size: 24,
+            color: Color(0xFF6B7280),
+          ),
+          hint: Text(
+            hintText,
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
           items: [
             DropdownMenuItem<LocationModel?>(
               value: null,
-              child: Text(allLabel, style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937))),
+              child: Text(
+                allLabel,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+              ),
             ),
             ...items.map(
               (item) => DropdownMenuItem<LocationModel?>(
                 value: item,
-                child: Text(item.name, style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937))),
+                child: Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
               ),
             ),
           ],
@@ -982,9 +1132,16 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline_rounded, size: 18, color: Color(0xFF9CA3AF)),
+          const Icon(
+            Icons.lock_outline_rounded,
+            size: 18,
+            color: Color(0xFF9CA3AF),
+          ),
           const SizedBox(width: 12),
-          Text(hintText, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+          Text(
+            hintText,
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
         ],
       ),
     );
@@ -1002,11 +1159,18 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       child: Row(
         children: [
           const SizedBox(
-            width: 16, height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Color(0xFF0A7E3E))),
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation(Color(0xFF0A7E3E)),
+            ),
           ),
           const SizedBox(width: 12),
-          Text('Loading $label...', style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14)),
+          Text(
+            'Loading $label...',
+            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+          ),
         ],
       ),
     );
@@ -1030,14 +1194,14 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         isLoading
             ? _buildLoadingField(label.replaceAll(' *', ''))
             : !isEnabled
-                ? _buildDisabledField(selectedValue?.name ?? disabledHint)
-                : _buildDropdownField(
-                    items: items,
-                    value: selectedValue,
-                    onChanged: onChanged,
-                    hintText: selectHint,
-                    allLabel: allLabel,
-                  ),
+            ? _buildDisabledField(selectedValue?.name ?? disabledHint)
+            : _buildDropdownField(
+                items: items,
+                value: selectedValue,
+                onChanged: onChanged,
+                hintText: selectHint,
+                allLabel: allLabel,
+              ),
         const SizedBox(height: 16),
       ],
     );
@@ -1049,7 +1213,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       children: [
         const Text(
           'Target Location Hierarchy',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF111827)),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF111827),
+          ),
         ),
         const SizedBox(height: 16),
         _buildLocationSelectorField(
@@ -1068,7 +1236,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           items: _constituencies,
           selectedValue: _selectedConstituency,
           onChanged: _onConstituencyChanged,
-          isEnabled: _selectedDistrict != null && userRole == 'SUPER_ADMIN',
+          isEnabled: _selectedDistrict != null && (userRole == 'SUPER_ADMIN' || userRole == 'DISTRICT_INCHARGE'),
           isLoading: _loadingConstituencies,
           disabledHint: _selectedDistrict == null
               ? 'Select District first'
@@ -1081,8 +1249,9 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           items: _areas,
           selectedValue: _selectedArea,
           onChanged: _onAreaChanged,
-          isEnabled: _selectedConstituency != null &&
-              (userRole == 'SUPER_ADMIN' || userRole == 'ADMIN'),
+          isEnabled:
+              _selectedConstituency != null &&
+              (userRole == 'SUPER_ADMIN' || userRole == 'DISTRICT_INCHARGE' || userRole == 'ADMIN' || userRole == 'CONSTITUENCY_INCHARGE'),
           isLoading: _loadingAreas,
           disabledHint: _selectedConstituency == null
               ? 'Select Constituency first'
@@ -1095,9 +1264,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           items: _streets,
           selectedValue: _selectedStreet,
           onChanged: _onStreetChanged,
-          isEnabled: _selectedArea != null && userRole != 'MEMBER',
+          isEnabled: _selectedArea != null && userRole != 'MEMBER' && userRole != 'STREET_INCHARGE',
           isLoading: _loadingStreets,
-          disabledHint: _selectedArea == null ? 'Select Area first' : 'Select Street',
+          disabledHint: _selectedArea == null
+              ? 'Select Area first'
+              : 'Select Street',
           allLabel: 'All Streets',
           selectHint: 'Select Street',
         ),
@@ -1120,16 +1291,30 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             children: [
               CircleAvatar(
                 backgroundColor: Color(0xFF0F5A29),
-                child: Icon(Icons.campaign_rounded, color: Colors.white, size: 24),
+                child: Icon(
+                  Icons.campaign_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
               SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Broadcast (No Response)', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F5A29), fontSize: 16)),
+                    Text(
+                      'Broadcast (No Response)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F5A29),
+                        fontSize: 16,
+                      ),
+                    ),
                     SizedBox(height: 4),
-                    Text('Send announcements to your members. No response will be collected.', style: TextStyle(fontSize: 12, color: Color(0xFF374151))),
+                    Text(
+                      'Send announcements to your members. No response will be collected.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                    ),
                   ],
                 ),
               ),
@@ -1137,10 +1322,21 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           ),
         ),
         const SizedBox(height: 28),
-        const Text('Broadcast Title *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+        const Text(
+          'Broadcast Title *',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF1F2937),
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
           child: TextField(
             key: const ValueKey('broadcast_title_field'),
             controller: _titleController,
@@ -1149,13 +1345,23 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             decoration: const InputDecoration(
               hintText: 'Enter broadcast title',
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               filled: false,
             ),
           ),
         ),
         const SizedBox(height: 20),
-        const Text('Message *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+        const Text(
+          'Message *',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF1F2937),
+          ),
+        ),
         const SizedBox(height: 8),
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: _messageController,
@@ -1163,9 +1369,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             final isExceeded = value.text.length > 500;
             return Container(
               decoration: BoxDecoration(
-                color: Colors.white, 
-                borderRadius: BorderRadius.circular(12), 
-                border: Border.all(color: isExceeded ? Colors.red : const Color(0xFFE5E7EB))
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isExceeded ? Colors.red : const Color(0xFFE5E7EB),
+                ),
               ),
               child: TextField(
                 key: const ValueKey('broadcast_message_field'),
@@ -1179,9 +1387,14 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 decoration: InputDecoration(
                   hintText: 'Type your message here...',
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   filled: false,
-                  errorText: isExceeded ? 'Broadcast message cannot exceed 500 characters.' : null,
+                  errorText: isExceeded
+                      ? 'Broadcast message cannot exceed 500 characters.'
+                      : null,
                 ),
               ),
             );
@@ -1199,7 +1412,9 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFE5E7EB)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text(
                     'CANCEL',
@@ -1220,13 +1435,32 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 child: ElevatedButton.icon(
                   onPressed: state.isSubmitting ? null : _sendBroadcast,
                   icon: state.isSubmitting
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-                      : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                  label: Text(state.isSubmitting ? 'SENDING...' : 'SEND BROADCAST',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.send_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                  label: Text(
+                    state.isSubmitting ? 'SENDING...' : 'SEND BROADCAST',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0F5A29),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -1246,7 +1480,14 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          const Text('Blood Group *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Blood Group *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
@@ -1258,21 +1499,41 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 key: const ValueKey('blood_group_field'),
-                value: _bloodGroupController.text.isNotEmpty && [
-                  'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
-                ].contains(_bloodGroupController.text) ? _bloodGroupController.text : null,
+                value:
+                    _bloodGroupController.text.isNotEmpty &&
+                        [
+                          'A+',
+                          'A-',
+                          'B+',
+                          'B-',
+                          'AB+',
+                          'AB-',
+                          'O+',
+                          'O-',
+                        ].contains(_bloodGroupController.text)
+                    ? _bloodGroupController.text
+                    : null,
                 isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 24, color: Color(0xFF6B7280)),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 24,
+                  color: Color(0xFF6B7280),
+                ),
                 hint: const Text(
                   'Select Blood Group',
                   style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
                 ),
-                items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((group) {
+                items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((
+                  group,
+                ) {
                   return DropdownMenuItem<String>(
                     value: group,
                     child: Text(
                       group,
-                      style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF1F2937),
+                      ),
                     ),
                   );
                 }).toList(),
@@ -1285,10 +1546,21 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Units Required *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Units Required *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('units_required_field'),
               controller: _unitsRequiredController,
@@ -1296,22 +1568,39 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
               decoration: const InputDecoration(
                 hintText: 'Enter number of units required',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Hospital Name *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Hospital Name *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('hospital_name_field'),
               controller: _hospitalNameController,
               decoration: const InputDecoration(
                 hintText: 'Enter hospital name & address',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -1322,32 +1611,60 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          const Text('Patient Condition *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Patient Condition *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('patient_condition_field'),
               controller: _patientConditionController,
               decoration: const InputDecoration(
                 hintText: 'Enter patient condition (e.g. Critical, ICU)',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Hospital Name *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Hospital Name *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('medical_hospital_field'),
               controller: _hospitalNameController,
               decoration: const InputDecoration(
                 hintText: 'Enter hospital name & address',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -1358,47 +1675,89 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          const Text('Disaster Type *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Disaster Type *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('disaster_type_field'),
               controller: _disasterTypeController,
               decoration: const InputDecoration(
                 hintText: 'Enter disaster type (e.g. Flood, Cyclone, Fire)',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Affected Area *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Affected Area *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('affected_area_field'),
               controller: _affectedAreaController,
               decoration: const InputDecoration(
                 hintText: 'Enter affected area location details',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Required Support *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Required Support *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('required_support_field'),
               controller: _requiredSupportController,
               decoration: const InputDecoration(
                 hintText: 'Enter required support (e.g. Food, Rescue, Shelter)',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -1409,47 +1768,89 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          const Text('Volunteer Type *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Volunteer Type *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('volunteer_type_field'),
               controller: _volunteerTypeController,
               decoration: const InputDecoration(
                 hintText: 'Enter volunteer work description',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Location *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Location *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('volunteer_location_field'),
               controller: _volunteerLocationController,
               decoration: const InputDecoration(
                 hintText: 'Enter location / address of volunteer work',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Contact Details *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+          const Text(
+            'Contact Details *',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
+          ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('volunteer_contact_details_field'),
               controller: _volunteerContactDetailsController,
               decoration: const InputDecoration(
                 hintText: 'Enter contact details / info for volunteers',
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
@@ -1459,11 +1860,17 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
     return const SizedBox.shrink();
   }
 
-  Widget _buildEmergencyForm(RequestState requestState, EventState eventState, String userRole) {
-    final showContact = _selectedEmergencyType == 'BLOOD_REQUIRED' ||
+  Widget _buildEmergencyForm(
+    RequestState requestState,
+    EventState eventState,
+    String userRole,
+  ) {
+    final showContact =
+        _selectedEmergencyType == 'BLOOD_REQUIRED' ||
         _selectedEmergencyType == 'MEDICAL_HELP' ||
         _selectedEmergencyType == 'OTHER';
-    final isContactRequired = _selectedEmergencyType == 'BLOOD_REQUIRED' ||
+    final isContactRequired =
+        _selectedEmergencyType == 'BLOOD_REQUIRED' ||
         _selectedEmergencyType == 'MEDICAL_HELP';
     final descLabel = _selectedEmergencyType == 'OTHER'
         ? 'Description *'
@@ -1486,16 +1893,30 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             children: [
               CircleAvatar(
                 backgroundColor: Color(0xFFEF4444),
-                child: Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
               SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Emergency Alert (Response Required)', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF991B1B), fontSize: 16)),
+                    Text(
+                      'Emergency Alert (Response Required)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF991B1B),
+                        fontSize: 16,
+                      ),
+                    ),
                     SizedBox(height: 4),
-                    Text('Send urgent alerts and collect responses from members.', style: TextStyle(fontSize: 12, color: Color(0xFF374151))),
+                    Text(
+                      'Send urgent alerts and collect responses from members.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                    ),
                   ],
                 ),
               ),
@@ -1505,10 +1926,21 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         const SizedBox(height: 28),
         _buildEmergencyTypeSelector(),
         const SizedBox(height: 24),
-        const Text('Alert Title *', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+        const Text(
+          'Alert Title *',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF1F2937),
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
           child: TextField(
             key: const ValueKey('emergency_title_field'),
             controller: _emergencyTitleController,
@@ -1518,7 +1950,10 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             decoration: const InputDecoration(
               hintText: 'Enter alert title',
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               filled: false,
               counterText: '',
             ),
@@ -1526,7 +1961,14 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         ),
         _buildTypeSpecificFields(),
         const SizedBox(height: 20),
-        Text(descLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937))),
+        Text(
+          descLabel,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF1F2937),
+          ),
+        ),
         const SizedBox(height: 8),
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: _emergencyDescriptionController,
@@ -1534,9 +1976,11 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
             final isExceeded = value.text.length > 500;
             return Container(
               decoration: BoxDecoration(
-                color: Colors.white, 
-                borderRadius: BorderRadius.circular(12), 
-                border: Border.all(color: isExceeded ? Colors.red : const Color(0xFFE5E7EB))
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isExceeded ? Colors.red : const Color(0xFFE5E7EB),
+                ),
               ),
               child: TextField(
                 key: const ValueKey('emergency_desc_field'),
@@ -1550,9 +1994,14 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 decoration: InputDecoration(
                   hintText: descHint,
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   filled: false,
-                  errorText: isExceeded ? 'Additional remarks cannot exceed 500 characters.' : null,
+                  errorText: isExceeded
+                      ? 'Additional remarks cannot exceed 500 characters.'
+                      : null,
                 ),
               ),
             );
@@ -1564,20 +2013,33 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           const SizedBox(height: 20),
           Text(
             isContactRequired ? 'Contact Name *' : 'Contact Name',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
           ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('emergency_contact_name_field'),
               controller: _contactPersonController,
               focusNode: _contactNameFocusNode,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
-                hintText: isContactRequired ? "Enter contact name *" : "Enter contact name",
+                hintText: isContactRequired
+                    ? "Enter contact name *"
+                    : "Enter contact name",
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 filled: false,
               ),
             ),
@@ -1585,11 +2047,19 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
           const SizedBox(height: 20),
           Text(
             isContactRequired ? 'Contact Number *' : 'Contact Number',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1F2937)),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+              color: Color(0xFF1F2937),
+            ),
           ),
           const SizedBox(height: 8),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
             child: TextField(
               key: const ValueKey('emergency_contact_phone_field'),
               controller: _contactPhoneController,
@@ -1601,9 +2071,14 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 LengthLimitingTextInputFormatter(10),
               ],
               decoration: InputDecoration(
-                hintText: isContactRequired ? 'Enter contact phone number *' : 'Enter contact phone number',
+                hintText: isContactRequired
+                    ? 'Enter contact phone number *'
+                    : 'Enter contact phone number',
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 filled: false,
               ),
             ),
@@ -1623,7 +2098,9 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFE5E7EB)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                   child: const Text(
                     'CANCEL',
@@ -1644,13 +2121,32 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
                 child: ElevatedButton.icon(
                   onPressed: eventState.isLoading ? null : _sendEmergency,
                   icon: eventState.isLoading
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-                      : const Icon(CupertinoIcons.paperplane_fill, color: Colors.white, size: 18),
-                  label: Text(eventState.isLoading ? 'SENDING...' : 'SEND ALERT',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                      : const Icon(
+                          CupertinoIcons.paperplane_fill,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                  label: Text(
+                    eventState.isLoading ? 'SENDING...' : 'SEND ALERT',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFEF4444),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                 ),

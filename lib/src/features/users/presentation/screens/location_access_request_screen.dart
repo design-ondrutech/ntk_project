@@ -4,6 +4,7 @@ import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/features/users/domain/repositories/user_repository.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_bloc.dart';
 import 'package:ntk_project/src/features/location/presentation/bloc/location_state.dart';
 import 'package:ntk_project/src/injection_container.dart' as di;
@@ -27,12 +28,34 @@ class _LocationAccessRequestScreenState extends State<LocationAccessRequestScree
   bool _isLoadingLocations = false;
   List<LocationModel> _availableLocations = [];
 
+  List<int> _alreadyAssignedLocationIds = [];
+
   final List<String> _roles = ['DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN'];
 
   @override
   void initState() {
     super.initState();
+    _loadAssignedLocations();
     _fetchLocationsForRole(_requestedRole);
+  }
+
+  Future<void> _loadAssignedLocations() async {
+    try {
+      final userId = context.read<AuthBloc>().state.loginData?.id;
+      if (userId == null) return;
+      final repo = di.sl<UserRepository>();
+      final assigned = await repo.getUserAssignedLocations(userId: userId);
+      if (mounted) {
+        setState(() {
+          _alreadyAssignedLocationIds = assigned
+              .where((a) => a.locationId != null)
+              .map((a) => a.locationId!)
+              .toList();
+        });
+      }
+    } catch (e) {
+      // Ignore errors for this optional check
+    }
   }
 
   Future<void> _fetchLocationsForRole(String role) async {
@@ -173,24 +196,35 @@ class _LocationAccessRequestScreenState extends State<LocationAccessRequestScree
                             spacing: 8.0,
                             runSpacing: 4.0,
                             children: _availableLocations.map((loc) {
+                              final isAlreadyAssigned = _alreadyAssignedLocationIds.contains(loc.id);
                               final isSelected = _selectedLocationIds.contains(loc.id);
                               return FilterChip(
-                                label: Text(loc.name),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  setState(() {
-                                    if (selected) {
-                                      _selectedLocationIds.add(loc.id);
-                                    } else {
-                                      _selectedLocationIds.remove(loc.id);
-                                    }
-                                  });
-                                },
-                                selectedColor: NTKColors.primary.withOpacity(0.2),
-                                checkmarkColor: NTKColors.primary,
+                                label: Text(isAlreadyAssigned ? '${loc.name} (Assigned)' : loc.name),
+                                selected: isSelected || isAlreadyAssigned,
+                                onSelected: isAlreadyAssigned
+                                    ? null // Disable if already assigned
+                                    : (selected) {
+                                        setState(() {
+                                          if (selected) {
+                                            _selectedLocationIds.add(loc.id);
+                                          } else {
+                                            _selectedLocationIds.remove(loc.id);
+                                          }
+                                        });
+                                      },
+                                selectedColor: isAlreadyAssigned 
+                                    ? Colors.grey.shade300 
+                                    : NTKColors.primary.withOpacity(0.2),
+                                checkmarkColor: isAlreadyAssigned 
+                                    ? Colors.grey.shade600 
+                                    : NTKColors.primary,
                                 labelStyle: TextStyle(
-                                  color: isSelected ? NTKColors.primary : Colors.black87,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isAlreadyAssigned 
+                                      ? Colors.grey.shade600 
+                                      : (isSelected ? NTKColors.primary : Colors.black87),
+                                  fontWeight: isSelected || isAlreadyAssigned 
+                                      ? FontWeight.bold 
+                                      : FontWeight.normal,
                                 ),
                               );
                             }).toList(),

@@ -15,6 +15,9 @@ import 'package:ntk_project/src/features/community/presentation/screens/communit
 import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/notifications/presentation/screens/notifications_screen.dart';
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 
 class NotificationDetailsScreen extends StatefulWidget {
   final NotificationModel notification;
@@ -345,8 +348,71 @@ class _NotificationDetailsScreenState extends State<NotificationDetailsScreen> {
             ),
           ),
         ],
+        _buildForwardButton(context, details),
         _buildGoToDetailsButton(context, details),
       ],
+    );
+  }
+
+  Widget _buildForwardButton(BuildContext context, Map<String, dynamic> details) {
+    final role = context.read<AuthBloc>().state.loginData?.role;
+    final canForward = role == 'DISTRICT_INCHARGE';
+    if (!canForward) return const SizedBox.shrink();
+
+    final type = widget.notification.type?.toUpperCase() ?? '';
+    final notificationField = _asMap(details['notification']);
+    final entityId = notificationField != null
+        ? int.tryParse(notificationField['entityId']?.toString() ?? '')
+        : widget.notification.relatedEntityId;
+    final entityType = (notificationField != null
+        ? notificationField['entityType']?.toString()
+        : null) ?? type;
+
+    if (entityId == null || entityType.isEmpty) return const SizedBox.shrink();
+
+    final locationScope = _asMap(details['locationScope']);
+    final sourceLocationName = locationScope?['constituency']?.toString();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0),
+      child: SizedBox(
+        width: double.infinity,
+        height: 54,
+        child: OutlinedButton(
+          onPressed: () => _showForwardModal(context, entityId, entityType, sourceLocationName),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: NTKColors.primary,
+            side: const BorderSide(color: NTKColors.primary, width: 1.5),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.forward_to_inbox, size: 20),
+              SizedBox(width: 10),
+              Text(
+                'Forward',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showForwardModal(BuildContext context, int entityId, String type, String? sourceLocationName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ForwardModal(entityId: entityId, type: type, sourceLocationName: sourceLocationName),
     );
   }
 
@@ -571,6 +637,251 @@ class _Badge extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+}
+
+class _ForwardModal extends StatefulWidget {
+  final int entityId;
+  final String type;
+  final String? sourceLocationName;
+
+  const _ForwardModal({required this.entityId, required this.type, this.sourceLocationName});
+
+  @override
+  State<_ForwardModal> createState() => _ForwardModalState();
+}
+
+class _ForwardModalState extends State<_ForwardModal> {
+  bool _loading = true;
+  bool _submitting = false;
+  List<LocationModel> _locations = [];
+  final Set<int> _selectedIds = {};
+  int? _sourceLocId;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLocations();
+  }
+
+  Future<void> _fetchLocations() async {
+    try {
+      final repo = sl<NotificationRepository>();
+      final locs = await repo.getForwardLocations(entityId: widget.entityId, type: widget.type);
+      
+      if (mounted) {
+        setState(() {
+          _locations = locs;
+          // Pre-select the source location if it exists in the list
+          if (widget.sourceLocationName != null) {
+            final sourceLoc = _locations.where((l) => l.name == widget.sourceLocationName).firstOrNull;
+            if (sourceLoc != null) {
+              _sourceLocId = sourceLoc.id;
+              _selectedIds.add(sourceLoc.id);
+            }
+          }
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+        NTKSnackbar.showError(context, message: 'Failed to load locations');
+      }
+    }
+  }
+
+  Future<void> _forward() async {
+    if (_selectedIds.isEmpty) {
+      setState(() => _errorMessage = 'Please select at least one location');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+    try {
+      final repo = sl<NotificationRepository>();
+      await repo.forwardNotification(
+        entityId: widget.entityId,
+        type: widget.type,
+        targetLocationIds: _selectedIds.toList(),
+      );
+      if (mounted) {
+        NTKSnackbar.showSuccess(context, message: 'Forwarded successfully!');
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        String msg = e.toString();
+        if (msg.startsWith('Exception: ')) msg = msg.substring(11);
+        setState(() {
+          _submitting = false;
+          _errorMessage = msg;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.all(24),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Forward To',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: NTKColors.textPrimary,
+                ),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_locations.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text(
+                  'No locations available to forward.',
+                  style: TextStyle(color: NTKColors.textSecondary),
+                ),
+              ),
+            )
+          else ...[
+            const Text(
+              'Select locations to forward this notification:',
+              style: TextStyle(color: NTKColors.textSecondary, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: _locations.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final loc = _locations[index];
+                  final isSelected = _selectedIds.contains(loc.id);
+                  final isSource = loc.id == _sourceLocId;
+                  
+                  return InkWell(
+                    onTap: isSource ? null : () {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedIds.remove(loc.id);
+                        } else {
+                          _selectedIds.add(loc.id);
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? NTKColors.primary.withOpacity(isSource ? 0.04 : 0.08) : Colors.white,
+                        border: Border.all(
+                          color: isSelected ? NTKColors.primary.withOpacity(isSource ? 0.5 : 1.0) : Colors.grey.withOpacity(0.3),
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected ? (isSource ? Icons.check_circle : Icons.check_circle) : Icons.radio_button_unchecked,
+                            color: isSelected ? NTKColors.primary.withOpacity(isSource ? 0.5 : 1.0) : Colors.grey,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            loc.name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? NTKColors.primary.withOpacity(isSource ? 0.5 : 1.0) : NTKColors.textPrimary,
+                            ),
+                          ),
+                          if (isSource) ...[
+                            const Spacer(),
+                            const Text(
+                              'Origin',
+                              style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: NTKColors.error, fontSize: 14, fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton(
+                onPressed: _submitting || _selectedIds.isEmpty ? null : _forward,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: NTKColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.send, size: 18),
+                          const SizedBox(width: 8),
+                          Text('Forward (${_selectedIds.length})'),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -29,12 +29,12 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         filterLocationId: event.filterLocationId,
       );
 
-      final assignedLocationsFuture = (event.userId != null && state.assignedLocations.isEmpty)
+      final assignedLocationsFuture = (event.userId != null)
           ? _userRepository.getUserAssignedLocations(userId: event.userId!)
           : Future.value(state.assignedLocations);
 
       final activityFuture = _dashboardRepository.getRecentActivity(
-        locationId: event.locationId,
+        locationId: event.filterLocationId ?? event.locationId,
         limit: 10,
       ).catchError((_) => <RecentActivityModel>[]); // silently ignore — stats still show correctly
 

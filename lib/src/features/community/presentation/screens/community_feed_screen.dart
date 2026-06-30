@@ -26,6 +26,7 @@ import 'package:ntk_project/src/features/community/presentation/bloc/community_s
 import 'package:ntk_project/src/features/community/presentation/screens/community_chat_screen.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_details_screen.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_admin_screen.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/community_settings_screen.dart';
 import 'package:ntk_project/src/features/community/presentation/screens/create_community_group_screen.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
@@ -53,19 +54,45 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
   late final TabController _tabController;
   CommunityModel? _selectedCommunity;
   String _activeFilter = 'All';
+  String _groupsFilter = 'All';
+  final TextEditingController _groupSearchController = TextEditingController();
+  String _groupSearchQuery = '';
+
+  bool _hasFetchedCommunities = false;
+  bool _hasFetchedFeed = false;
+  bool _hasFetchedPolls = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, initialIndex: 1, vsync: this);
-    context.read<CommunityBloc>().add(const FetchCommunities());
-    _fetchFeed();
-    _fetchPolls();
+    _tabController.addListener(_onTabChanged);
+    _fetchForTab(1); // Initially on Feed tab
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      _fetchForTab(_tabController.index);
+    }
+  }
+
+  void _fetchForTab(int index) {
+    if (index == 0 && !_hasFetchedCommunities) {
+      context.read<CommunityBloc>().add(const FetchCommunities());
+      _hasFetchedCommunities = true;
+    } else if (index == 1 && !_hasFetchedFeed) {
+      _fetchFeed();
+      _hasFetchedFeed = true;
+    } else if (index == 2 && !_hasFetchedPolls) {
+      _fetchPolls();
+      _hasFetchedPolls = true;
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _groupSearchController.dispose();
     super.dispose();
   }
 
@@ -78,7 +105,10 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
   String get _locationName {
     final globalLoc = context.watch<DashboardBloc>().state.globalLocation;
     final auth = context.watch<AuthBloc>().state.loginData;
-    return localizeLocationName(context, globalLoc?.name ?? auth?.locationName ?? 'Nagapattinam');
+    return localizeLocationName(
+      context,
+      globalLoc?.name ?? auth?.locationName ?? 'Nagapattinam',
+    );
   }
 
   void _fetchFeed() {
@@ -152,9 +182,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
   void _openCreateGroupScreen(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const CreateCommunityGroupScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const CreateCommunityGroupScreen()),
     );
   }
 
@@ -170,8 +198,10 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
             }
             if (state.error != null) {
               String msg = state.error!;
-              if (msg.toLowerCase().contains('already reported') || msg.toLowerCase().contains('already resolved')) {
-                msg = 'You have already reported this post / நீங்கள் ஏற்கனவே இந்த பதிவைப் பற்றி புகார் அளித்துள்ளீர்கள்.';
+              if (msg.toLowerCase().contains('already reported') ||
+                  msg.toLowerCase().contains('already resolved')) {
+                msg =
+                    'You have already reported this post / நீங்கள் ஏற்கனவே இந்த பதிவைப் பற்றி புகார் அளித்துள்ளீர்கள்.';
               }
               NTKSnackbar.showError(context, message: msg);
               context.read<CommunityBloc>().add(const ClearCommunityError());
@@ -194,8 +224,9 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
           listenWhen: (previous, current) =>
               previous.globalLocation?.id != current.globalLocation?.id,
           listener: (context, state) {
-            _fetchFeed();
-            _fetchPolls();
+            _hasFetchedFeed = false;
+            _hasFetchedPolls = false;
+            _fetchForTab(_tabController.index);
           },
         ),
       ],
@@ -209,8 +240,14 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
               animation: _tabController,
               builder: (context, _) {
                 if (_tabController.index == 0) {
-                  final userRole = context.watch<AuthBloc>().state.loginData?.role;
-                  if (userRole != 'SUB_ADMIN' && userRole != 'ADMIN' && userRole != 'SUPER_ADMIN') {
+                  final userRole = context
+                      .watch<AuthBloc>()
+                      .state
+                      .loginData
+                      ?.role;
+                  if (userRole != 'SUB_ADMIN' &&
+                      userRole != 'ADMIN' &&
+                      userRole != 'SUPER_ADMIN') {
                     return const SizedBox.shrink();
                   }
                   return IconButton(
@@ -274,8 +311,9 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                 onTap: () {
                   setState(() => _selectedCommunity = null);
                   Navigator.pop(context);
-                  _fetchFeed();
-                  _fetchPolls();
+                  _hasFetchedFeed = false;
+                  _hasFetchedPolls = false;
+                  _fetchForTab(_tabController.index);
                 },
               ),
               ...communities
@@ -289,8 +327,9 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                       onTap: () {
                         setState(() => _selectedCommunity = community);
                         Navigator.pop(context);
-                        _fetchFeed();
-                        _fetchPolls();
+                        _hasFetchedFeed = false;
+                        _hasFetchedPolls = false;
+                        _fetchForTab(_tabController.index);
                       },
                     ),
                   ),
@@ -312,14 +351,16 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
         buildWhen: (prev, curr) {
           // Prevent full list rebuild just because likes changed
           return prev.isFeedLoading != curr.isFeedLoading ||
-                 prev.isLoading != curr.isLoading ||
-                 prev.posts.length != curr.posts.length ||
-                 prev.feedPosts.length != curr.feedPosts.length ||
-                 prev.posts.firstOrNull?.id != curr.posts.firstOrNull?.id ||
-                 prev.feedPosts.firstOrNull?.id != curr.feedPosts.firstOrNull?.id;
+              prev.isLoading != curr.isLoading ||
+              prev.posts.length != curr.posts.length ||
+              prev.feedPosts.length != curr.feedPosts.length ||
+              prev.posts.firstOrNull?.id != curr.posts.firstOrNull?.id ||
+              prev.feedPosts.firstOrNull?.id != curr.feedPosts.firstOrNull?.id;
         },
         builder: (context, state) {
-          final posts = _selectedCommunity == null ? state.feedPosts : state.posts;
+          final posts = _selectedCommunity == null
+              ? state.feedPosts
+              : state.posts;
 
           if (state.isFeedLoading || state.isLoading) {
             return ListView(
@@ -389,7 +430,8 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
               return _PostCard(
                 key: ValueKey('${post.id}_$index'),
                 post: post,
-                onLike: () => context.read<CommunityBloc>().add(LikePost(post.id)),
+                onLike: () =>
+                    context.read<CommunityBloc>().add(LikePost(post.id)),
                 onComment: () => _openPostDetails(post, autoFocusComment: true),
                 onOpen: () => _openPostDetails(post),
                 onDelete: () {
@@ -443,123 +485,155 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
     return BlocBuilder<CommunityBloc, CommunityState>(
       builder: (context, state) {
         if (state.isLoading && state.communities.isEmpty) {
-          return const Center(child: CupertinoActivityIndicator());
+          return const _GroupsLoadingSkeleton();
         }
 
-        final communities = state.communities;
+        final allCommunities = state.communities;
 
-        if (communities.isEmpty && !state.isLoading) {
-          return const Center(
-            child: Text('No groups found.', style: TextStyle(color: _muted)),
-          );
+        // Apply filter
+        List<CommunityModel> filtered;
+        switch (_groupsFilter) {
+          case 'Joined':
+            filtered = allCommunities.where((c) => c.isJoined).toList();
+            break;
+          case 'Featured':
+            filtered = allCommunities
+                .where((c) => c.privacyType == 'PUBLIC')
+                .toList();
+            break;
+          case 'Nearby':
+            filtered = allCommunities
+                .where((c) => c.locationId != null)
+                .toList();
+            break;
+          default:
+            filtered = allCommunities;
         }
 
-        final myGroups = communities.where((c) => c.isJoined).toList();
-        final availableGroups = communities.where((c) => !c.isJoined).toList();
+        // Apply search
+        if (_groupSearchQuery.isNotEmpty) {
+          filtered = filtered
+              .where(
+                (c) => c.name.toLowerCase().contains(
+                  _groupSearchQuery.toLowerCase(),
+                ),
+              )
+              .toList();
+        }
 
         return RefreshIndicator(
           color: _primary,
-          onRefresh: () async => context.read<CommunityBloc>().add(const FetchCommunities()),
+          onRefresh: () async =>
+              context.read<CommunityBloc>().add(const FetchCommunities()),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
+              // ── Filter Chips ─────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  child: Row(
+                    children: [
+                      for (final label in [
+                        'All',
+                        'Joined',
+                        'Featured',
+                        'Nearby',
+                      ])
+                        _GroupFilterChip(
+                          label: label,
+                          selected: _groupsFilter == label,
+                          onTap: () => setState(() => _groupsFilter = label),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              // ── Divider ──────────────────────────────────────────
+              const SliverToBoxAdapter(
+                child: Divider(height: 1, color: Color(0xFFEEF2F0)),
+              ),
+              // ── Count Bar ────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
                     children: [
-                      // 1. Community Header
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Community',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: _text,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  const Icon(Icons.location_on_outlined, size: 14, color: _muted),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _locationName,
-                                    style: const TextStyle(fontSize: 13, color: _muted, fontWeight: FontWeight.w500),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          // Search and filter icons hidden
-                          const SizedBox.shrink(),
-                        ],
+                      Text(
+                        '${filtered.length} ${filtered.length == 1 ? 'Community' : 'Communities'}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _muted,
+                        ),
                       ),
-                      const SizedBox(height: 24),
-                      // Search bar hidden
-                      const SizedBox.shrink(),
-                      // 3. My Groups Section
-                      if (myGroups.isNotEmpty) ...[
-                        const Text(
-                          'My Groups',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _text),
+                      const Spacer(),
+                      if (state.isLoading)
+                        const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _primary,
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                      ],
                     ],
                   ),
                 ),
               ),
-              if (myGroups.isNotEmpty)
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  sliver: SliverList.builder(
-                    itemCount: myGroups.length,
-                    itemBuilder: (context, index) {
-                      return _CommunityCard(
-                        community: myGroups[index],
-                        isJoined: true,
-                      );
-                    },
-                  ),
-                ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (availableGroups.isNotEmpty) ...[
-                        const Text(
-                          'Available Groups',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: _text),
+              // ── Empty State ──────────────────────────────────────
+              if (filtered.isEmpty && !state.isLoading)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEAF4EE),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: const Icon(
+                            Icons.group_outlined,
+                            size: 36,
+                            color: _primary,
+                          ),
                         ),
                         const SizedBox(height: 16),
+                        const Text(
+                          'No communities found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: _text,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Try a different filter or search term',
+                          style: TextStyle(fontSize: 13, color: _muted),
+                        ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              if (availableGroups.isNotEmpty)
+              // ── Community Cards ──────────────────────────────────
+              if (filtered.isNotEmpty)
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                   sliver: SliverList.builder(
-                    itemCount: availableGroups.length,
+                    itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       return _CommunityCard(
-                        community: availableGroups[index],
-                        isJoined: false,
+                        community: filtered[index],
+                        isJoined: filtered[index].isJoined,
                       );
                     },
                   ),
                 ),
-              const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
             ],
           ),
         );
@@ -601,11 +675,28 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                       child: Center(
                         child: Column(
                           children: [
-                            Icon(Icons.poll_outlined, size: 56, color: Color(0xFFCBD5E1)),
+                            Icon(
+                              Icons.poll_outlined,
+                              size: 56,
+                              color: Color(0xFFCBD5E1),
+                            ),
                             SizedBox(height: 12),
-                            Text('No polls yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                            Text(
+                              'No polls yet',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
                             SizedBox(height: 6),
-                            Text('Be the first to create a poll', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                            Text(
+                              'Be the first to create a poll',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -636,11 +727,12 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                         context.read<CommunityPollsBloc>().add(
                           VoteInPollEvent(pollId: poll.id, optionId: optionId),
                         ),
-                    onLike: () =>
-                        context.read<CommunityPollsBloc>().add(
-                          LikePollEvent(pollId: poll.id),
-                        ),
-                    onComment: () => _openPollDetails(poll), // Can open details for full comments
+                    onLike: () => context.read<CommunityPollsBloc>().add(
+                      LikePollEvent(pollId: poll.id),
+                    ),
+                    onComment: () => _openPollDetails(
+                      poll,
+                    ), // Can open details for full comments
                   );
                 },
               );
@@ -662,10 +754,8 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _PostDetailsScreen(
-          post: post,
-          autoFocusComment: autoFocusComment,
-        ),
+        builder: (_) =>
+            _PostDetailsScreen(post: post, autoFocusComment: autoFocusComment),
       ),
     );
   }
@@ -687,7 +777,9 @@ class _CreatePostScreen extends StatefulWidget {
 }
 
 class _CreatePostScreenState extends State<_CreatePostScreen> {
-  late String _category = widget.initialCategory.isEmpty ? 'General' : widget.initialCategory;
+  late String _category = widget.initialCategory.isEmpty
+      ? 'General'
+      : widget.initialCategory;
   final _content = TextEditingController();
   final _picker = ImagePicker();
   final List<File> _images = [];
@@ -873,7 +965,9 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
     final auth = authState.loginData;
     final images = <String>[];
     for (final image in _images) {
-      images.add('data:image/jpeg;base64,${base64Encode(await image.readAsBytes())}');
+      images.add(
+        'data:image/jpeg;base64,${base64Encode(await image.readAsBytes())}',
+      );
     }
     context.read<CommunityBloc>().add(
       CreateCommunityPost(
@@ -991,7 +1085,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
   Widget build(BuildContext context) {
     final authState = context.read<AuthBloc>().state;
     final role = authState.loginData?.role ?? 'MEMBER';
-    
+
     final canChangeDistrict = role == 'ADMIN' || role == 'SUPER_ADMIN';
     final canChangeTaluk = canChangeDistrict || role == 'DISTRICT_ADMIN';
     final canChangeArea = role != 'MEMBER';
@@ -1188,7 +1282,9 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _districts,
                                   value: _selectedDistrict,
-                                  onChanged: canChangeDistrict ? _onDistrictChanged : null,
+                                  onChanged: canChangeDistrict
+                                      ? _onDistrictChanged
+                                      : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select District (Optional)',
                                 ),
@@ -1204,7 +1300,9 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _constituencies,
                                   value: _selectedConstituency,
-                                  onChanged: canChangeTaluk ? _onConstituencyChanged : null,
+                                  onChanged: canChangeTaluk
+                                      ? _onConstituencyChanged
+                                      : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Constituency',
                                 ),
@@ -1220,7 +1318,9 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _areas,
                                   value: _selectedArea,
-                                  onChanged: canChangeArea ? _onAreaChanged : null,
+                                  onChanged: canChangeArea
+                                      ? _onAreaChanged
+                                      : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Area',
                                 ),
@@ -1236,7 +1336,11 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _streets,
                                   value: _selectedStreet,
-                                  onChanged: canChangeArea ? (val) => setState(() => _selectedStreet = val) : null,
+                                  onChanged: canChangeArea
+                                      ? (val) => setState(
+                                          () => _selectedStreet = val,
+                                        )
+                                      : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Street',
                                 ),
@@ -1365,37 +1469,12 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
             }
 
             for (final taluk in taluks) {
-            final areas = await _locationRepo.getLocationList(
-              parentId: taluk.id,
-              type: 'AREA',
-            );
-            if (areas.any((a) => a.id == locationId)) {
-              final area = areas.firstWhere((a) => a.id == locationId);
-              if (mounted) {
-                setState(() {
-                  _selectedDistrict = district;
-                  _districts = [district];
-                  _selectedConstituency = taluk;
-                  _constituencies = [taluk];
-                  _selectedArea = area;
-                  _areas = [area];
-                  _loadingDistricts = false;
-                  _loadingConstituencies = false;
-                  _loadingAreas = false;
-                });
-                _loadStreetsForSubAdmin(area.id);
-              }
-              found = true;
-              break;
-            }
-            // Check streets
-            for (final area in areas) {
-              final streets = await _locationRepo.getLocationList(
-                parentId: area.id,
-                type: 'STREET',
+              final areas = await _locationRepo.getLocationList(
+                parentId: taluk.id,
+                type: 'AREA',
               );
-              if (streets.any((s) => s.id == locationId)) {
-                final street = streets.firstWhere((s) => s.id == locationId);
+              if (areas.any((a) => a.id == locationId)) {
+                final area = areas.firstWhere((a) => a.id == locationId);
                 if (mounted) {
                   setState(() {
                     _selectedDistrict = district;
@@ -1404,22 +1483,47 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                     _constituencies = [taluk];
                     _selectedArea = area;
                     _areas = [area];
-                    _selectedStreet = street;
-                    _streets = [street];
                     _loadingDistricts = false;
                     _loadingConstituencies = false;
                     _loadingAreas = false;
-                    _loadingStreets = false;
                   });
+                  _loadStreetsForSubAdmin(area.id);
                 }
                 found = true;
                 break;
               }
+              // Check streets
+              for (final area in areas) {
+                final streets = await _locationRepo.getLocationList(
+                  parentId: area.id,
+                  type: 'STREET',
+                );
+                if (streets.any((s) => s.id == locationId)) {
+                  final street = streets.firstWhere((s) => s.id == locationId);
+                  if (mounted) {
+                    setState(() {
+                      _selectedDistrict = district;
+                      _districts = [district];
+                      _selectedConstituency = taluk;
+                      _constituencies = [taluk];
+                      _selectedArea = area;
+                      _areas = [area];
+                      _selectedStreet = street;
+                      _streets = [street];
+                      _loadingDistricts = false;
+                      _loadingConstituencies = false;
+                      _loadingAreas = false;
+                      _loadingStreets = false;
+                    });
+                  }
+                  found = true;
+                  break;
+                }
+              }
+              if (found) break;
             }
             if (found) break;
           }
-          if (found) break;
-        }
         } // Close if (!found)
         if (!found && mounted) {
           setState(() {
@@ -1714,7 +1818,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
   Widget build(BuildContext context) {
     final authState = context.read<AuthBloc>().state;
     final role = authState.loginData?.role ?? 'MEMBER';
-    
+
     final canChangeDistrict = role == 'ADMIN' || role == 'SUPER_ADMIN';
     final canChangeTaluk = canChangeDistrict || role == 'DISTRICT_ADMIN';
     final canChangeArea = role != 'MEMBER';
@@ -1848,7 +1952,9 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _districts,
                                   value: _selectedDistrict,
-                                  onChanged: canChangeDistrict ? _onDistrictChanged : null,
+                                  onChanged: canChangeDistrict
+                                      ? _onDistrictChanged
+                                      : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select District',
                                 ),
@@ -1864,7 +1970,9 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _constituencies,
                                   value: _selectedConstituency,
-                                  onChanged: canChangeTaluk ? _onConstituencyChanged : null,
+                                  onChanged: canChangeTaluk
+                                      ? _onConstituencyChanged
+                                      : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Constituency',
                                 ),
@@ -1880,7 +1988,9 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _areas,
                                   value: _selectedArea,
-                                  onChanged: canChangeArea ? _onAreaChanged : null,
+                                  onChanged: canChangeArea
+                                      ? _onAreaChanged
+                                      : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Area',
                                 ),
@@ -1896,7 +2006,11 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                               : _buildDropdownField<LocationModel>(
                                   items: _streets,
                                   value: _selectedStreet,
-                                  onChanged: canChangeArea ? (val) => setState(() => _selectedStreet = val) : null,
+                                  onChanged: canChangeArea
+                                      ? (val) => setState(
+                                          () => _selectedStreet = val,
+                                        )
+                                      : null,
                                   itemLabel: (item) => item.name,
                                   hintText: 'Select Street',
                                 ),
@@ -1934,8 +2048,8 @@ class _PollDetailsScreenState extends State<_PollDetailsScreen> {
   void initState() {
     super.initState();
     context.read<CommunityPollsBloc>().add(
-          FetchPollDetailsEvent(pollId: widget.poll.id),
-        );
+      FetchPollDetailsEvent(pollId: widget.poll.id),
+    );
   }
 
   @override
@@ -1961,14 +2075,14 @@ class _PollDetailsScreenState extends State<_PollDetailsScreen> {
     if (text.isEmpty) return;
     final auth = context.read<AuthBloc>().state.loginData;
     context.read<CommunityPollsBloc>().add(
-          AddPollCommentEvent(
-            pollId: pollId,
-            content: text,
-            authorName: auth?.name ?? 'Community Member',
-            authorRole: auth?.role ?? 'MEMBER',
-            parentId: _replyingToComment?.id,
-          ),
-        );
+      AddPollCommentEvent(
+        pollId: pollId,
+        content: text,
+        authorName: auth?.name ?? 'Community Member',
+        authorRole: auth?.role ?? 'MEMBER',
+        parentId: _replyingToComment?.id,
+      ),
+    );
     _comment.clear();
     setState(() {
       _replyingToComment = null;
@@ -2013,26 +2127,35 @@ class _PollDetailsScreenState extends State<_PollDetailsScreen> {
                   final liveHasVoted = livePoll.userVoteOptionId != null;
 
                   bool isExpired = false;
-                  if (livePoll.expiresAt != null && livePoll.expiresAt!.isNotEmpty) {
+                  if (livePoll.expiresAt != null &&
+                      livePoll.expiresAt!.isNotEmpty) {
                     try {
-                      final parsed = DateHelper.parseUtcToLocal(livePoll.expiresAt!);
+                      final parsed = DateHelper.parseUtcToLocal(
+                        livePoll.expiresAt!,
+                      );
                       isExpired = parsed.isBefore(DateTime.now());
                     } catch (_) {}
                   }
 
                   final comments = livePoll.comments;
-                  final rootComments = comments.where((c) => c.parentId == null).toList();
+                  final rootComments = comments
+                      .where((c) => c.parentId == null)
+                      .toList();
 
                   return ListView(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(18),
                     children: [
                       _AuthorLine(
-                        name: livePoll.createdBy?['name']?.toString() ?? 'Community Poll',
+                        name:
+                            livePoll.createdBy?['name']?.toString() ??
+                            'Community Poll',
                         location: livePoll.location?['name']?.toString() ?? '',
                         time: _timeAgo(livePoll.createdAt),
                         image: livePoll.createdBy?['image']?.toString(),
-                        category: isExpired ? 'Expired' : (liveHasVoted ? 'Voted' : 'Active'),
+                        category: isExpired
+                            ? 'Expired'
+                            : (liveHasVoted ? 'Voted' : 'Active'),
                       ),
                       const SizedBox(height: 18),
                       Text(
@@ -2046,23 +2169,28 @@ class _PollDetailsScreenState extends State<_PollDetailsScreen> {
                       const SizedBox(height: 18),
                       Column(
                         children: livePoll.options.map((option) {
-                          final pct = liveTotal == 0 ? 0.0 : option.votesCount / liveTotal;
+                          final pct = liveTotal == 0
+                              ? 0.0
+                              : option.votesCount / liveTotal;
                           if (liveHasVoted || isExpired) {
                             return _ResultBar(
                               label: option.text,
                               percent: pct,
                               votes: option.votesCount,
-                              highlighted: livePoll.userVoteOptionId == option.id,
+                              highlighted:
+                                  livePoll.userVoteOptionId == option.id,
                             );
                           }
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: OutlinedButton(
-                              onPressed: () => context
-                                  .read<CommunityPollsBloc>()
-                                  .add(VoteInPollEvent(
+                              onPressed: () =>
+                                  context.read<CommunityPollsBloc>().add(
+                                    VoteInPollEvent(
                                       pollId: livePoll.id,
-                                      optionId: option.id)),
+                                      optionId: option.id,
+                                    ),
+                                  ),
                               style: OutlinedButton.styleFrom(
                                 alignment: Alignment.centerLeft,
                                 minimumSize: const Size(double.infinity, 48),
@@ -2110,13 +2238,17 @@ class _PollDetailsScreenState extends State<_PollDetailsScreen> {
                         comments: livePoll.commentCount,
                         isLiked: livePoll.isLiked,
                         onLike: () {
-                          context.read<CommunityPollsBloc>().add(LikePollEvent(pollId: livePoll.id));
+                          context.read<CommunityPollsBloc>().add(
+                            LikePollEvent(pollId: livePoll.id),
+                          );
                         },
                         onComment: () {
                           _focusNode.requestFocus();
                         },
                         onShare: () {
-                          Share.share('${livePoll.question}\n\nShared via NTK App');
+                          Share.share(
+                            '${livePoll.question}\n\nShared via NTK App',
+                          );
                         },
                       ),
                       const SizedBox(height: 20),
@@ -2139,8 +2271,8 @@ class _PollDetailsScreenState extends State<_PollDetailsScreen> {
                             comment: comment,
                             onLike: (c) {
                               context.read<CommunityPollsBloc>().add(
-                                    LikePollCommentEvent(pollCommentId: c.id),
-                                  );
+                                LikePollCommentEvent(pollCommentId: c.id),
+                              );
                             },
                             onReply: (c) {
                               setState(() {
@@ -2158,7 +2290,10 @@ class _PollDetailsScreenState extends State<_PollDetailsScreen> {
             if (_replyingToComment != null)
               Container(
                 color: const Color(0xFFEAF6EF),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -2266,7 +2401,6 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -2294,7 +2428,9 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
                 builder: (context, state) {
                   final post = _livePost(state);
                   final comments = post.comments;
-                  final rootComments = comments.where((c) => c.parentId == null).toList();
+                  final rootComments = comments
+                      .where((c) => c.parentId == null)
+                      .toList();
                   return ListView(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(14),
@@ -2368,7 +2504,9 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
                           (comment) => _CommentTile(
                             comment: comment,
                             onLike: (c) {
-                              context.read<CommunityBloc>().add(LikeComment(c.id));
+                              context.read<CommunityBloc>().add(
+                                LikeComment(c.id),
+                              );
                             },
                             onReply: (c) {
                               setState(() {
@@ -2386,7 +2524,10 @@ class _PostDetailsScreenState extends State<_PostDetailsScreen> {
             if (_replyingToComment != null)
               Container(
                 color: const Color(0xFFEAF6EF),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -2441,10 +2582,10 @@ class _Tabs extends StatelessWidget {
         labelColor: _primary,
         unselectedLabelColor: _muted,
         labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-        tabs: const [
-          Tab(text: 'Groups'),
-          Tab(text: 'Feed'),
-          Tab(text: 'Polls'),
+        tabs: [
+          Tab(text: AppLocalizations.of(context)!.groupsTab),
+          Tab(text: AppLocalizations.of(context)!.feedTab),
+          Tab(text: AppLocalizations.of(context)!.pollsTab),
         ],
       ),
     );
@@ -2546,9 +2687,9 @@ class _CreatePostCard extends StatelessWidget {
               Expanded(
                 child: InkWell(
                   onTap: onPost,
-                  child: const Text(
-                    'What is happening in your area?',
-                    style: TextStyle(color: _muted, fontSize: 14),
+                  child: Text(
+                    AppLocalizations.of(context)!.whatIsHappening,
+                    style: const TextStyle(color: _muted, fontSize: 14),
                   ),
                 ),
               ),
@@ -2560,14 +2701,14 @@ class _CreatePostCard extends StatelessWidget {
               Expanded(
                 child: _InlineAction(
                   icon: Icons.image_outlined,
-                  label: 'Photo',
+                  label: AppLocalizations.of(context)!.photo,
                   onTap: onPhoto,
                 ),
               ),
               Expanded(
                 child: _InlineAction(
                   icon: Icons.poll_outlined,
-                  label: 'Poll',
+                  label: AppLocalizations.of(context)!.poll,
                   onTap: onPoll,
                 ),
               ),
@@ -2576,7 +2717,7 @@ class _CreatePostCard extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onPost,
                   icon: const Icon(Icons.send_rounded, size: 16),
-                  label: const Text('Post'),
+                  label: Text(AppLocalizations.of(context)!.post),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _secondary,
                     foregroundColor: Colors.white,
@@ -2611,7 +2752,6 @@ class _PostCard extends StatelessWidget {
   final VoidCallback onComment;
   final VoidCallback onOpen;
   final VoidCallback? onDelete;
-
 
   void _showReportDialog(BuildContext context) {
     final reasons = [
@@ -2677,9 +2817,11 @@ class _PostCard extends StatelessWidget {
                       String apiReason = 'Other';
                       if (selectedReason == 'Spam or irrelevant content') {
                         apiReason = 'Spam';
-                      } else if (selectedReason == 'Misinformation / Fake news') {
+                      } else if (selectedReason ==
+                          'Misinformation / Fake news') {
                         apiReason = 'Fake Information';
-                      } else if (selectedReason == 'Offensive or inappropriate') {
+                      } else if (selectedReason ==
+                          'Offensive or inappropriate') {
                         apiReason = 'Inappropriate Content';
                       } else if (selectedReason == 'Harassment or bullying') {
                         apiReason = 'Abuse/Harassment';
@@ -2709,9 +2851,7 @@ class _PostCard extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
             Icon(Icons.gavel_rounded, color: Color(0xFF0F8A4B), size: 20),
@@ -2731,10 +2871,16 @@ class _PostCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: TextButton.icon(
-              icon: const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF0F8A4B)),
+              icon: const Icon(
+                Icons.check_circle_outline_rounded,
+                color: Color(0xFF0F8A4B),
+              ),
               label: const Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Keep Post', style: TextStyle(color: Color(0xFF0F8A4B))),
+                child: Text(
+                  'Keep Post',
+                  style: TextStyle(color: Color(0xFF0F8A4B)),
+                ),
               ),
               onPressed: () {
                 Navigator.pop(ctx);
@@ -2745,10 +2891,16 @@ class _PostCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: TextButton.icon(
-              icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              icon: const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+              ),
               label: const Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Send Warning', style: TextStyle(color: Colors.orange)),
+                child: Text(
+                  'Send Warning',
+                  style: TextStyle(color: Colors.orange),
+                ),
               ),
               onPressed: () {
                 Navigator.pop(ctx);
@@ -2759,10 +2911,16 @@ class _PostCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: TextButton.icon(
-              icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: Color(0xFFEF4444),
+              ),
               label: const Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Delete Post', style: TextStyle(color: Color(0xFFEF4444))),
+                child: Text(
+                  'Delete Post',
+                  style: TextStyle(color: Color(0xFFEF4444)),
+                ),
               ),
               onPressed: () {
                 Navigator.pop(ctx);
@@ -2774,7 +2932,10 @@ class _PostCard extends StatelessWidget {
           Center(
             child: TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF64748B)),
+              ),
             ),
           ),
         ],
@@ -2787,12 +2948,20 @@ class _PostCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Keep Post', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to approve and keep this post? This will clear any pending reviews.'),
+        title: const Text(
+          'Keep Post',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to approve and keep this post? This will clear any pending reviews.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -2804,7 +2973,9 @@ class _PostCard extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0F8A4B),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Confirm'),
           ),
@@ -2819,19 +2990,26 @@ class _PostCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Send Warning', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Send Warning',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Send a warning to the author of this post. The post will remain visible but marked with a warning.'),
+            const Text(
+              'Send a warning to the author of this post. The post will remain visible but marked with a warning.',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: msgController,
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Enter warning message to the user...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 contentPadding: const EdgeInsets.all(12),
               ),
             ),
@@ -2840,7 +3018,10 @@ class _PostCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -2858,7 +3039,9 @@ class _PostCard extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Send'),
           ),
@@ -2870,8 +3053,11 @@ class _PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final myId = context.watch<AuthBloc>().state.loginData?.id;
-    final role = context.watch<AuthBloc>().state.loginData?.role.toUpperCase() ?? 'MEMBER';
-    final isAdmin = role == 'SUB_ADMIN' || role == 'ADMIN' || role == 'SUPER_ADMIN';
+    final role =
+        context.watch<AuthBloc>().state.loginData?.role.toUpperCase() ??
+        'MEMBER';
+    final isAdmin =
+        role == 'SUB_ADMIN' || role == 'ADMIN' || role == 'SUPER_ADMIN';
     final isOwner =
         myId != null && post.createdById != null && myId == post.createdById;
 
@@ -2925,7 +3111,10 @@ class _PostCard extends StatelessWidget {
                               size: 18,
                             ),
                             SizedBox(width: 10),
-                            Text('Delete Post', style: TextStyle(color: Color(0xFFEF4444))),
+                            Text(
+                              'Delete Post',
+                              style: TextStyle(color: Color(0xFFEF4444)),
+                            ),
                           ],
                         ),
                       ),
@@ -2949,7 +3138,11 @@ class _PostCard extends StatelessWidget {
                         value: 'report',
                         child: Row(
                           children: [
-                            Icon(Icons.flag_outlined, color: Color(0xFFF59E0B), size: 18),
+                            Icon(
+                              Icons.flag_outlined,
+                              color: Color(0xFFF59E0B),
+                              size: 18,
+                            ),
                             SizedBox(width: 10),
                             Text('Report Post'),
                           ],
@@ -3045,7 +3238,7 @@ class _PollCard extends StatelessWidget {
         ? poll.options.fold<int>(0, (sum, option) => sum + option.votesCount)
         : poll.votesCount;
     final hasVoted = poll.userVoteOptionId != null;
-    
+
     bool isExpired = false;
     if (poll.expiresAt != null && poll.expiresAt!.isNotEmpty) {
       try {
@@ -3202,47 +3395,58 @@ class _AuthorLine extends StatelessWidget {
               width: 38,
               height: 38,
               child: image != null && image!.trim().isNotEmpty
-                  ? (image!.startsWith('http://') || image!.startsWith('https://')
-                      ? Image.network(
-                          image!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Center(
-                            child: Text(
-                              name.isEmpty ? 'C' : name.characters.first.toUpperCase(),
-                              style: const TextStyle(
-                                color: _primary,
-                                fontWeight: FontWeight.w900,
+                  ? (image!.startsWith('http://') ||
+                            image!.startsWith('https://')
+                        ? Image.network(
+                            image!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(
+                                name.isEmpty
+                                    ? 'C'
+                                    : name.characters.first.toUpperCase(),
+                                style: const TextStyle(
+                                  color: _primary,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                      : AsyncBase64Image(
-                          base64String: image!.contains('base64,')
-                              ? image!.substring(image!.indexOf('base64,') + 7)
-                              : image!,
-                          fit: BoxFit.cover,
-                          placeholderBuilder: (_) => Center(
-                            child: Text(
-                              name.isEmpty ? 'C' : name.characters.first.toUpperCase(),
-                              style: const TextStyle(
-                                color: _primary,
-                                fontWeight: FontWeight.w900,
+                          )
+                        : AsyncBase64Image(
+                            base64String: image!.contains('base64,')
+                                ? image!.substring(
+                                    image!.indexOf('base64,') + 7,
+                                  )
+                                : image!,
+                            fit: BoxFit.cover,
+                            placeholderBuilder: (_) => Center(
+                              child: Text(
+                                name.isEmpty
+                                    ? 'C'
+                                    : name.characters.first.toUpperCase(),
+                                style: const TextStyle(
+                                  color: _primary,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
-                          ),
-                          errorBuilder: (_, __, ___) => Center(
-                            child: Text(
-                              name.isEmpty ? 'C' : name.characters.first.toUpperCase(),
-                              style: const TextStyle(
-                                color: _primary,
-                                fontWeight: FontWeight.w900,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(
+                                name.isEmpty
+                                    ? 'C'
+                                    : name.characters.first.toUpperCase(),
+                                style: const TextStyle(
+                                  color: _primary,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
                             ),
-                          ),
-                        ))
+                          ))
                   : Center(
                       child: Text(
-                        name.isEmpty ? 'C' : name.characters.first.toUpperCase(),
+                        name.isEmpty
+                            ? 'C'
+                            : name.characters.first.toUpperCase(),
                         style: const TextStyle(
                           color: _primary,
                           fontWeight: FontWeight.w900,
@@ -3384,13 +3588,17 @@ class _AnimatedLikeButtonState extends State<_AnimatedLikeButton>
 
     _scaleAnimation = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 1.35)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        tween: Tween(
+          begin: 1.0,
+          end: 1.35,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
         weight: 50,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.35, end: 1.0)
-            .chain(CurveTween(curve: Curves.elasticOut)),
+        tween: Tween(
+          begin: 1.35,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.elasticOut)),
         weight: 50,
       ),
     ]).animate(_controller);
@@ -3403,7 +3611,7 @@ class _AnimatedLikeButtonState extends State<_AnimatedLikeButton>
       _isLiked = widget.initialIsLiked;
       _likes = widget.initialLikes;
     } else {
-      // If parent rebuilds but post is same, we ONLY sync if the server 
+      // If parent rebuilds but post is same, we ONLY sync if the server
       // updated the like count. We don't overwrite our optimistic state
       // if it's currently running an animation.
       if (!_controller.isAnimating) {
@@ -3447,7 +3655,9 @@ class _AnimatedLikeButtonState extends State<_AnimatedLikeButton>
             ScaleTransition(
               scale: _scaleAnimation,
               child: Icon(
-                _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                _isLiked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
                 color: _isLiked ? const Color(0xFFE91E63) : _muted,
                 size: 22,
               ),
@@ -3542,10 +3752,7 @@ class _PostImageGrid extends StatelessWidget {
           width: double.infinity,
           height: 280,
           color: const Color(0xFFF1F5F2),
-          child: _ImageSource(
-            value: shown.first,
-            fit: BoxFit.contain,
-          ),
+          child: _ImageSource(value: shown.first, fit: BoxFit.contain),
         ),
       );
     }
@@ -3647,175 +3854,652 @@ class _SampleImage extends StatelessWidget {
 }
 
 class _CommunityCard extends StatelessWidget {
-  const _CommunityCard({
-    required this.community,
-    required this.isJoined,
-  });
+  const _CommunityCard({required this.community, required this.isJoined});
 
   final CommunityModel community;
   final bool isJoined;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _line),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+  void _handleJoin(BuildContext context) {
+    if (community.privacyType == 'SECRET') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This community is invite only.')),
+      );
+      return;
+    }
+    if (community.privacyType == 'PRIVATE') {
+      final inputController = TextEditingController();
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          title: const Text(
+            'Request to Join',
+            style: TextStyle(color: _primary, fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                height: 48,
-                width: 48,
-                decoration: BoxDecoration(
-                  color: _avatarTint(community.name),
-                  borderRadius: BorderRadius.circular(16),
+              const Text('Please provide a reason for joining this community.'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: inputController,
+                decoration: const InputDecoration(
+                  hintText: 'Your reason...',
+                  border: OutlineInputBorder(),
                 ),
-                child: Icon(_groupIcon(community.name), color: _primary, size: 24),
+                maxLines: 3,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      community.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _text,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${community.memberCount} Members',
-                      style: const TextStyle(
-                        color: _muted,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isJoined)
-                SizedBox(
-                  height: 36,
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CommunityDetailsScreen(community: community),
-                        ),
-                      );
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFEAF6EF),
-                      foregroundColor: _secondary,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('OPEN', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
-                  ),
-                )
-              else
-                SizedBox(
-                  height: 36,
-                  child: FilledButton(
-                    onPressed: () {
-                      if (community.privacyType == 'PRIVATE' || community.privacyType == 'SECRET') {
-                        final inputController = TextEditingController();
-                        showDialog(
-                          context: context,
-                          builder: (dialogContext) => AlertDialog(
-                            title: const Text('Join Private Group', style: TextStyle(color: _primary, fontWeight: FontWeight.bold)),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Please provide a reason for joining this community.'),
-                                const SizedBox(height: 12),
-                                TextField(
-                                  controller: inputController,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Your reason',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  maxLines: 3,
-                                ),
-                              ],
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(dialogContext),
-                                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-                              ),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: _primary),
-                                onPressed: () {
-                                  final text = inputController.text.trim();
-                                  Navigator.pop(dialogContext);
-                                  context.read<CommunityBloc>().add(JoinCommunity(
-                                    communityId: community.id,
-                                    reason: text,
-                                  ));
-                                },
-                                child: const Text('Send Request', style: TextStyle(color: Colors.white)),
-                              ),
-                            ],
-                          ),
-                        );
-                      } else {
-                        context.read<CommunityBloc>().add(JoinCommunity(communityId: community.id));
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('JOIN', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
-                  ),
-                ),
             ],
           ),
-          if (!isJoined && community.description != null && community.description!.isNotEmpty) ...[
-            const Padding(
-              padding: EdgeInsets.only(top: 12, bottom: 8),
-              child: Divider(color: _line, height: 1),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
-            Text(
-              community.description!,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _muted,
-                fontSize: 13,
-                height: 1.4,
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primary),
+              onPressed: () {
+                final text = inputController.text.trim();
+                Navigator.pop(dialogContext);
+                context.read<CommunityBloc>().add(
+                  JoinCommunity(communityId: community.id, reason: text),
+                );
+              },
+              child: const Text(
+                'Send Request',
+                style: TextStyle(color: Colors.white),
               ),
             ),
           ],
+        ),
+      );
+    } else {
+      context.read<CommunityBloc>().add(
+        JoinCommunity(communityId: community.id),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locationName = community.location?['name'] as String?;
+    final privacy = community.privacyType.toUpperCase();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        elevation: 0,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CommunityDetailsScreen(community: community),
+              ),
+            );
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEEF2F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+              color: Colors.white,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Card Body ────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Stack(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Avatar / API Image
+                              Container(
+                                height: 48,
+                                width: 48,
+                                decoration: BoxDecoration(
+                                  color: _avatarTint(community.name),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: community.image != null && community.image!.isNotEmpty
+                                      ? Image.network(
+                                          community.image!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Icon(
+                                            _groupIcon(community.name),
+                                            color: _primary,
+                                            size: 24,
+                                          ),
+                                        )
+                                      : Icon(
+                                          _groupIcon(community.name),
+                                          color: _primary,
+                                          size: 24,
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              // Name + Meta
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 60), // Space for privacy badge
+                                      child: Text(
+                                        community.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w900,
+                                          color: _text,
+                                          letterSpacing: -0.2,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.people_alt_outlined,
+                                      size: 12,
+                                      color: _muted,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${community.memberCount} Members',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: _muted,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (locationName != null) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        width: 3,
+                                        height: 3,
+                                        decoration: const BoxDecoration(
+                                          color: _muted,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(
+                                        Icons.location_on_outlined,
+                                        size: 12,
+                                        color: _muted,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Flexible(
+                                        child: Text(
+                                          locationName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: _muted,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Description
+                      if (community.description != null &&
+                          community.description!.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          community.description!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: _muted,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      // ── Action Buttons ────────────────────────────
+                      Row(
+                        children: [
+                          if (isJoined) ...[
+                            Expanded(
+                              child: _CardActionButton(
+                                label: 'Open',
+                                icon: Icons.arrow_forward_rounded,
+                                filled: true,
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => CommunityDetailsScreen(
+                                      community: community,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ] else ...[
+                            Expanded(
+                              child: _CardActionButton(
+                                label: privacy == 'SECRET'
+                                    ? 'Invite Only'
+                                    : privacy == 'PRIVATE'
+                                    ? 'Request to Join'
+                                    : 'Join',
+                                icon: privacy == 'SECRET'
+                                    ? Icons.lock_rounded
+                                    : Icons.add_rounded,
+                                filled: privacy != 'SECRET',
+                                onTap: () => _handleJoin(context),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  // Privacy badge positioned top-right
+                  Positioned(
+                        top: 0,
+                        right: 0,
+                        child: _PrivacyBadge(privacy: privacy),
+                      ),
+                      if (isJoined)
+                        Positioned(
+                          top: 30,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFBBF7D0)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: _secondary, size: 12),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Joined',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: _primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommunityBanner extends StatelessWidget {
+  const _CommunityBanner({required this.name});
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final hue = name.codeUnits.fold(0, (a, b) => a + b) % 60;
+    final color1 = HSLColor.fromAHSL(1, 150.0 + hue, 0.55, 0.22).toColor();
+    final color2 = HSLColor.fromAHSL(1, 160.0 + hue, 0.40, 0.35).toColor();
+    return Container(
+      height: 110,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color1, color2],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Decorative pattern
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.06),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -10,
+            bottom: -15,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.05),
+              ),
+            ),
+          ),
+          Center(
+            child: Icon(
+              _groupIcon(name),
+              color: Colors.white.withOpacity(0.35),
+              size: 52,
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _PrivacyBadge extends StatelessWidget {
+  const _PrivacyBadge({required this.privacy});
+  final String privacy;
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    IconData icon;
+    switch (privacy) {
+      case 'PRIVATE':
+        bg = const Color(0xFFFFF4E5);
+        fg = const Color(0xFFE67E00);
+        icon = Icons.lock_outline_rounded;
+        break;
+      case 'SECRET':
+        bg = const Color(0xFFEEF2FF);
+        fg = const Color(0xFF4F46E5);
+        icon = Icons.shield_outlined;
+        break;
+      default: // PUBLIC
+        bg = const Color(0xFFEAF6EF);
+        fg = const Color(0xFF1A7F45);
+        icon = Icons.public_rounded;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            privacy,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: fg,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardActionButton extends StatelessWidget {
+  const _CardActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.filled = true,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (filled) {
+      return SizedBox(
+        height: 40,
+        child: ElevatedButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 16),
+          label: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      );
+    }
+    return SizedBox(
+      height: 40,
+      child: OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 16),
+        label: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _muted,
+          side: const BorderSide(color: Color(0xFFD0D5DD)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupFilterChip extends StatelessWidget {
+  const _GroupFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? _primary : const Color(0xFFF3F5F4),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: selected ? Colors.white : const Color(0xFF4B5563),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GroupsLoadingSkeleton extends StatefulWidget {
+  const _GroupsLoadingSkeleton();
+  @override
+  State<_GroupsLoadingSkeleton> createState() => _GroupsLoadingSkeletonState();
+}
+
+class _GroupsLoadingSkeletonState extends State<_GroupsLoadingSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _anim = Tween<double>(
+      begin: 0.4,
+      end: 0.9,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, _) {
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          itemCount: 4,
+          itemBuilder: (_, i) => Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFEEF2F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(_anim.value * 0.3),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(_anim.value * 0.3),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 140,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.withOpacity(
+                                    _anim.value * 0.3,
+                                  ),
+                                  borderRadius: BorderRadius.circular(7),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                width: 90,
+                                height: 11,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.withOpacity(
+                                    _anim.value * 0.2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(_anim.value * 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -4338,7 +5022,8 @@ class _CommentTile extends StatelessWidget {
                       name: comment.authorName,
                       location: '',
                       time: _timeAgo(comment.createdAt),
-                      category: comment.authorRole, // Shows Role as a Badge instead of Location
+                      category: comment
+                          .authorRole, // Shows Role as a Badge instead of Location
                       image: comment.createdBy?['image']?.toString(),
                     ),
                     const SizedBox(height: 8),
@@ -4347,9 +5032,13 @@ class _CommentTile extends StatelessWidget {
                     Row(
                       children: [
                         _InlineAction(
-                          icon: comment.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          icon: comment.isLiked
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
                           label: '${comment.likesCount}',
-                          color: comment.isLiked ? const Color(0xFFE91E63) : _muted,
+                          color: comment.isLiked
+                              ? const Color(0xFFE91E63)
+                              : _muted,
                           onTap: () => onLike(comment),
                         ),
                         const SizedBox(width: 16),
@@ -4357,7 +5046,10 @@ class _CommentTile extends StatelessWidget {
                           onTap: () => onReply(comment),
                           borderRadius: BorderRadius.circular(4),
                           child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             child: Text(
                               'Reply',
                               style: TextStyle(
@@ -4381,12 +5073,14 @@ class _CommentTile extends StatelessWidget {
             padding: const EdgeInsets.only(left: 24),
             child: Column(
               children: comment.replies
-                  .map((reply) => _CommentTile(
-                        comment: reply,
-                        onLike: onLike,
-                        onReply: onReply,
-                        isReply: true,
-                      ))
+                  .map(
+                    (reply) => _CommentTile(
+                      comment: reply,
+                      onLike: onLike,
+                      onReply: onReply,
+                      isReply: true,
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -4433,7 +5127,9 @@ class _ExpandableTextState extends State<_ExpandableText> {
               Text.rich(
                 span,
                 maxLines: _expanded ? null : 4,
-                overflow: _expanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                overflow: _expanded
+                    ? TextOverflow.visible
+                    : TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               GestureDetector(
@@ -4548,11 +5244,7 @@ class _CategoryBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 14,
-          ),
+          Icon(icon, color: color, size: 14),
           const SizedBox(width: 5),
           Text(
             category,
@@ -4679,9 +5371,7 @@ Color _avatarTint(String name) {
 }
 
 String _postLocation(PostModel post) {
-  return post.location?['name']?.toString() ??
-      post.community?.name ??
-      '';
+  return post.location?['name']?.toString() ?? post.community?.name ?? '';
 }
 
 String _cleanContent(String content) {

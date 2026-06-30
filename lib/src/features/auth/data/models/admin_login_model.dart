@@ -17,6 +17,7 @@ class AdminLoginModel extends Equatable {
   final String? token;
   final String? bloodGroup;
   final String? professionName;
+  final String? dateOfBirth;
 
   const AdminLoginModel({
     required this.id,
@@ -34,6 +35,7 @@ class AdminLoginModel extends Equatable {
     this.token,
     this.bloodGroup,
     this.professionName,
+    this.dateOfBirth,
   });
 
   factory AdminLoginModel.fromJson(Map<String, dynamic> json, {String? token}) {
@@ -66,6 +68,7 @@ class AdminLoginModel extends Equatable {
       professionName: json['profession'] is Map
           ? (json['profession']['name'] as String?)
           : (json['profession'] as String? ?? json['professionName'] as String?),
+      dateOfBirth: json['dateOfBirth'] as String?,
     );
   }
 
@@ -86,6 +89,7 @@ class AdminLoginModel extends Equatable {
       'token': token,
       'bloodGroup': bloodGroup,
       'professionName': professionName,
+      'dateOfBirth': dateOfBirth,
     };
   }
 
@@ -105,6 +109,7 @@ class AdminLoginModel extends Equatable {
     String? token,
     String? bloodGroup,
     String? professionName,
+    String? dateOfBirth,
   }) {
     return AdminLoginModel(
       id: id ?? this.id,
@@ -122,6 +127,7 @@ class AdminLoginModel extends Equatable {
       token: token ?? this.token,
       bloodGroup: bloodGroup ?? this.bloodGroup,
       professionName: professionName ?? this.professionName,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
     );
   }
 
@@ -142,5 +148,6 @@ class AdminLoginModel extends Equatable {
     token,
     bloodGroup,
     professionName,
+    dateOfBirth,
   ];
 }

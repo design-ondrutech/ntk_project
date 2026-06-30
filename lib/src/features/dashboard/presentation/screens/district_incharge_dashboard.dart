@@ -20,69 +20,161 @@ import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/features/users/data/models/user_location_assignment.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
+import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
+import 'package:ntk_project/src/injection_container.dart';
 
-class AdminDashboard extends StatelessWidget {
-  const AdminDashboard({super.key, required this.authState});
+class DistrictInchargeDashboard extends StatefulWidget {
+  const DistrictInchargeDashboard({super.key, required this.authState});
 
   final AuthState authState;
 
   @override
+  State<DistrictInchargeDashboard> createState() => _DistrictInchargeDashboardState();
+}
+
+class _DistrictInchargeDashboardState extends State<DistrictInchargeDashboard> {
+  int? _selectedDistrictId;
+  List<LocationModel> _taluks = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDistrictId = widget.authState.loginData?.locationId;
+    if (_selectedDistrictId != null) {
+      _fetchTaluks(_selectedDistrictId!);
+    }
+  }
+
+  Future<void> _fetchTaluks(int districtId) async {
+    try {
+      // Use getLocationList to reliably fetch all Taluks for the given district
+      final taluks = await sl<LocationRepository>().getLocationList(type: 'TALUK', parentId: districtId);
+      if (mounted) {
+        setState(() {
+          _taluks = taluks;
+        });
+      }
+    } catch (e) {
+      // Ignore error
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final name = authState.loginData?.name ?? 'Mannargudi Admin';
-    final authLocationId = authState.loginData?.locationId;
-    final userId = authState.loginData?.id;
+    final name = widget.authState.loginData?.name ?? 'District Incharge';
+    final authLocationId = widget.authState.loginData?.locationId;
+    final userId = widget.authState.loginData?.id;
 
-    return BlocBuilder<DashboardBloc, DashboardState>(
-      builder: (context, state) {
-        final stats = state.stats;
-        final locationName = state.globalLocation?.name ?? authState.loginData?.locationName ?? stats?.locationName ?? 'Your Region';
-        
-        final selectedFilterLocationId = state.globalLocation?.id ?? authLocationId;
+    return BlocBuilder<LocationBloc, LocationState>(
+      builder: (context, locationState) {
+        return BlocBuilder<DashboardBloc, DashboardState>(
+          builder: (context, state) {
+            final stats = state.stats;
+            
+            final assignedDistricts = <LocationModel>[];
+            if (authLocationId != null) {
+              assignedDistricts.add(LocationModel(
+                id: authLocationId,
+                name: widget.authState.loginData?.locationName ?? 'Primary',
+                type: 'DISTRICT',
+              ));
+            }
+            for (var a in state.assignedLocations) {
+              if (a.location?.type == 'DISTRICT' && a.locationId != authLocationId) {
+                assignedDistricts.add(a.location!);
+              }
+            }
 
-        // Combine primary location with secondary assigned locations
-        final List<UserLocationAssignment> combinedAssignments = [];
-        if (authLocationId != null) {
-          combinedAssignments.add(UserLocationAssignment(
-            id: 0,
-            userId: userId ?? 0,
-            locationId: authLocationId,
-            isPrimary: true,
-            location: LocationModel(
-              id: authLocationId,
-              name: authState.loginData?.locationName ?? 'Primary',
-              type: 'TALUK',
-            ),
-          ));
-        }
-        for (var a in state.assignedLocations) {
-          if (a.locationId != authLocationId) combinedAssignments.add(a);
-        }
+            final currentDistrict = assignedDistricts.firstWhere(
+              (d) => d.id == _selectedDistrictId,
+              orElse: () => assignedDistricts.first,
+            );
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5),
-          appBar: buildFigmaAppBar(context, locationName),
-          body: RefreshIndicator(
-            onRefresh: () async {
-              context.read<DashboardBloc>().add(
-                LoadDashboardStats(authLocationId, filterLocationId: selectedFilterLocationId, userId: userId),
-              );
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Green Greeting Card with Margins
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF004D2A),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
+            // Create Taluk assignments for the green card dropdown
+            final List<UserLocationAssignment> talukAssignments = [];
+            // Add the district itself as the "All Taluks" option
+            talukAssignments.add(UserLocationAssignment(
+              id: 0,
+              userId: userId ?? 0,
+              locationId: currentDistrict.id,
+              isPrimary: currentDistrict.id == authLocationId,
+              location: LocationModel(
+                id: currentDistrict.id,
+                name: 'All Taluks in ${currentDistrict.name}',
+                type: '', // Empty type so it displays as 'All Taluks in Nagapattinam'
+              ),
+            ));
+            
+            // Add loaded taluks under this district
+            for (var taluk in _taluks) {
+              talukAssignments.add(UserLocationAssignment(
+                id: 0,
+                userId: userId ?? 0,
+                locationId: taluk.id,
+                isPrimary: false,
+                location: taluk,
+              ));
+            }
+
+            final selectedFilterLocationId = state.globalLocation?.id ?? currentDistrict.id;
+
+            return Scaffold(
+              backgroundColor: const Color(0xFFF5F5F5),
+              appBar: NTKAppBar(
+                title: widget.authState.loginData?.name ?? 'District Incharge',
+                subtitle: currentDistrict.name,
+                subtitleWidget: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: currentDistrict.id,
+                    dropdownColor: const Color(0xFF0A3D28),
+                    icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
+                    isDense: true,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    items: assignedDistricts.map((d) {
+                      return DropdownMenuItem<int>(
+                        value: d.id,
+                        child: Text(d.name),
+                      );
+                    }).toList(),
+                    onChanged: (newDistrictId) {
+                      if (newDistrictId != null) {
+                        setState(() => _selectedDistrictId = newDistrictId);
+                        _fetchTaluks(newDistrictId);
+                        final newDist = assignedDistricts.firstWhere((d) => d.id == newDistrictId);
+                        context.read<LocationBloc>().add(DistrictSelected(newDistrictId));
+                        context.read<DashboardBloc>().add(UpdateGlobalLocation(newDist));
+                        context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, filterLocationId: newDistrictId, userId: userId));
+                      }
+                    },
+                  ),
+                ),
+              ),
+              body: RefreshIndicator(
+                onRefresh: () async {
+                  context.read<DashboardBloc>().add(
+                    LoadDashboardStats(authLocationId, filterLocationId: selectedFilterLocationId, userId: userId),
+                  );
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Green Greeting Card with Margins
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF004D2A),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -100,19 +192,21 @@ class AdminDashboard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 DashboardLocationFilter(
-                                  assignments: combinedAssignments,
+                                  assignments: talukAssignments,
                                   selectedLocationId: selectedFilterLocationId,
                                   isDarkTheme: true,
                                   onLocationChanged: (newLocId) {
                                     if (newLocId != null) {
-                                      final assignment = state.assignedLocations.firstWhere((a) => a.location?.id == newLocId, orElse: () => combinedAssignments.firstWhere((a) => a.location?.id == newLocId));
+                                      final assignment = talukAssignments.firstWhere(
+                                        (a) => a.location?.id == newLocId,
+                                      );
                                       if (assignment.location != null) {
                                         context.read<DashboardBloc>().add(UpdateGlobalLocation(assignment.location));
                                         context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, filterLocationId: newLocId, userId: userId));
                                       }
                                     } else {
-                                      context.read<DashboardBloc>().add(const UpdateGlobalLocation(null));
-                                      context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, userId: userId));
+                                      context.read<DashboardBloc>().add(UpdateGlobalLocation(currentDistrict));
+                                      context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, filterLocationId: currentDistrict.id, userId: userId));
                                     }
                                   },
                                 ),
@@ -288,6 +382,17 @@ class AdminDashboard extends StatelessWidget {
                       crossAxisSpacing: 12,
                       childAspectRatio: 2.8,
                       children: [
+                        _buildCustomActionCard(
+                          label: AppLocalizations.of(context)!.addAdmin,
+                          icon: Icons.person_add_alt_1_outlined,
+                          color: const Color(0xFF004D2A),
+                          onTap: () async {
+                            await Navigator.pushNamed(context, '/create_admin');
+                            if (context.mounted) {
+                              context.read<DashboardBloc>().add(LoadDashboardStats(state.globalLocation?.id ?? authLocationId));
+                            }
+                          },
+                        ),
                         _buildCustomActionCard(
                           label: AppLocalizations.of(context)!.addSubAdmin,
                           icon: Icons.person_add_alt_1_outlined,
@@ -542,8 +647,8 @@ class AdminDashboard extends StatelessWidget {
             ),
           ),
         );
-      },
-    );
+      });
+    });
   }
 
   // Today's Activity Card Builder

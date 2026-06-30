@@ -45,7 +45,9 @@ class _UserLocationsManagementScreenState
 
     try {
       final repo = di.sl<UserRepository>();
-      final locations = await repo.getUserAssignedLocations(userId: widget.userId);
+      final locations = await repo.getUserAssignedLocations(
+        userId: widget.userId,
+      );
       if (mounted) {
         setState(() {
           _assignedLocations = locations;
@@ -355,7 +357,8 @@ class _UserLocationsManagementScreenState
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: Text(
-                        '${assigned.location?.type ?? ''} ${assigned.isPrimary ? "(Primary)" : ""}'.trim(),
+                        '${assigned.location?.type ?? ''} ${assigned.isPrimary ? "(Primary)" : ""}'
+                            .trim(),
                         style: TextStyle(
                           color: assigned.isPrimary
                               ? NTKColors.primary

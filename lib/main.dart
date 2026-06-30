@@ -25,6 +25,7 @@ import 'package:ntk_project/src/features/auth/presentation/screens/verification_
 import 'package:ntk_project/src/features/auth/presentation/screens/register_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/create_admin_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/create_sub_admin_screen.dart';
+import 'package:ntk_project/src/features/users/presentation/screens/create_district_incharge_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/create_member_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/pending_requests_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
@@ -61,6 +62,7 @@ import 'package:ntk_project/src/features/members/presentation/bloc/member_event.
 import 'package:ntk_project/src/features/events/presentation/bloc/event_bloc.dart';
 import 'package:ntk_project/src/features/events/presentation/bloc/event_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_management_bloc.dart';
+import 'package:ntk_project/src/features/users/presentation/bloc/user_management_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_bloc.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/pending_requests_bloc.dart';
 import 'package:ntk_project/src/features/requests_broadcasts/presentation/bloc/request_bloc.dart';
@@ -227,6 +229,8 @@ class MainApp extends StatelessWidget {
               context.read<CommunityPostsBloc>().add(
                 const ResetCommunityPosts(),
               );
+              context.read<UserManagementBloc>().add(const ResetUserManagement());
+              context.read<PendingRequestsBloc>().add(const ResetPendingRequests());
             },
             child: MaterialApp(
               navigatorKey: navigatorKey,
@@ -365,6 +369,13 @@ class MainApp extends StatelessWidget {
                   ],
                   child: const CreateAdminScreen(),
                 ),
+                '/create_district_incharge': (context) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider(create: (_) => di.sl<LocationBloc>()),
+                    BlocProvider(create: (_) => di.sl<UserBloc>()),
+                  ],
+                  child: const CreateDistrictInchargeScreen(),
+                ),
                 '/create_sub_admin': (context) => MultiBlocProvider(
                   providers: [
                     BlocProvider(create: (_) => di.sl<LocationBloc>()),
@@ -458,18 +469,6 @@ class _NoInternetOverlayState extends State<NoInternetOverlay> {
                 ),
               ),
               const Spacer(),
-              if (widget.errorDetails != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                  child: Text(
-                    'Debug info: ${widget.errorDetails}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.redAccent,
-                    ),
-                  ),
-                ),
               SizedBox(
                 width: double.infinity,
                 height: 52,

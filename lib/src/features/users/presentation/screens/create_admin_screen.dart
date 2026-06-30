@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/core/widgets/ntk_text_field.dart';
 import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
@@ -100,7 +103,7 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
   void initState() {
     super.initState();
     _locationRepo = LocationRepositoryImpl(sl());
-    _loadDistricts();
+    _initLocationForRole();
     _phoneController.addListener(() {
       if (_phoneErrorText != null) {
         setState(() {
@@ -108,6 +111,71 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
         });
       }
     });
+  }
+
+  Future<void> _initLocationForRole() async {
+    final authState = context.read<AuthBloc>().state;
+    final dashState = context.read<DashboardBloc>().state;
+    final globalLoc = dashState.globalLocation;
+    final role = authState.loginData?.role;
+    final authLocId = authState.loginData?.locationId;
+    final authLocName = authState.loginData?.locationName ?? 'Location';
+
+    if (role == 'DISTRICT_INCHARGE' && authLocId != null) {
+      int distId = authLocId;
+      String distName = authLocName;
+      int? preSelectedTalukId;
+
+      if (globalLoc != null) {
+        if (globalLoc.type?.toUpperCase() == 'DISTRICT') {
+          distId = globalLoc.id;
+          distName = globalLoc.name;
+        } else if (globalLoc.type?.toUpperCase() == 'TALUK') {
+          preSelectedTalukId = globalLoc.id;
+          if (globalLoc.parentId != null) distId = globalLoc.parentId!;
+        }
+      }
+
+      final district = LocationModel(id: distId, name: distName);
+      setState(() {
+        _selectedDistrict = district;
+        _districts = [district];
+      });
+      await _onDistrictChanged(district);
+
+      if (preSelectedTalukId != null && mounted) {
+        final match = _taluks.where((t) => t.id == preSelectedTalukId).firstOrNull;
+        if (match != null) {
+          setState(() {
+            _selectedTaluks.add(match);
+          });
+        }
+      }
+    } else {
+      await _loadDistricts();
+      
+      if (globalLoc != null && mounted) {
+        int distId = globalLoc.id;
+        int? preSelectedTalukId;
+        if (globalLoc.type?.toUpperCase() == 'TALUK') {
+          preSelectedTalukId = globalLoc.id;
+          if (globalLoc.parentId != null) distId = globalLoc.parentId!;
+        }
+        
+        final match = _districts.where((d) => d.id == distId).firstOrNull;
+        if (match != null) {
+          await _onDistrictChanged(match);
+          if (preSelectedTalukId != null && mounted) {
+            final tMatch = _taluks.where((t) => t.id == preSelectedTalukId).firstOrNull;
+            if (tMatch != null) {
+              setState(() {
+                _selectedTaluks.add(tMatch);
+              });
+            }
+          }
+        }
+      }
+    }
   }
 
   Future<void> _loadDistricts() async {

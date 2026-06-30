@@ -5,6 +5,7 @@ import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_state.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_event.dart';
 import 'package:ntk_project/src/features/users/data/models/location_access_request.dart';
 import 'package:ntk_project/src/features/users/domain/repositories/user_repository.dart';
 import 'package:ntk_project/src/injection_container.dart' as di;
@@ -21,6 +22,7 @@ class _LocationRequestsManagementScreenState
     extends State<LocationRequestsManagementScreen> {
   bool _isLoading = true;
   String? _error;
+  final Set<int> _processingRequests = {};
   List<LocationAccessRequest> _requests = [];
 
   @override
@@ -59,6 +61,12 @@ class _LocationRequestsManagementScreenState
     String action, {
     String? rejectionReason,
   }) async {
+    if (_processingRequests.contains(requestId)) return;
+    
+    setState(() {
+      _processingRequests.add(requestId);
+    });
+    
     try {
       final repo = di.sl<UserRepository>();
       final success = await repo.reviewLocationAccessRequest(
@@ -72,10 +80,19 @@ class _LocationRequestsManagementScreenState
           message: 'Request ${action.toLowerCase()}d successfully',
         );
         _loadRequests();
+        
+        // Refresh 'me' query to update local cache in case the user's own role changed
+        context.read<AuthBloc>().add(LoadMeRequested());
       }
     } catch (e) {
       if (mounted) {
         NTKSnackbar.showError(context, message: 'Error: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingRequests.remove(requestId);
+        });
       }
     }
   }
@@ -135,10 +152,14 @@ class _LocationRequestsManagementScreenState
       ),
       body: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, authState) {
-          if (authState.loginData?.role?.toUpperCase() != 'SUPER_ADMIN') {
+          final role = authState.loginData?.role?.toUpperCase() ?? '';
+          if (role != 'SUPER_ADMIN' &&
+              role != 'DISTRICT_INCHARGE' &&
+              role != 'ADMIN' &&
+              role != 'SUB_ADMIN') {
             return const Center(
               child: Text(
-                'Permission Denied. Only Super Admins can access this screen.',
+                'Permission Denied. You do not have access to this screen.',
                 style: TextStyle(color: Colors.red, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
@@ -154,10 +175,33 @@ class _LocationRequestsManagementScreenState
             );
           }
           if (_requests.isEmpty) {
-            return const Center(
-              child: Text(
-                'No pending requests',
-                style: TextStyle(color: NTKColors.textSecondary),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.inbox_outlined,
+                    size: 64,
+                    color: NTKColors.textSecondary.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No pending requests',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: NTKColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'You have no location access requests to review.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: NTKColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -174,6 +218,8 @@ class _LocationRequestsManagementScreenState
                     .map((e) => e.location?.name)
                     .whereType<String>()
                     .join(', ');
+
+                final isProcessing = _processingRequests.contains(request.id);
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -249,28 +295,52 @@ class _LocationRequestsManagementScreenState
                         ),
                         const SizedBox(height: 16),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            TextButton(
-                              onPressed: () =>
-                                  _promptRejectionReason(request.id),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
-                              ),
-                              child: const Text('Reject'),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () =>
-                                  _reviewRequest(request.id, 'APPROVE'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: NTKColors.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: isProcessing
+                                    ? null
+                                    : () => _promptRejectionReason(request.id),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
                                 ),
+                                icon: const Icon(Icons.close, size: 18),
+                                label: const Text('Reject'),
                               ),
-                              child: const Text('Approve'),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: isProcessing
+                                    ? null
+                                    : () => _reviewRequest(request.id, 'APPROVE'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: NTKColors.primary,
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: NTKColors.primary.withOpacity(0.6),
+                                  disabledForegroundColor: Colors.white70,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                icon: isProcessing
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white70,
+                                        ),
+                                      )
+                                    : const Icon(Icons.check, size: 18),
+                                label: Text(isProcessing ? 'Processing...' : 'Approve'),
+                              ),
                             ),
                           ],
                         ),

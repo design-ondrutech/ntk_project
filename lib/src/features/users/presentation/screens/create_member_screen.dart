@@ -9,6 +9,9 @@ import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/data/repositories/location_repository_impl.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
+import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
@@ -33,11 +36,19 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
   LocationModel? _selectedArea;
   LocationModel? _selectedStreet;
 
+  List<LocationModel> _districts = [];
+  List<LocationModel> _taluks = [];
   List<LocationModel> _areas = [];
   List<LocationModel> _streets = [];
 
+  bool _loadingDistricts = false;
+  bool _loadingTaluks = false;
   bool _loadingAreas = false;
   bool _loadingStreets = false;
+
+  bool _isDistrictLocked = true;
+  bool _isTalukLocked = true;
+  bool _isAreaLocked = true;
 
   String? _selectedBloodGroup;
   String? _selectedProfession;
@@ -118,20 +129,57 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
 
   Future<void> _initLocationForRole() async {
     final authState = context.read<AuthBloc>().state;
+    final dashState = context.read<DashboardBloc>().state;
+    final globalLoc = dashState.globalLocation;
     final role = authState.loginData?.role;
-    final locationId = authState.loginData?.locationId;
+    final authLocId = authState.loginData?.locationId;
+    final authLocName = authState.loginData?.locationName ?? 'Location';
 
-    if (role == 'SUB_ADMIN' && locationId != null) {
-      // SUB_ADMIN's locationId = Area ID → lock Area and load Streets
-      final assignedArea = LocationModel(
-        id: locationId,
-        name: authState.loginData?.locationName ?? 'Assigned Area',
-      );
+    if (role == 'SUPER_ADMIN') {
+      _isDistrictLocked = false;
+      _isTalukLocked = false;
+      _isAreaLocked = false;
+      setState(() => _loadingDistricts = true);
+      try {
+        final list = await _locationRepo.getLocationList(type: 'DISTRICT');
+        setState(() {
+          _districts = list;
+          _loadingDistricts = false;
+        });
+      } catch (_) {
+        setState(() => _loadingDistricts = false);
+      }
+    } else if (role == 'SUB_ADMIN' && authLocId != null) {
+      _isDistrictLocked = true;
+      _isTalukLocked = true;
+      _isAreaLocked = true;
+      int areaId = authLocId;
+      String areaName = authLocName;
+      int? preSelectedStreetId;
+
+      if (globalLoc != null) {
+        if (globalLoc.type?.toUpperCase() == 'AREA') {
+          areaId = globalLoc.id;
+          areaName = globalLoc.name;
+        } else if (globalLoc.type?.toUpperCase() == 'STREET') {
+          preSelectedStreetId = globalLoc.id;
+          if (globalLoc.parentId != null) areaId = globalLoc.parentId!;
+        }
+      }
+
+      final assignedArea = LocationModel(id: areaId, name: areaName);
       setState(() {
         _selectedArea = assignedArea;
         _areas = [assignedArea];
       });
       await _onAreaChanged(assignedArea);
+
+      if (preSelectedStreetId != null && mounted) {
+        final match = _streets.where((s) => s.id == preSelectedStreetId).firstOrNull;
+        if (match != null) {
+          setState(() => _selectedStreet = match);
+        }
+      }
 
       // Fetch parent district/taluk in background for form submission
       try {
@@ -147,7 +195,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
               parentId: taluk.id,
               type: 'AREA',
             );
-            if (areas.any((a) => a.id == locationId)) {
+            if (areas.any((a) => a.id == areaId)) {
               if (mounted) {
                 setState(() {
                   _selectedDistrict = district;
@@ -163,10 +211,29 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
       } catch (e) {
         debugPrint('Error finding parent district/taluk: $e');
       }
-    } else if (role == 'ADMIN' && locationId != null) {
-      // ADMIN's locationId = Taluk ID → lock District and Taluk
-      final talukId = locationId;
-      final talukName = authState.loginData?.locationName ?? 'Taluk';
+    } else if (role == 'ADMIN' && authLocId != null) {
+      _isDistrictLocked = true;
+      _isTalukLocked = true;
+      _isAreaLocked = false;
+      int talukId = authLocId;
+      String talukName = authLocName;
+      int? preSelectedAreaId;
+      int? preSelectedStreetId;
+
+      if (globalLoc != null) {
+        if (globalLoc.type?.toUpperCase() == 'TALUK') {
+          talukId = globalLoc.id;
+          talukName = globalLoc.name;
+        } else if (globalLoc.type?.toUpperCase() == 'AREA') {
+          preSelectedAreaId = globalLoc.id;
+          if (globalLoc.parentId != null) talukId = globalLoc.parentId!;
+        } else if (globalLoc.type?.toUpperCase() == 'STREET') {
+          preSelectedStreetId = globalLoc.id;
+          // In CreateMemberScreen, we don't have the parent of parent easily,
+          // so if they clicked a street from dashboard, we might miss the Taluk.
+          // For now, let's just use the Admin's base taluk, but we could do more logic.
+        }
+      }
 
       final adminTaluk = LocationModel(id: talukId, name: talukName);
       setState(() {
@@ -195,9 +262,47 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
       }
 
       await _onTalukChanged(adminTaluk);
+      if (preSelectedAreaId != null && mounted) {
+        final match = _areas.where((a) => a.id == preSelectedAreaId).firstOrNull;
+        if (match != null) {
+          await _onAreaChanged(match);
+          if (preSelectedStreetId != null && mounted) {
+            final sMatch = _streets.where((s) => s.id == preSelectedStreetId).firstOrNull;
+            if (sMatch != null) {
+              setState(() => _selectedStreet = sMatch);
+            }
+          }
+        }
+      }
     } else {
     }
     // No fallback needed – all roles have location assigned
+  }
+
+  Future<void> _onDistrictChanged(LocationModel? district) async {
+    setState(() {
+      _selectedDistrict = district;
+      _selectedTaluk = null;
+      _selectedArea = null;
+      _selectedStreet = null;
+      _taluks = [];
+      _areas = [];
+      _streets = [];
+    });
+    if (district == null) return;
+    setState(() => _loadingTaluks = true);
+    try {
+      final list = await _locationRepo.getLocationList(
+        type: 'TALUK',
+        parentId: district.id,
+      );
+      setState(() {
+        _taluks = list;
+        _loadingTaluks = false;
+      });
+    } catch (_) {
+      setState(() => _loadingTaluks = false);
+    }
   }
 
   Future<void> _onTalukChanged(LocationModel? taluk) async {
@@ -350,8 +455,6 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userRole = context.watch<AuthBloc>().state.loginData?.role;
-    final isSubAdmin = userRole == 'SUB_ADMIN';
 
     return BlocListener<UserBloc, UserState>(
       listener: (context, state) {
@@ -430,36 +533,53 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
               const SizedBox(height: 16),
 
               // ── District ─────────────────────────────────
-              if (!isSubAdmin) ...[ 
-                // ADMIN: District is auto-locked to admin's district
-                _buildLockedField('District', _selectedDistrict?.name ?? 'Loading...'),
-                const SizedBox(height: 16),
+              _loadingDistricts
+                  ? _buildLoadingField('District')
+                  : _isDistrictLocked
+                      ? _buildLockedField('District', _selectedDistrict?.name ?? 'Loading...')
+                      : NTKDropdownField<LocationModel>(
+                          label: 'District',
+                          items: _districts,
+                          selectedValue: _selectedDistrict,
+                          hintText: 'Select District',
+                          onChanged: _onDistrictChanged,
+                          itemLabel: (item) => item.name,
+                        ),
+              const SizedBox(height: 16),
 
-                // ── Taluk (Locked – Admin's taluk) ────────────
-                _buildLockedField('Taluk', _selectedTaluk?.name ?? 'Loading...'),
-                const SizedBox(height: 16),
+              // ── Taluk ─────────────────────────────────────
+              _loadingTaluks
+                  ? _buildLoadingField('Taluk')
+                  : _selectedDistrict == null && !_isDistrictLocked
+                      ? _buildDisabledField('Taluk', 'Select District first')
+                      : _isTalukLocked
+                          ? _buildLockedField('Taluk', _selectedTaluk?.name ?? 'Loading...')
+                          : NTKDropdownField<LocationModel>(
+                              label: 'Taluk',
+                              items: _taluks,
+                              selectedValue: _selectedTaluk,
+                              hintText: 'Select Taluk',
+                              onChanged: _onTalukChanged,
+                              itemLabel: (item) => item.name,
+                            ),
+              const SizedBox(height: 16),
 
-                // ── Area ──────────────────────────────────────
-                _loadingAreas
-                    ? _buildLoadingField('Area')
-                    : _selectedTaluk == null
-                    ? _buildDisabledField('Area', 'Select Taluk first')
-                    : NTKDropdownField<LocationModel>(
-                        label: 'Area',
-                        items: _areas,
-                        selectedValue: _selectedArea,
-                        hintText: 'Select Area',
-                        onChanged: _onAreaChanged,
-                        itemLabel: (item) => item.name,
-                      ),
-                const SizedBox(height: 16),
-              ],
-
-              // SUB_ADMIN: Show their locked Area
-              if (isSubAdmin) ...[
-                _buildLockedField('Area', _selectedArea?.name ?? 'Loading...'),
-                const SizedBox(height: 16),
-              ],
+              // ── Area ──────────────────────────────────────
+              _loadingAreas
+                  ? _buildLoadingField('Area')
+                  : _selectedTaluk == null && !_isTalukLocked
+                      ? _buildDisabledField('Area', 'Select Taluk first')
+                      : _isAreaLocked
+                          ? _buildLockedField('Area', _selectedArea?.name ?? 'Loading...')
+                          : NTKDropdownField<LocationModel>(
+                              label: 'Area',
+                              items: _areas,
+                              selectedValue: _selectedArea,
+                              hintText: 'Select Area',
+                              onChanged: _onAreaChanged,
+                              itemLabel: (item) => item.name,
+                            ),
+              const SizedBox(height: 16),
 
               // ── Street ────────────────────────────────────
               _loadingStreets

@@ -21,6 +21,7 @@ class AuthRepositoryImpl implements AuthRepository {
         addedBy
         image
         bloodGroup
+        dateOfBirth
         profession
         location {
           id

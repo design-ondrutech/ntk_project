@@ -121,7 +121,8 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
     final theme = Theme.of(context);
     final authState = context.watch<AuthBloc>().state;
     // Watch globalLocation from DashboardBloc to trigger rebuild on location updates
-    context.select((DashboardBloc bloc) => bloc.state.globalLocation);
+    final dashboardGlobalLocation = context.select((DashboardBloc bloc) => bloc.state.globalLocation);
+    final headerLocationName = dashboardGlobalLocation?.name ?? authState.loginData?.locationName;
 
     final body = MultiBlocListener(
       listeners: [
@@ -261,7 +262,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(AppLocalizations.of(context)!.broadcastTabTitle, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            Text(authState.loginData?.locationName ?? AppLocalizations.of(context)!.unknownLocation, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500, fontSize: 11, letterSpacing: 1.2)),
+            Text(headerLocationName ?? AppLocalizations.of(context)!.unknownLocation, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500, fontSize: 11, letterSpacing: 1.2)),
           ],
         ),
       ),

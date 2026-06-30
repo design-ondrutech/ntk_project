@@ -4,27 +4,27 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'package:ntk_project/src/core/widgets/ntk_text_field.dart';
 import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/data/repositories/location_repository_impl.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_bloc.dart';
-import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
-import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
-import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_event.dart';
 import 'package:ntk_project/src/features/users/presentation/bloc/user_state.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/core/widgets/ntk_snackbar.dart';
 import 'package:ntk_project/src/injection_container.dart';
 import 'package:ntk_project/src/core/utils/validators.dart';
 
-class CreateSubAdminScreen extends StatefulWidget {
-  const CreateSubAdminScreen({super.key});
+class CreateDistrictInchargeScreen extends StatefulWidget {
+  const CreateDistrictInchargeScreen({super.key});
   @override
-  State<CreateSubAdminScreen> createState() => _CreateSubAdminScreenState();
+  State<CreateDistrictInchargeScreen> createState() => _CreateDistrictInchargeScreenState();
 }
 
-class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
+class _CreateDistrictInchargeScreenState extends State<CreateDistrictInchargeScreen> {
   final _nameController = TextEditingController();
   final _surnameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -32,24 +32,16 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
   final _confirmPasswordController = TextEditingController();
 
   LocationModel? _selectedDistrict;
-  LocationModel? _selectedTaluk;
-  List<LocationModel> _selectedAreas = [];
+  List<LocationModel> _selectedAdditionalDistricts = [];
 
   List<LocationModel> _districts = [];
-  List<LocationModel> _areas = [];
-  List<LocationModel> _taluks = [];
-
   bool _loadingDistricts = false;
-  bool _loadingAreas = false;
-  bool _loadingTaluks = false;
-  bool _isDistrictLocked = true;
-  bool _isTalukLocked = true;
 
   String? _selectedBloodGroup;
   String? _selectedProfession;
   bool _obscure = true;
   bool _obscureConfirm = true;
-
+  
   final _dobController = TextEditingController();
   String? _selectedGender;
   String? _phoneErrorText;
@@ -77,8 +69,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
     );
     if (picked != null) {
       setState(() {
-        _dobController.text =
-            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+        _dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       });
     }
   }
@@ -110,6 +101,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
   void initState() {
     super.initState();
     _locationRepo = LocationRepositoryImpl(sl());
+    _loadDistrictsAndMatch();
     _phoneController.addListener(() {
       if (_phoneErrorText != null) {
         setState(() {
@@ -117,168 +109,44 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
         });
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initLocationForAdmin();
-    });
   }
 
-  /// Admin's locationId is their TALUK ID.
-  /// Resolve parent District from the API and lock District + Taluk.
-  /// Only Area is freely selectable.
-  Future<void> _initLocationForAdmin() async {
-    final authState = context.read<AuthBloc>().state;
-    final dashState = context.read<DashboardBloc>().state;
-    final globalLoc = dashState.globalLocation;
-    final role = authState.loginData?.role;
-    final authLocId = authState.loginData?.locationId;
-    final authLocName = authState.loginData?.locationName ?? 'Location';
-
-    if (role == 'SUPER_ADMIN') {
-      _isDistrictLocked = false;
-      _isTalukLocked = false;
-      setState(() => _loadingDistricts = true);
-      try {
-        final list = await _locationRepo.getLocationList(type: 'DISTRICT');
+  Future<void> _loadDistrictsAndMatch() async {
+    setState(() => _loadingDistricts = true);
+    try {
+      final list = await _locationRepo.getLocationList(type: 'DISTRICT');
+      if (mounted) {
         setState(() {
           _districts = list;
           _loadingDistricts = false;
         });
-      } catch (_) {
+        
+        final dashState = context.read<DashboardBloc>().state;
+        final globalLoc = dashState.globalLocation;
+        
+        if (globalLoc != null) {
+          int distId = globalLoc.id;
+          if (globalLoc.type?.toUpperCase() == 'TALUK' && globalLoc.parentId != null) {
+            distId = globalLoc.parentId!;
+          }
+          final match = list.where((d) => d.id == distId).firstOrNull;
+          if (match != null) {
+            _onDistrictChanged(match);
+          }
+        }
+      }
+    } catch (_) {
+      if (mounted) {
         setState(() => _loadingDistricts = false);
       }
-    } else if (role == 'ADMIN' && authLocId != null) {
-      _isTalukLocked = true;
-      int talukId = authLocId;
-      String talukName = authLocName;
-      int? preSelectedAreaId;
-
-      if (globalLoc != null) {
-        if (globalLoc.type?.toUpperCase() == 'TALUK') {
-          talukId = globalLoc.id;
-          talukName = globalLoc.name;
-        } else if (globalLoc.type?.toUpperCase() == 'AREA') {
-          preSelectedAreaId = globalLoc.id;
-          if (globalLoc.parentId != null) talukId = globalLoc.parentId!;
-        }
-      }
-
-      final adminTaluk = LocationModel(id: talukId, name: talukName);
-      setState(() {
-        _selectedTaluk = adminTaluk;
-      });
-
-      try {
-        final allDistricts = await _locationRepo.getLocationList(type: 'DISTRICT');
-        for (final district in allDistricts) {
-          final taluks = await _locationRepo.getLocationList(
-            type: 'TALUK',
-            parentId: district.id,
-          );
-          if (taluks.any((t) => t.id == talukId)) {
-            if (mounted) setState(() => _selectedDistrict = district);
-            break;
-          }
-        }
-      } catch (e) {
-        debugPrint('_initLocationForAdmin: error resolving district: $e');
-      }
-
-      await _onTalukChanged(adminTaluk);
-      if (preSelectedAreaId != null && mounted) {
-        final match = _areas.where((a) => a.id == preSelectedAreaId).firstOrNull;
-        if (match != null) {
-          setState(() {
-            _selectedAreas.add(match);
-          });
-        }
-      }
-    } else if (role == 'DISTRICT_INCHARGE' && authLocId != null) {
-      _isTalukLocked = false;
-      int distId = authLocId;
-      String distName = authLocName;
-      int? preSelectedTalukId;
-
-      if (globalLoc != null) {
-        if (globalLoc.type?.toUpperCase() == 'DISTRICT') {
-          distId = globalLoc.id;
-          distName = globalLoc.name;
-        } else if (globalLoc.type?.toUpperCase() == 'TALUK') {
-          preSelectedTalukId = globalLoc.id;
-          if (globalLoc.parentId != null) distId = globalLoc.parentId!;
-        }
-      }
-
-      final district = LocationModel(id: distId, name: distName);
-      setState(() {
-        _selectedDistrict = district;
-      });
-      
-      setState(() => _loadingTaluks = true);
-      try {
-        final list = await _locationRepo.getLocationList(
-          type: 'TALUK',
-          parentId: distId,
-        );
-        setState(() {
-          _taluks = list;
-          _loadingTaluks = false;
-        });
-        if (preSelectedTalukId != null) {
-          final match = _taluks.where((t) => t.id == preSelectedTalukId).firstOrNull;
-          if (match != null) {
-            await _onTalukChanged(match);
-          }
-        }
-      } catch (_) {
-        setState(() => _loadingTaluks = false);
-      }
     }
   }
 
-  Future<void> _onDistrictChanged(LocationModel? district) async {
+  void _onDistrictChanged(LocationModel? district) {
     setState(() {
       _selectedDistrict = district;
-      _selectedTaluk = null;
-      _selectedAreas.clear();
-      _taluks = [];
-      _areas = [];
+      _selectedAdditionalDistricts.clear();
     });
-    if (district == null) return;
-    setState(() => _loadingTaluks = true);
-    try {
-      final list = await _locationRepo.getLocationList(
-        type: 'TALUK',
-        parentId: district.id,
-      );
-      setState(() {
-        _taluks = list;
-        _loadingTaluks = false;
-      });
-    } catch (_) {
-      setState(() => _loadingTaluks = false);
-    }
-  }
-
-  Future<void> _onTalukChanged(LocationModel? taluk) async {
-    setState(() {
-      _selectedTaluk = taluk;
-      _selectedAreas.clear();
-      _areas = [];
-    });
-    if (taluk == null) return;
-    setState(() => _loadingAreas = true);
-    try {
-      final list = await _locationRepo.getLocationList(
-        type: 'AREA',
-        parentId: taluk.id,
-      );
-      setState(() {
-        _areas = list;
-        _loadingAreas = false;
-      });
-    } catch (_) {
-      setState(() => _loadingAreas = false);
-    }
   }
 
   @override
@@ -300,22 +168,17 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
     }
   }
 
-  void _onCreateSubAdmin() {
+  void _onCreateDistrictIncharge() {
     if (_nameController.text.trim().isEmpty) {
       _showSnack('Please enter full name');
       return;
     }
     if (!Validators.isValidName(_nameController.text)) {
-      _showSnack(
-        'Full Name can only contain English and Tamil alphabets and spaces',
-      );
+      _showSnack('Full Name can only contain English and Tamil alphabets and spaces');
       return;
     }
-    if (_surnameController.text.trim().isNotEmpty &&
-        !Validators.isValidName(_surnameController.text)) {
-      _showSnack(
-        'Surname can only contain English and Tamil alphabets and spaces',
-      );
+    if (_surnameController.text.trim().isNotEmpty && !Validators.isValidName(_surnameController.text)) {
+      _showSnack('Surname can only contain English and Tamil alphabets and spaces');
       return;
     }
     if (_phoneController.text.trim().isEmpty) {
@@ -324,14 +187,6 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
     }
     if (_selectedDistrict == null) {
       _showSnack('Please select a District');
-      return;
-    }
-    if (_selectedTaluk == null) {
-      _showSnack('Please select a Taluk');
-      return;
-    }
-    if (_selectedAreas.isEmpty) {
-      _showSnack('Please select at least one Area');
       return;
     }
     if (_selectedBloodGroup == null) {
@@ -351,9 +206,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
       return;
     }
 
-    final dob = _dobController.text.trim().isEmpty
-        ? null
-        : _dobController.text.trim();
+    final dob = _dobController.text.trim().isEmpty ? null : _dobController.text.trim();
     final gender = _selectedGender;
 
     context.read<UserBloc>().add(
@@ -364,10 +217,11 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
             : _surnameController.text.trim(),
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
-        role: 'SUB_ADMIN',
-        locationId: _selectedAreas.first.id,
-        additionalLocationIds: _selectedAreas.length > 1 
-            ? _selectedAreas.skip(1).map((e) => e.id).toList() 
+        role: 'DISTRICT_INCHARGE',
+        locationId: _selectedDistrict!.id,
+        districtId: _selectedDistrict!.id,
+        additionalLocationIds: _selectedAdditionalDistricts.isNotEmpty
+            ? _selectedAdditionalDistricts.map((e) => e.id).toList()
             : null,
         dateOfBirth: dob,
         gender: gender,
@@ -382,7 +236,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
     return BlocListener<UserBloc, UserState>(
       listener: (context, state) {
         if (state is UserCreatedSuccess) {
-          _showSnack('Sub Admin created successfully', isError: false);
+          _showSnack('District Incharge created successfully', isError: false);
           Navigator.pop(context);
         } else if (state is UserFailure) {
           final errMsg = state.error;
@@ -400,10 +254,8 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F4F8),
         appBar: NTKAppBar(
-          title: 'Create Sub Admin',
-          subtitle:
-              context.read<AuthBloc>().state.loginData?.locationName ??
-              'Admin Portal',
+          title: 'Create District Incharge',
+          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
           showNotification: false,
         ),
         body: SingleChildScrollView(
@@ -412,7 +264,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Sub Admin Details',
+                'District Incharge Details',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -421,7 +273,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Assign a new sub-administrator for a specific Area.',
+                'Assign a new incharge for a District.',
                 style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
               ),
               const SizedBox(height: 28),
@@ -454,98 +306,80 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ── District ────────────────────────
+              // ── District ─────────────────────────────────
               _loadingDistricts
-                  ? _buildLoadingField('District')
-                  : _isDistrictLocked
-                      ? _buildLockedField('District', _selectedDistrict?.name ?? 'Loading...')
-                      : NTKDropdownField<LocationModel>(
-                          label: 'District',
+                  ? _buildLoadingField('Primary District')
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        NTKDropdownField<LocationModel>(
+                          label: 'Primary District',
                           items: _districts,
                           selectedValue: _selectedDistrict,
-                          hintText: 'Select District',
+                          hintText: 'Select Primary District',
                           onChanged: _onDistrictChanged,
                           itemLabel: (item) => item.name,
                         ),
-              const SizedBox(height: 16),
-
-              // ── Taluk ─────────────────────────────────────
-              _loadingTaluks
-                  ? _buildLoadingField('Taluk')
-                  : _selectedDistrict == null && !_isDistrictLocked
-                      ? _buildDisabledField('Taluk', 'Select District first')
-                      : _isTalukLocked
-                          ? _buildLockedField('Taluk', _selectedTaluk?.name ?? 'Loading...')
-                          : NTKDropdownField<LocationModel>(
-                              label: 'Taluk',
-                              items: _taluks,
-                              selectedValue: _selectedTaluk,
-                              hintText: 'Select Taluk',
-                              onChanged: _onTalukChanged,
-                              itemLabel: (item) => item.name,
-                            ),
-              const SizedBox(height: 16),
-
-              // ── Area ──────────────────────────────────────
-              _loadingAreas
-                  ? _buildLoadingField('Area')
-                  : _selectedTaluk == null
-                      ? _buildDisabledField('Area', 'Select Taluk first')
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(bottom: 8, left: 4),
-                              child: Text(
-                                'Select Areas (Assign one or more)',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF374151),
-                                ),
+                        if (_selectedDistrict != null) ...[
+                          const SizedBox(height: 16),
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8, left: 4),
+                            child: Text(
+                              'Additional Districts (Optional)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF374151),
                               ),
                             ),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: NTKColors.border),
-                              ),
-                              child: _areas.isEmpty
-                                  ? const Text('No areas found', style: TextStyle(color: Colors.grey))
-                                  : Wrap(
-                                      spacing: 8.0,
-                                      runSpacing: 4.0,
-                                      children: _areas.map((area) {
-                                        final isSelected = _selectedAreas.contains(area);
-                                        return FilterChip(
-                                          label: Text(area.name),
-                                          selected: isSelected,
-                                          onSelected: (selected) {
-                                            setState(() {
-                                              if (selected) {
-                                                _selectedAreas.add(area);
-                                              } else {
-                                                _selectedAreas.remove(area);
-                                              }
-                                            });
-                                          },
-                                          selectedColor: NTKColors.primary.withOpacity(0.2),
-                                          checkmarkColor: NTKColors.primary,
-                                          labelStyle: TextStyle(
-                                            color: isSelected ? NTKColors.primary : Colors.black87,
-                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
+                          ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE5E7EB)),
                             ),
-                          ],
-                        ),
-              const SizedBox(height: 16),
+                            child: Wrap(
+                              spacing: 8.0,
+                              runSpacing: 4.0,
+                              children: _districts
+                                  .where((d) => d.id != _selectedDistrict!.id)
+                                  .map((district) {
+                                final isSelected =
+                                    _selectedAdditionalDistricts.contains(district);
+                                return FilterChip(
+                                  label: Text(district.name),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedAdditionalDistricts.add(district);
+                                      } else {
+                                        _selectedAdditionalDistricts.remove(district);
+                                      }
+                                    });
+                                  },
+                                  selectedColor: const Color(0xFF004D2A).withOpacity(0.1),
+                                  checkmarkColor: const Color(0xFF004D2A),
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? const Color(0xFF004D2A)
+                                        : Colors.black87,
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
 
+              const SizedBox(height: 16),
 
               // ── Blood Group ──────────────────────────────
               NTKDropdownField<String>(
@@ -641,7 +475,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : _onCreateSubAdmin,
+                      onPressed: isLoading ? null : _onCreateDistrictIncharge,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: NTKColors.primary,
                         shape: RoundedRectangleBorder(
@@ -653,7 +487,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
                               color: Colors.white,
                             )
                           : const Text(
-                              'CREATE SUB ADMINISTRATOR',
+                              'CREATE DISTRICT INCHARGE',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -745,58 +579,6 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
               Text(
                 message,
                 style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Shows a non-editable field with the value pre-filled (e.g. locked district).
-  Widget _buildLockedField(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF374151),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 54,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.location_city_rounded,
-                size: 18,
-                color: Color(0xFF3B82F6),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: Color(0xFF1D4ED8),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.lock_rounded,
-                size: 14,
-                color: Color(0xFF93C5FD),
               ),
             ],
           ),

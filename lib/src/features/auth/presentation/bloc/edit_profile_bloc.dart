@@ -19,6 +19,7 @@ class SubmitEditProfile extends EditProfileEvent {
   final String bloodGroup;
   final String professionName;
   final String? image;
+  final String? dateOfBirth;
 
   const SubmitEditProfile({
     required this.id,
@@ -28,10 +29,11 @@ class SubmitEditProfile extends EditProfileEvent {
     required this.bloodGroup,
     required this.professionName,
     this.image,
+    this.dateOfBirth,
   });
 
   @override
-  List<Object?> get props => [id, name, surname, phone, bloodGroup, professionName, image];
+  List<Object?> get props => [id, name, surname, phone, bloodGroup, professionName, image, dateOfBirth];
 }
 
 // States
@@ -86,6 +88,7 @@ class EditProfileBloc extends Bloc<EditProfileEvent, EditProfileState> {
         bloodGroup: event.bloodGroup,
         professionName: event.professionName,
         image: event.image,
+        dateOfBirth: event.dateOfBirth,
       );
       emit(EditProfileSuccess(member));
     } catch (e) {

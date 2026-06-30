@@ -7,6 +7,8 @@ import 'package:ntk_project/src/core/widgets/ntk_text_field.dart';
 import 'package:ntk_project/src/core/widgets/ntk_dropdown_field.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_state.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
 import 'package:ntk_project/src/injection_container.dart';
@@ -80,7 +82,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
 
   Future<void> _loadStreets() async {
     final authState = context.read<AuthBloc>().state;
-    final areaId = authState.loginData?.locationId;
+    final dashState = context.read<DashboardBloc>().state;
+    final areaId = dashState.globalLocation?.id ?? authState.loginData?.locationId;
     if (areaId == null) return;
 
     setState(() => isLoadingStreets = true);
@@ -203,7 +206,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
         streetId: selectedStreet!.id,
-        areaId: authState.loginData?.locationId,
+        areaId: context.read<DashboardBloc>().state.globalLocation?.id ?? authState.loginData?.locationId,
         bloodGroup: selectedBloodGroup,
         professionName: _professionController.text.trim(),
         dateOfBirth: dob,
@@ -237,6 +240,7 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
         appBar: NTKAppBar(
           title: 'Add Member',
           subtitle:
+              context.read<DashboardBloc>().state.globalLocation?.name ??
               context.read<AuthBloc>().state.loginData?.locationName ??
               'Admin Portal',
           showNotification: false,
@@ -246,10 +250,12 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, authState) {
-                  final areaName =
-                      authState.loginData?.locationName ?? 'Community';
+              BlocBuilder<DashboardBloc, DashboardState>(
+                builder: (context, dashState) {
+                  return BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, authState) {
+                      final areaName =
+                          dashState.globalLocation?.name ?? authState.loginData?.locationName ?? 'Community';
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -270,12 +276,13 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(height: 28),
                     ],
                   );
                 },
-              ),
-              const SizedBox(height: 28),
-
+              );
+            },
+          ),
               // ── Full Name ────────────────────────────────
               NTKTextField(
                 label: 'Full Name',

@@ -1185,18 +1185,13 @@ class CommunityRepositoryImpl implements CommunityRepository {
     String? search,
   }) async {
     const String query = r'''
-      query GetCommunityMembers($communityId: Int!, $role: String, $search: String) {
-        getCommunityMembers(communityId: $communityId, role: $role, search: $search) {
+      query GetCommunityMembers($communityId: Int!, $role: CommunityGroupRole, $limit: Int, $offset: Int) {
+        getCommunityMembers(communityId: $communityId, role: $role, limit: $limit, offset: $offset) {
           id
-          userId
+          name
           role
-          joinedAt
-          user {
-            id
-            name
-            phone
-            image
-          }
+          image
+          memberSince
         }
       }
     ''';
@@ -1205,8 +1200,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
       query,
       variables: {
         'communityId': communityId,
-        if (role != null) 'role': role,
-        if (search != null) 'search': search,
+        if (role != null) 'role': role.toUpperCase(),
       },
     );
 
@@ -1639,8 +1633,13 @@ class CommunityRepositoryImpl implements CommunityRepository {
       query,
       variables: {'communityId': communityId, 'status': status},
     );
-    if (result.hasException)
+    if (result.hasException) {
+      final errors = result.exception?.graphqlErrors;
+      if (errors != null && errors.isNotEmpty) {
+        throw Exception(errors.first.message);
+      }
       throw Exception('Failed to fetch pending requests: ${result.exception}');
+    }
     final List data =
         result.data?['getPendingCommunityJoinRequests'] as List? ?? [];
     return data
@@ -1670,8 +1669,13 @@ class CommunityRepositoryImpl implements CommunityRepository {
         'rejectionReason': rejectionReason,
       },
     );
-    if (result.hasException)
+    if (result.hasException) {
+      final errors = result.exception?.graphqlErrors;
+      if (errors != null && errors.isNotEmpty) {
+        throw Exception(errors.first.message);
+      }
       throw Exception('Failed to review request: ${result.exception}');
+    }
     return result.data?['reviewCommunityJoinRequest'] as bool? ?? false;
   }
 
@@ -1694,8 +1698,13 @@ class CommunityRepositoryImpl implements CommunityRepository {
         'newRole': newRole,
       },
     );
-    if (result.hasException)
+    if (result.hasException) {
+      final errors = result.exception?.graphqlErrors;
+      if (errors != null && errors.isNotEmpty) {
+        throw Exception(errors.first.message);
+      }
       throw Exception('Failed to update role: ${result.exception}');
+    }
     return result.data?['updateCommunityMemberRole'] as bool? ?? false;
   }
 

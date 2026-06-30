@@ -6,6 +6,10 @@ abstract class UserManagementEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+class ResetUserManagement extends UserManagementEvent {
+  const ResetUserManagement();
+}
+
 class LoadUsers extends UserManagementEvent {
   final int? locationId;
   final String type; // 'All', 'Admin', 'Sub Admin', 'Member', 'Pending'

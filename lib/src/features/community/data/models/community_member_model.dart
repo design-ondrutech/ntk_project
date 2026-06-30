@@ -30,9 +30,9 @@ class CommunityMemberModel extends Equatable {
       phone: json['phone'] as String?,
       image: json['image'] as String?,
       role: json['role'] as String?,
-      isGroupAdmin: json['isGroupAdmin'] as bool? ?? false,
+      isGroupAdmin: json['isGroupAdmin'] as bool? ?? (json['role'] == 'ADMIN'),
       isMuted: json['isMuted'] as bool? ?? false,
-      joinedAt: json['joinedAt'] as String?,
+      joinedAt: json['memberSince'] as String? ?? json['joinedAt'] as String?,
     );
   }
 

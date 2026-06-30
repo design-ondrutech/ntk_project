@@ -6,6 +6,14 @@ import 'community_admin_state.dart';
 class CommunityAdminBloc extends Bloc<CommunityAdminEvent, CommunityAdminState> {
   final CommunityRepository _repository;
 
+  String _formatError(dynamic e) {
+    String msg = e.toString();
+    if (msg.startsWith('Exception: ')) {
+      return msg.substring(11);
+    }
+    return msg;
+  }
+
   CommunityAdminBloc(this._repository) : super(const CommunityAdminState()) {
     on<FetchCommunityAnalyticsEvent>(_onFetchCommunityAnalytics);
     on<FetchCommunityBansEvent>(_onFetchCommunityBans);
@@ -65,7 +73,7 @@ class CommunityAdminBloc extends Bloc<CommunityAdminEvent, CommunityAdminState> 
       final requests = await _repository.getPendingCommunityJoinRequests(communityId: event.communityId);
       emit(state.copyWith(isLoadingJoinRequests: false, joinRequests: requests));
     } catch (e) {
-      emit(state.copyWith(isLoadingJoinRequests: false, error: 'Failed to fetch join requests: $e'));
+      emit(state.copyWith(isLoadingJoinRequests: false, error: _formatError(e)));
     }
   }
 
@@ -83,7 +91,7 @@ class CommunityAdminBloc extends Bloc<CommunityAdminEvent, CommunityAdminState> 
       final requests = await _repository.getPendingCommunityJoinRequests(communityId: event.communityId);
       emit(state.copyWith(isApproving: false, joinRequests: requests, successMessage: 'Request reviewed', clearSuccess: false));
     } catch (e) {
-      emit(state.copyWith(isApproving: false, error: 'Failed to review request: $e'));
+      emit(state.copyWith(isApproving: false, error: _formatError(e)));
     }
   }
 
@@ -100,7 +108,7 @@ class CommunityAdminBloc extends Bloc<CommunityAdminEvent, CommunityAdminState> 
       final requests = await _repository.getPendingCommunityJoinRequests(communityId: event.communityId);
       emit(state.copyWith(isApproving: false, joinRequests: requests, successMessage: 'Bulk approve successful', clearSuccess: false));
     } catch (e) {
-      emit(state.copyWith(isApproving: false, error: 'Failed to bulk approve: $e'));
+      emit(state.copyWith(isApproving: false, error: _formatError(e)));
     }
   }
 

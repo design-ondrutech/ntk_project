@@ -10,6 +10,7 @@ import 'package:ntk_project/src/features/location/presentation/bloc/location_eve
 import 'package:ntk_project/src/features/dashboard/presentation/screens/super_admin_dashboard.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/admin_dashboard.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/sub_admin_dashboard.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/screens/district_incharge_dashboard.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/member_dashboard.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -27,13 +28,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final loginData = authState.loginData;
     if (loginData != null) {
       final locationId = loginData.locationId;
-      final globalLocationId = context.read<DashboardBloc>().state.globalLocation?.id;
+      final globalLocationId = context
+          .read<DashboardBloc>()
+          .state
+          .globalLocation
+          ?.id;
       context.read<DashboardBloc>().add(
-        LoadDashboardStats(locationId, filterLocationId: globalLocationId != locationId ? globalLocationId : null, userId: loginData.id),
+        LoadDashboardStats(
+          locationId,
+          filterLocationId: globalLocationId != locationId
+              ? globalLocationId
+              : null,
+          userId: loginData.id,
+        ),
       );
-      context.read<DashboardBloc>().add(
-        LoadModerationStats(locationId),
-      );
+      context.read<DashboardBloc>().add(LoadModerationStats(locationId));
       final role = loginData.role;
       context.read<PendingRequestsBloc>().add(
         LoadPendingRequests(
@@ -41,9 +50,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           role: role == 'SUB_ADMIN' ? 'MEMBER' : 'All',
         ),
       );
-      
-      if (role == 'ADMIN' && locationId != null) {
-        // Load constituencies under the Admin's district
+
+      if ((role == 'ADMIN' || role == 'DISTRICT_INCHARGE') && locationId != null) {
+        // Load constituencies under the Admin/District Incharge's district
         context.read<LocationBloc>().add(DistrictSelected(locationId));
       } else {
         context.read<LocationBloc>().add(const FetchDistricts());
@@ -58,6 +67,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final role = authState.loginData?.role ?? 'MEMBER';
         if (role == 'SUPER_ADMIN') {
           return SuperAdminDashboard(authState: authState);
+        } else if (role == 'DISTRICT_INCHARGE') {
+          return DistrictInchargeDashboard(authState: authState);
         } else if (role == 'ADMIN') {
           return AdminDashboard(authState: authState);
         } else if (role == 'SUB_ADMIN') {

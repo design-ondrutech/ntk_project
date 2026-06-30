@@ -121,7 +121,7 @@ class SubAdminDashboard extends StatelessWidget {
                                         isDarkTheme: true,
                                         onLocationChanged: (newLocId) {
                                           if (newLocId != null) {
-                                            final assignment = state.assignedLocations.firstWhere((a) => a.location?.id == newLocId);
+                                            final assignment = state.assignedLocations.firstWhere((a) => a.location?.id == newLocId, orElse: () => combinedAssignments.firstWhere((a) => a.location?.id == newLocId));
                                             if (assignment.location != null) {
                                               context.read<DashboardBloc>().add(UpdateGlobalLocation(assignment.location));
                                               context.read<DashboardBloc>().add(LoadDashboardStats(authLocationId, filterLocationId: newLocId, userId: userId));
@@ -236,6 +236,86 @@ class SubAdminDashboard extends StatelessWidget {
                           ],
                         ),
                         
+                        const SizedBox(height: 28),
+
+                        // Location Requests Review Section
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/location-requests-management',
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFFF59E0B,
+                                    ).withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.transfer_within_a_station_rounded,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Review Location Requests',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Approve or reject role and location changes',
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.9),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 28),
 
                         // Moderation Section

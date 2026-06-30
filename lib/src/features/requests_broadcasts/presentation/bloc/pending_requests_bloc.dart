@@ -10,6 +10,10 @@ abstract class PendingRequestsEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+class ResetPendingRequests extends PendingRequestsEvent {
+  const ResetPendingRequests();
+}
+
 class LoadPendingRequests extends PendingRequestsEvent {
   final int? locationId;
   final String? role;
@@ -78,6 +82,7 @@ class PendingRequestsBloc
     on<LoadPendingRequests>(_onLoadRequests);
     on<ApproveRequest>(_onApproveRequest);
     on<RejectRequest>(_onRejectRequest);
+    on<ResetPendingRequests>((event, emit) => emit(const PendingRequestsState()));
   }
 
   Future<void> _onLoadRequests(

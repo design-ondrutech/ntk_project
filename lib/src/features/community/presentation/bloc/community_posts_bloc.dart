@@ -133,10 +133,8 @@ class CommunityPostsBloc
         ),
       );
 
-      // 2. Background API Call
-      final newLikesFromServer = isCurrentlyLiked
-          ? await _repository.unlikePost(id: event.postId)
-          : await _repository.likePost(id: event.postId);
+      // 2. Background API Call (likeCommunityPost handles toggling for both like and unlike)
+      final newLikesFromServer = await _repository.likeCommunityPost(postId: event.postId);
 
       // 3. Sync Server State
       final syncedPosts = state.posts.map((post) {

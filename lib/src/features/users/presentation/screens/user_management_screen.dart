@@ -39,6 +39,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
   int? _localTotalAdmins;
   int? _localTotalSubAdmins;
   int? _localTotalMembers;
+  int? _localTotalDistrictIncharges;
   bool _loadingStats = false;
 
   void selectTab(String tabName) {
@@ -52,8 +53,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   final ScrollController _scrollController = ScrollController();
-  int _selectedTab = 0; // 0=All, 1=Admin, 2=Sub Admin, 3=Member, 4=Pending
-  final List<String> _tabs = ['All', 'Admin', 'Sub Admin', 'Member', 'Pending'];
+  int _selectedTab = 0; // 0=All, 1=District Incharge, 2=Admin, 3=Sub Admin, 4=Member, 5=Pending
+  final List<String> _tabs = ['All', 'District Incharge', 'Admin', 'Sub Admin', 'Member', 'Pending'];
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _userRole = 'MEMBER';
@@ -97,9 +98,9 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     'Other',
   ];
 
-  // Sub Admin sees only Member tab
+  // Sub Admin sees All, Sub Admin, Member tabs
   List<String> get _visibleTabs {
-    if (_userRole == 'SUB_ADMIN') return ['Member'];
+    if (_userRole == 'SUB_ADMIN') return ['All', 'Sub Admin', 'Member'];
     return _tabs;
   }
 
@@ -129,11 +130,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
       }
     }
 
-    // Sub Admin defaults to Member tab
     if (_userRole == 'SUB_ADMIN' || _userRole == 'ADMIN') {
-      if (_userRole == 'SUB_ADMIN') {
-        _selectedTab = _tabs.indexOf('Member');
-      }
       // Load streets for filter
       final locationId = authState.loginData?.locationId;
       if (locationId != null) {
@@ -260,6 +257,53 @@ class UserManagementScreenState extends State<UserManagementScreen> {
               return;
             }
           }
+        }
+
+      } else if (role == 'DISTRICT_INCHARGE' && authLocationId != null) {
+        final List<LocationModel> userDistricts = [];
+        userDistricts.add(LocationModel(
+          id: authLocationId,
+          name: authState.loginData?.locationName ?? 'Primary District',
+          type: 'DISTRICT',
+        ));
+        for (var a in dashState.assignedLocations) {
+          if (a.locationId != authLocationId && a.location != null) {
+            userDistricts.add(a.location!);
+          }
+        }
+        if (!mounted) return;
+        setState(() => _districts = userDistricts);
+
+        if (globalLocation != null) {
+          final type = globalLocation.type?.toUpperCase();
+          if (type == 'DISTRICT' && _selectedDistrict == null) {
+            final match = userDistricts.where((d) => d.id == globalLocation.id).firstOrNull;
+            if (match != null) {
+              setState(() => _selectedDistrict = match);
+              await _loadConstituencies(match.id, clearSelection: false);
+              _loadUsers();
+              return;
+            }
+          }
+        }
+
+        if (_selectedDistrict == null && statsLocationName != null && statsLocationName != 'Tamil Nadu') {
+          final match = userDistricts.where((d) => d.name.toLowerCase() == statsLocationName.toLowerCase()).firstOrNull;
+          if (match != null && mounted) {
+            setState(() => _selectedDistrict = match);
+            await _loadConstituencies(match.id, clearSelection: false);
+            _loadUsers();
+            return;
+          }
+        }
+
+        // Default select if not already set
+        if (_selectedDistrict == null && userDistricts.isNotEmpty) {
+           setState(() => _selectedDistrict = userDistricts.first);
+           await _loadConstituencies(userDistricts.first.id, clearSelection: false);
+           _loadUsers();
+        } else {
+           _loadUsers();
         }
 
       } else {
@@ -405,6 +449,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
           _localTotalAdmins = stats.totalAdmins;
           _localTotalSubAdmins = stats.totalSubAdmins;
           _localTotalMembers = stats.totalMembers;
+          _localTotalDistrictIncharges = stats.totalDistrictIncharges;
           _loadingStats = false;
         });
       }
@@ -442,6 +487,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
 
   String _getRoleLabel(String? role) {
     switch (role) {
+      case 'DISTRICT_INCHARGE':
+        return 'District Incharge';
       case 'ADMIN':
         return 'Admin';
       case 'SUB_ADMIN':
@@ -457,6 +504,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
 
   Color _getRoleBgColor(String? role) {
     switch (role) {
+      case 'DISTRICT_INCHARGE':
+        return const Color(0xFFF3E8FF);
       case 'ADMIN':
         return const Color(0xFFE0E7FF);
       case 'SUB_ADMIN':
@@ -470,6 +519,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
 
   Color _getRoleTextColor(String? role) {
     switch (role) {
+      case 'DISTRICT_INCHARGE':
+        return const Color(0xFF7E22CE);
       case 'ADMIN':
         return const Color(0xFF4338CA);
       case 'SUB_ADMIN':
@@ -511,11 +562,13 @@ class UserManagementScreenState extends State<UserManagementScreen> {
             (u) =>
                 u.role == null ||
                 u.role!.isEmpty ||
-                u.role!.toUpperCase() == 'MEMBER',
+                !['ADMIN', 'SUB_ADMIN', 'SUPER_ADMIN'].contains(u.role!.toUpperCase()),
           )
           .toList();
     } else if (currentTabType == 'Admin') {
       result = result.where((u) => u.role?.toUpperCase() == 'ADMIN').toList();
+    } else if (currentTabType == 'District Incharge') {
+      result = result.where((u) => u.role?.toUpperCase() == 'DISTRICT_INCHARGE').toList();
     } else if (currentTabType == 'Sub Admin') {
       result = result
           .where((u) => u.role?.toUpperCase() == 'SUB_ADMIN')
@@ -524,18 +577,21 @@ class UserManagementScreenState extends State<UserManagementScreen> {
 
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
+      final qNormalized = _normalizeBloodGroup(q).toLowerCase();
       result = result
           .where(
             (u) =>
                 u.name.toLowerCase().contains(q) ||
                 (u.phone ?? '').contains(q) ||
-                (u.location?.name.toLowerCase().contains(q) ?? false),
+                (u.location?.name.toLowerCase().contains(q) ?? false) ||
+                (u.bloodGroup != null && _normalizeBloodGroup(u.bloodGroup).toLowerCase().contains(qNormalized)),
           )
           .toList();
     }
     if (_selectedBloodGroup != null) {
+      final selectedNormalized = _normalizeBloodGroup(_selectedBloodGroup);
       result = result
-          .where((u) => u.bloodGroup == _selectedBloodGroup)
+          .where((u) => _normalizeBloodGroup(u.bloodGroup) == selectedNormalized)
           .toList();
     }
     if (_selectedProfession != null) {
@@ -549,6 +605,20 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     }
 
     return result;
+  }
+
+  String _normalizeBloodGroup(String? bg) {
+    if (bg == null) return '';
+    String normal = bg.toUpperCase().replaceAll(' ', '_');
+    if (normal == 'O_POSITIVE' || normal == 'O+') return 'O+';
+    if (normal == 'O_NEGATIVE' || normal == 'O-') return 'O-';
+    if (normal == 'A_POSITIVE' || normal == 'A+') return 'A+';
+    if (normal == 'A_NEGATIVE' || normal == 'A-') return 'A-';
+    if (normal == 'B_POSITIVE' || normal == 'B+') return 'B+';
+    if (normal == 'B_NEGATIVE' || normal == 'B-') return 'B-';
+    if (normal == 'AB_POSITIVE' || normal == 'AB+') return 'AB+';
+    if (normal == 'AB_NEGATIVE' || normal == 'AB-') return 'AB-';
+    return normal;
   }
 
   @override
@@ -1391,8 +1461,17 @@ class UserManagementScreenState extends State<UserManagementScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            // Super Admin can add Admin
+            // Super Admin can add District Incharge
             if (_userRole == 'SUPER_ADMIN') ...[
+              _addOption(Icons.admin_panel_settings, 'Add District Incharge', () async {
+                Navigator.pop(context);
+                await Navigator.pushNamed(context, '/create_district_incharge');
+                _loadUsers();
+              }),
+              const SizedBox(height: 12),
+            ],
+            // Super Admin and District Incharge can add Admin
+            if (_userRole == 'SUPER_ADMIN' || _userRole == 'DISTRICT_INCHARGE') ...[
               _addOption(Icons.admin_panel_settings_outlined, 'Add Admin', () async {
                 Navigator.pop(context);
                 await Navigator.pushNamed(context, '/create_admin');
@@ -1400,8 +1479,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
               }),
               const SizedBox(height: 12),
             ],
-            // Super Admin and Admin can add Sub Admin
-            if (_userRole == 'SUPER_ADMIN' || _userRole == 'ADMIN') ...[
+            // Super Admin, Admin, and District Incharge can add Sub Admin
+            if (_userRole == 'SUPER_ADMIN' || _userRole == 'ADMIN' || _userRole == 'DISTRICT_INCHARGE') ...[
               _addOption(Icons.badge_outlined, 'Add Sub Admin', () async {
                 Navigator.pop(context);
                 await Navigator.pushNamed(context, '/create_sub_admin');
@@ -1494,6 +1573,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
             }
             _loadUsers();
           },
+          showAllOption: role == 'SUPER_ADMIN',
         ),
       );
     }
@@ -1519,6 +1599,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
             }
             _loadUsers();
           },
+          showAllOption: role == 'SUPER_ADMIN' || role == 'ADMIN' || _constituencies.length > 1,
         ),
       );
     }
@@ -1542,6 +1623,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
             }
             _loadUsers();
           },
+          showAllOption: role == 'SUPER_ADMIN' || role == 'ADMIN' || role == 'CONSTITUENCY_INCHARGE' || _areas.length > 1,
         ),
       );
     }
@@ -1556,6 +1638,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
           setState(() => _selectedStreet = val);
           _loadUsers();
         },
+        showAllOption: _streets.length > 1,
       ),
     );
 
@@ -1614,8 +1697,9 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     String hint,
     List<LocationModel> items,
     LocationModel? selectedItem,
-    ValueChanged<LocationModel?> onChanged,
-  ) {
+    ValueChanged<LocationModel?> onChanged, {
+    bool showAllOption = true,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
@@ -1655,15 +1739,16 @@ class UserManagementScreenState extends State<UserManagementScreen> {
               ),
               selectedItemBuilder: (_) {
                 return [
-                  Text(
-                    hint,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF111827),
+                  if (showAllOption || items.isEmpty)
+                    Text(
+                      hint,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
                   ...items.map(
                     (item) => Text(
                       item.name,
@@ -1678,13 +1763,14 @@ class UserManagementScreenState extends State<UserManagementScreen> {
                 ];
               },
               items: [
-                DropdownMenuItem<LocationModel?>(
-                  value: null,
-                  child: Text(
-                    hint,
-                    style: const TextStyle(fontSize: 12),
+                if (showAllOption || items.isEmpty)
+                  DropdownMenuItem<LocationModel?>(
+                    value: null,
+                    child: Text(
+                      hint,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
-                ),
                 ...items.map(
                   (item) => DropdownMenuItem<LocationModel?>(
                     value: item,
@@ -1831,12 +1917,14 @@ class UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Widget _buildHorizontalStats() {
-    final total = (_localTotalAdmins ?? 0) + (_localTotalSubAdmins ?? 0) + (_localTotalMembers ?? 0);
+    final total = (_localTotalAdmins ?? 0) + (_localTotalSubAdmins ?? 0) + (_localTotalMembers ?? 0) + (_localTotalDistrictIncharges ?? 0);
     return Row(
       children: [
         Expanded(child: _buildSmallStatCard('Admins', _localTotalAdmins ?? 0, const Color(0xFF166534))),
         const SizedBox(width: 8),
         Expanded(child: _buildSmallStatCard('Sub Admins', _localTotalSubAdmins ?? 0, const Color(0xFF1E40AF))),
+        const SizedBox(width: 8),
+        Expanded(child: _buildSmallStatCard('Dist. Inch', _localTotalDistrictIncharges ?? 0, const Color(0xFF9333EA))),
         const SizedBox(width: 8),
         Expanded(child: _buildSmallStatCard('Members', _localTotalMembers ?? 0, const Color(0xFF065F46))),
         const SizedBox(width: 8),

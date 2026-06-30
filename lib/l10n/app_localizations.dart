@@ -812,6 +812,12 @@ abstract class AppLocalizations {
   /// **'Add Admin'**
   String get addAdmin;
 
+  /// No description provided for @addDistrictIncharge.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Dist. Incharge'**
+  String get addDistrictIncharge;
+
   /// No description provided for @emergencyAlert.
   ///
   /// In en, this message translates to:
@@ -1183,6 +1189,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Join'**
   String get joinGroup;
+
+  /// No description provided for @groupsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Groups'**
+  String get groupsTab;
+
+  /// No description provided for @feedTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Feed'**
+  String get feedTab;
+
+  /// No description provided for @pollsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Polls'**
+  String get pollsTab;
+
+  /// No description provided for @whatIsHappening.
+  ///
+  /// In en, this message translates to:
+  /// **'What is happening in your area?'**
+  String get whatIsHappening;
+
+  /// No description provided for @photo.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo'**
+  String get photo;
+
+  /// No description provided for @poll.
+  ///
+  /// In en, this message translates to:
+  /// **'Poll'**
+  String get poll;
+
+  /// No description provided for @post.
+  ///
+  /// In en, this message translates to:
+  /// **'Post'**
+  String get post;
+
+  /// No description provided for @requestLocationRoleAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Request Location / Role Access'**
+  String get requestLocationRoleAccess;
+
+  /// No description provided for @myLocationRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'My Location Requests'**
+  String get myLocationRequests;
+
+  /// No description provided for @totalDistrictIncharges.
+  ///
+  /// In en, this message translates to:
+  /// **'Dist. Incharges'**
+  String get totalDistrictIncharges;
 }
 
 class _AppLocalizationsDelegate

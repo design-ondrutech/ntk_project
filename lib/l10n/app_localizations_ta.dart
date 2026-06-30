@@ -374,6 +374,9 @@ class AppLocalizationsTa extends AppLocalizations {
   String get addAdmin => 'நிர்வாகியைச் சேர்';
 
   @override
+  String get addDistrictIncharge => 'மாவட். பொறுப்பாளர்';
+
+  @override
   String get emergencyAlert => 'அவசர அறிவிப்பு';
 
   @override
@@ -564,4 +567,35 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get joinGroup => 'சேர';
+
+  @override
+  String get groupsTab => 'குழுக்கள்';
+
+  @override
+  String get feedTab => 'செய்திகள்';
+
+  @override
+  String get pollsTab => 'வாக்கெடுப்புகள்';
+
+  @override
+  String get whatIsHappening => 'உங்கள் பகுதியில் என்ன நடக்கிறது?';
+
+  @override
+  String get photo => 'புகைப்படம்';
+
+  @override
+  String get poll => 'வாக்கெடுப்பு';
+
+  @override
+  String get post => 'பகிர்க';
+
+  @override
+  String get requestLocationRoleAccess =>
+      'இருப்பிடம் / பொறுப்பு அணுகல் கோரிக்கை';
+
+  @override
+  String get myLocationRequests => 'எனது இருப்பிட கோரிக்கைகள்';
+
+  @override
+  String get totalDistrictIncharges => 'மாவட்ட பொறுப்பாளர்கள்';
 }

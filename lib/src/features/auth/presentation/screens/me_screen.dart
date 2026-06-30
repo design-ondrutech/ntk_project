@@ -211,15 +211,6 @@ class _MeScreenState extends State<MeScreen> {
                   flexibleSpace: FlexibleSpaceBar(
                     collapseMode: CollapseMode.parallax,
                     background: _ProfileHeroSection(profile: profile),
-                    title: Text(
-                      profile.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    titlePadding: const EdgeInsets.only(left: 16, bottom: 14),
                   ),
                 ),
 
@@ -691,6 +682,13 @@ class _UserInfoCard extends StatelessWidget {
             value: profile.addedBy ?? '—',
           ),
           _InfoRow(
+            icon: Icons.cake_outlined,
+            iconBg: const Color(0xFFFCE7F3),
+            iconColor: const Color(0xFFDB2777),
+            label: 'Date of Birth',
+            value: profile.dateOfBirth ?? '—',
+          ),
+          _InfoRow(
             icon: Icons.bloodtype_outlined,
             iconBg: const Color(0xFFFEE2E2),
             iconColor: const Color(0xFFEF4444),
@@ -998,14 +996,14 @@ class _QuickActionsCard extends StatelessWidget {
       if (profile.role.toUpperCase() != 'SUPER_ADMIN') ...[
         _ActionItem(
           icon: Icons.add_location_alt_outlined,
-          label: 'Request Location / Role Access',
+          label: loc.requestLocationRoleAccess,
           iconBg: const Color(0xFFFFF7ED),
           iconColor: const Color(0xFFEA580C),
           onTap: () => Navigator.pushNamed(context, '/location-access-request'),
         ),
         _ActionItem(
           icon: Icons.history_rounded,
-          label: 'My Location Requests',
+          label: loc.myLocationRequests,
           iconBg: const Color(0xFFF3E8FF), // light purple
           iconColor: const Color(0xFF9333EA), // purple
           onTap: () => Navigator.pushNamed(context, '/my-location-requests'),

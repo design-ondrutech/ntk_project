@@ -116,11 +116,8 @@ class GraphQLService {
         if (variables.isNotEmpty) 'variables': variables,
       });
 
-      final requestFuture = http.post(Uri.parse(_endpoint), headers: headers, body: body);
-      // Catch and ignore late errors from the original future to prevent unhandled exceptions after timeout
-      requestFuture.ignore();
-      
-      final response = await requestFuture.timeout(const Duration(seconds: 120));
+      final response = await http.post(Uri.parse(_endpoint), headers: headers, body: body)
+          .timeout(const Duration(seconds: 120));
 
       Map<String, dynamic> json;
       try {

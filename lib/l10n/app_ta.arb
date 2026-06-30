@@ -97,6 +97,7 @@
   "totalSubAdmins": "மொத்த துணை நிர்வாகிகள்",
   "totalMembers": "மொத்த உறுப்பினர்கள்",
   "addAdmin": "நிர்வாகியைச் சேர்",
+  "addDistrictIncharge": "மாவட். பொறுப்பாளர்",
   "emergencyAlert": "அவசர அறிவிப்பு",
   "requests": "கோரிக்கைகள்",
   "accountLabel": "கணக்கு",
@@ -191,5 +192,15 @@
   "sendRequest": "கோரிக்கையை அனுப்பு",
   "adminDashboard": "நிர்வாகி டாஷ்போர்டு",
   "communityArchivedMessage": "இந்த சமூகம் காப்பகப்படுத்தப்பட்டுள்ளது. முந்தைய செய்திகளை நீங்கள் படிக்கலாம், ஆனால் புதிய செய்திகளை அனுப்ப முடியாது.",
-  "joinGroup": "சேர"
+  "joinGroup": "சேர",
+  "groupsTab": "குழுக்கள்",
+  "feedTab": "செய்திகள்",
+  "pollsTab": "வாக்கெடுப்புகள்",
+  "whatIsHappening": "உங்கள் பகுதியில் என்ன நடக்கிறது?",
+  "photo": "புகைப்படம்",
+  "poll": "வாக்கெடுப்பு",
+  "post": "பகிர்க",
+  "requestLocationRoleAccess": "இருப்பிடம் / பொறுப்பு அணுகல் கோரிக்கை",
+  "myLocationRequests": "எனது இருப்பிட கோரிக்கைகள்",
+  "totalDistrictIncharges": "மாவட்ட பொறுப்பாளர்கள்"
 }

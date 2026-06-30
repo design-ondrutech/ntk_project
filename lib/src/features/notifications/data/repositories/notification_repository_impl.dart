@@ -1,4 +1,5 @@
 import 'package:ntk_project/src/core/network/graphql_service.dart';
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/notifications/data/models/notification_model.dart';
 import 'package:ntk_project/src/features/notifications/domain/repositories/notification_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -363,4 +364,67 @@ class NotificationRepositoryImpl implements NotificationRepository {
       ),
     ];
   }
+
+  @override
+  Future<List<LocationModel>> getForwardLocations({
+    required int entityId,
+    required String type,
+  }) async {
+    const String query = r'''
+      query GetForwardLocations($entityId: Int!, $type: String!) {
+        getForwardLocations(entityId: $entityId, type: $type) {
+          id
+          name
+        }
+      }
+    ''';
+
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: {
+        'entityId': entityId,
+        'type': type,
+      },
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to get forward locations: ${result.exception}');
+    }
+
+    final List data = result.data?['getForwardLocations'] as List? ?? [];
+    return data.map((json) => LocationModel.fromJson(json)).toList();
+  }
+
+  @override
+  Future<bool> forwardNotification({
+    required int entityId,
+    required String type,
+    required List<int> targetLocationIds,
+  }) async {
+    const String mutation = r'''
+      mutation ForwardNotification($entityId: Int!, $type: String!, $targetLocationIds: [Int!]!) {
+        forwardNotification(entityId: $entityId, type: $type, targetLocationIds: $targetLocationIds)
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'entityId': entityId,
+        'type': type,
+        'targetLocationIds': targetLocationIds,
+      },
+    );
+
+    if (result.hasException) {
+      final errors = result.exception?.graphqlErrors;
+      if (errors != null && errors.isNotEmpty) {
+        throw Exception(errors.first.message);
+      }
+      throw Exception('Failed to forward notification: ${result.exception}');
+    }
+
+    return result.data?['forwardNotification'] ?? true;
+  }
 }
+

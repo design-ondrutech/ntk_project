@@ -26,6 +26,7 @@ class DashboardRepositoryImpl implements DashboardRepository {
           approvedToday
           activeBroadcasts
           totalTowns
+          totalDistrictIncharges
         }
       }
     ''';

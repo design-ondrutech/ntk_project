@@ -71,10 +71,11 @@ class LocationRepositoryImpl implements LocationRepository {
   Future<List<LocationModel>> getLocationList({
     int? parentId,
     required String type,
+    int? selectedLocationId,
   }) async {
     const String query = r'''
-      query GetLocationList($parentId: Int, $type: LocationType) {
-        getLocationList(parentId: $parentId, type: $type) {
+      query GetLocationList($parentId: Int, $type: LocationType, $selectedLocationId: Int) {
+        getLocationList(parentId: $parentId, type: $type, selectedLocationId: $selectedLocationId) {
           id
           name
           type
@@ -86,6 +87,7 @@ class LocationRepositoryImpl implements LocationRepository {
     final variables = <String, dynamic>{
       'type': type,
       if (parentId != null) 'parentId': parentId,
+      if (selectedLocationId != null) 'selectedLocationId': selectedLocationId,
     };
 
     final result = await _graphQLService.performQuery(

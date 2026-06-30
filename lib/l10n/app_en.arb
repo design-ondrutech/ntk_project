@@ -146,6 +146,7 @@
   "totalSubAdmins": "Total Sub Admins",
   "totalMembers": "Total Members",
   "addAdmin": "Add Admin",
+  "addDistrictIncharge": "Add Dist. Incharge",
   "emergencyAlert": "Emergency Alert",
   "requests": "Requests",
   "accountLabel": "ACCOUNT",
@@ -215,5 +216,16 @@
   "sendRequest": "Send Request",
   "adminDashboard": "Admin Dashboard",
   "communityArchivedMessage": "This community is archived. You can read previous messages, but cannot send new ones.",
-  "joinGroup": "Join"
+  "joinGroup": "Join",
+  "groupsTab": "Groups",
+  "feedTab": "Feed",
+  "pollsTab": "Polls",
+  "whatIsHappening": "What is happening in your area?",
+  "photo": "Photo",
+  "poll": "Poll",
+  "post": "Post",
+  "requestLocationRoleAccess": "Request Location / Role Access",
+  "myLocationRequests": "My Location Requests",
+  "totalDistrictIncharges": "Dist. Incharges"
 }
+

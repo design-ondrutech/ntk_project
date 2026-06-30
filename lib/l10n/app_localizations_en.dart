@@ -374,6 +374,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addAdmin => 'Add Admin';
 
   @override
+  String get addDistrictIncharge => 'Add Dist. Incharge';
+
+  @override
   String get emergencyAlert => 'Emergency Alert';
 
   @override
@@ -561,4 +564,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get joinGroup => 'Join';
+
+  @override
+  String get groupsTab => 'Groups';
+
+  @override
+  String get feedTab => 'Feed';
+
+  @override
+  String get pollsTab => 'Polls';
+
+  @override
+  String get whatIsHappening => 'What is happening in your area?';
+
+  @override
+  String get photo => 'Photo';
+
+  @override
+  String get poll => 'Poll';
+
+  @override
+  String get post => 'Post';
+
+  @override
+  String get requestLocationRoleAccess => 'Request Location / Role Access';
+
+  @override
+  String get myLocationRequests => 'My Location Requests';
+
+  @override
+  String get totalDistrictIncharges => 'Dist. Incharges';
 }

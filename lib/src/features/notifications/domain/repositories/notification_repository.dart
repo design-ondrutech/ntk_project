@@ -1,4 +1,5 @@
 import 'package:ntk_project/src/features/notifications/data/models/notification_model.dart';
+import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 
 abstract class NotificationRepository {
   Future<List<NotificationModel>> getNotifications({
@@ -18,6 +19,18 @@ abstract class NotificationRepository {
   Future<void> markAsRead(int notificationId);
   Future<void> markAllAsRead();
   Future<void> deleteNotification(int notificationId);
+
+  // Forwarding methods
+  Future<List<LocationModel>> getForwardLocations({
+    required int entityId,
+    required String type,
+  });
+
+  Future<bool> forwardNotification({
+    required int entityId,
+    required String type,
+    required List<int> targetLocationIds,
+  });
 
   // Settings methods
   Future<Map<String, bool>> getNotificationSettings();

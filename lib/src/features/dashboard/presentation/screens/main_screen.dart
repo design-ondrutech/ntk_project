@@ -67,11 +67,15 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
         },
         {
-          'screen': UserManagementScreen(key: UserManagementScreen.userManagementKey),
+          'screen': UserManagementScreen(
+            key: UserManagementScreen.userManagementKey,
+          ),
           'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN'],
         },
         {
-          'screen': EventsOverviewScreen(key: EventsOverviewScreen.eventsOverviewKey),
+          'screen': EventsOverviewScreen(
+            key: EventsOverviewScreen.eventsOverviewKey,
+          ),
           'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
         },
         {
@@ -97,8 +101,16 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
           context.read<RequestBloc>().add(LoadRequests(locationId: locId));
         } else if (screen is DashboardScreen && authLocId != null) {
-          context.read<DashboardBloc>().add(LoadDashboardStats(authLocId, filterLocationId: globalLocId != authLocId ? globalLocId : null, userId: authState.loginData?.id));
-          context.read<PendingRequestsBloc>().add(LoadPendingRequests(locationId: locId));
+          context.read<DashboardBloc>().add(
+            LoadDashboardStats(
+              authLocId,
+              filterLocationId: globalLocId != authLocId ? globalLocId : null,
+              userId: authState.loginData?.id,
+            ),
+          );
+          context.read<PendingRequestsBloc>().add(
+            LoadPendingRequests(locationId: locId),
+          );
         }
       }
     } catch (e) {
@@ -120,27 +132,31 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     try {
       final authState = context.read<AuthBloc>().state;
       final userRole = authState.loginData?.role ?? 'MEMBER';
-      
+
       final List<Map<String, dynamic>> allTabs = [
         {
           'screen': const DashboardScreen(),
-          'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
+          'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
         },
         {
-          'screen': UserManagementScreen(key: UserManagementScreen.userManagementKey),
-          'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN'],
+          'screen': UserManagementScreen(
+            key: UserManagementScreen.userManagementKey,
+          ),
+          'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN'],
         },
         {
-          'screen': EventsOverviewScreen(key: EventsOverviewScreen.eventsOverviewKey),
-          'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
+          'screen': EventsOverviewScreen(
+            key: EventsOverviewScreen.eventsOverviewKey,
+          ),
+          'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
         },
         {
           'screen': const CommunityFeedScreen(),
-          'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
+          'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
         },
         {
           'screen': const MeScreen(),
-          'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
+          'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
         },
       ];
 
@@ -162,8 +178,16 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
           context.read<RequestBloc>().add(LoadRequests(locationId: locId));
         } else if (screen is DashboardScreen && authLocId != null) {
-          context.read<DashboardBloc>().add(LoadDashboardStats(authLocId, filterLocationId: globalLocId != authLocId ? globalLocId : null, userId: authState.loginData?.id));
-          context.read<PendingRequestsBloc>().add(LoadPendingRequests(locationId: locId));
+          context.read<DashboardBloc>().add(
+            LoadDashboardStats(
+              authLocId,
+              filterLocationId: globalLocId != authLocId ? globalLocId : null,
+              userId: authState.loginData?.id,
+            ),
+          );
+          context.read<PendingRequestsBloc>().add(
+            LoadPendingRequests(locationId: locId),
+          );
         }
       }
     } catch (e) {
@@ -184,35 +208,39 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         'label': loc.dashboard,
         'icon': Icons.grid_view_outlined,
         'activeIcon': Icons.grid_view_rounded,
-        'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
+        'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
       },
       {
-        'screen': UserManagementScreen(key: UserManagementScreen.userManagementKey),
+        'screen': UserManagementScreen(
+          key: UserManagementScreen.userManagementKey,
+        ),
         'label': loc.users,
         'icon': Icons.people_outline_rounded,
         'activeIcon': Icons.people_rounded,
-        'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN'],
+        'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN'],
       },
       {
-        'screen': EventsOverviewScreen(key: EventsOverviewScreen.eventsOverviewKey),
+        'screen': EventsOverviewScreen(
+          key: EventsOverviewScreen.eventsOverviewKey,
+        ),
         'label': userRole == 'MEMBER' ? loc.announcements : loc.announcements,
         'icon': Icons.assignment_outlined,
         'activeIcon': Icons.assignment_rounded,
-        'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
+        'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
       },
       {
         'screen': const CommunityFeedScreen(),
         'label': loc.community,
         'icon': Icons.forum_outlined,
         'activeIcon': Icons.forum_rounded,
-        'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
+        'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
       },
       {
         'screen': const MeScreen(),
         'label': loc.me,
         'icon': Icons.person_outline_rounded,
         'activeIcon': Icons.person_rounded,
-        'roles': ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
+        'roles': ['SUPER_ADMIN', 'DISTRICT_INCHARGE', 'ADMIN', 'SUB_ADMIN', 'MEMBER'],
       },
     ];
 
@@ -266,9 +294,14 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               final isSelected = filteredTabs.indexOf(tab) == _selectedIndex;
               return BottomNavigationBarItem(
                 icon: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? Colors.white.withOpacity(0.15) : Colors.transparent,
+                    color: isSelected
+                        ? Colors.white.withOpacity(0.15)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(isSelected ? tab['activeIcon'] : tab['icon']),

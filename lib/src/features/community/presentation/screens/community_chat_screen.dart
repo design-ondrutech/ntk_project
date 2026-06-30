@@ -115,9 +115,17 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                 }
 
                 if (state.messages.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'சமூகத்திற்கு வரவேற்கிறோம்! முதல் செய்தியை அனுப்புங்கள்.',
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Text(
+                        'சமூகத்திற்கு வரவேற்கிறோம்! முதல் செய்தியை அனுப்புங்கள்.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: NTKColors.textSecondary,
+                          height: 1.5,
+                        ),
+                      ),
                     ),
                   );
                 }
@@ -258,10 +266,11 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: IntrinsicWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 if (!isMe)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4.0),
@@ -309,6 +318,7 @@ class _CommunityChatScreenState extends State<CommunityChatScreen> {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         ),

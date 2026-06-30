@@ -32,6 +32,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   
   String? _selectedBloodGroup;
   String? _selectedProfession;
+  String? _selectedDateOfBirth;
   File? _pickedImage;
   bool _imageRemoved = false;
   
@@ -62,6 +63,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController = TextEditingController(text: loginData?.name ?? '');
     _surnameController = TextEditingController(text: loginData?.surname ?? '');
     _phoneController = TextEditingController(text: loginData?.phone ?? '');
+    _selectedDateOfBirth = loginData?.dateOfBirth;
     
     final prof = loginData?.professionName?.trim();
     if (prof != null && prof.isNotEmpty) {
@@ -103,6 +105,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (_bloodGroups.contains(bg)) return bg;
         if (_bloodGroups.contains(bloodGroup)) return bloodGroup;
         return null;
+    }
+  }
+
+  Future<void> _pickDateOfBirth() async {
+    final initialDate = _selectedDateOfBirth != null
+        ? (DateTime.tryParse(_selectedDateOfBirth!) ?? DateTime.now())
+        : DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: NTKColors.primary,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _selectedDateOfBirth =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
     }
   }
 
@@ -382,7 +414,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             const SizedBox(height: 16),
 
                             Text(
-                              'Surname',
+                              'Surname *',
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontSize: 13,
                                 color: NTKColors.textSecondary,
@@ -398,6 +430,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 hintText: 'Enter surname',
                                 prefixIcon: Icon(Icons.person_outline),
                               ),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'Please enter surname';
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 16),
 
@@ -432,6 +470,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 }
                                 return null;
                               },
+                            ),
+                            const SizedBox(height: 16),
+
+                            Text(
+                              'Date of Birth',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontSize: 13,
+                                color: NTKColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            InkWell(
+                              onTap: isLoading ? null : _pickDateOfBirth,
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  hintText: 'Select Date of Birth',
+                                  prefixIcon: Icon(Icons.calendar_today_outlined),
+                                ),
+                                child: Text(
+                                  _selectedDateOfBirth ?? 'Select Date of Birth',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _selectedDateOfBirth == null ? Colors.black54 : Colors.black87,
+                                  ),
+                                ),
+                              ),
                             ),
                             const SizedBox(height: 16),
 
@@ -537,6 +602,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       bloodGroup: _selectedBloodGroup!,
                                       professionName: _selectedProfession!,
                                       image: finalImage,
+                                      dateOfBirth: _selectedDateOfBirth,
                                     ),
                                   );
                                 }

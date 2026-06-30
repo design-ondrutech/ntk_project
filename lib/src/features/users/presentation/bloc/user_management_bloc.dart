@@ -14,6 +14,7 @@ class UserManagementBloc
     : super(const UserManagementState()) {
     on<LoadUsers>(_onLoadUsers);
     on<LoadStreets>(_onLoadStreets);
+    on<ResetUserManagement>((event, emit) => emit(const UserManagementState()));
   }
 
   Future<void> _onLoadStreets(
@@ -58,6 +59,8 @@ class UserManagementBloc
           apiRole = 'ADMIN';
         } else if (event.type == 'Sub Admin') {
           apiRole = 'SUB_ADMIN';
+        } else if (event.type == 'District Incharge') {
+          apiRole = 'DISTRICT_INCHARGE';
         } else if (event.type == 'Member') {
           apiRole = 'MEMBER';
         } else if (event.type == 'Pending') {
@@ -80,9 +83,28 @@ class UserManagementBloc
           uniqueUsersMap[u.id] = u;
         }
 
+        final uniqueUsersList = uniqueUsersMap.values.toList();
+        uniqueUsersList.sort((a, b) {
+          int getRoleWeight(String? role) {
+            switch (role?.toUpperCase()) {
+              case 'DISTRICT_INCHARGE':
+                return 4;
+              case 'ADMIN':
+                return 3;
+              case 'SUB_ADMIN':
+                return 2;
+              case 'MEMBER':
+                return 1;
+              default:
+                return 0;
+            }
+          }
+          return getRoleWeight(b.role).compareTo(getRoleWeight(a.role));
+        });
+
         emit(state.copyWith(
           isLoadingMore: false,
-          users: uniqueUsersMap.values.toList(),
+          users: uniqueUsersList,
           hasReachedMax: reachedMax,
         ));
       } catch (e) {
@@ -109,6 +131,8 @@ class UserManagementBloc
           apiRole = 'ADMIN';
         } else if (event.type == 'Sub Admin') {
           apiRole = 'SUB_ADMIN';
+        } else if (event.type == 'District Incharge') {
+          apiRole = 'DISTRICT_INCHARGE';
         } else if (event.type == 'Member') {
           apiRole = 'MEMBER';
         } else if (event.type == 'Pending') {
@@ -131,9 +155,28 @@ class UserManagementBloc
           uniqueUsersMap[u.id] = u;
         }
 
+        final uniqueUsersList = uniqueUsersMap.values.toList();
+        uniqueUsersList.sort((a, b) {
+          int getRoleWeight(String? role) {
+            switch (role?.toUpperCase()) {
+              case 'DISTRICT_INCHARGE':
+                return 4;
+              case 'ADMIN':
+                return 3;
+              case 'SUB_ADMIN':
+                return 2;
+              case 'MEMBER':
+                return 1;
+              default:
+                return 0;
+            }
+          }
+          return getRoleWeight(b.role).compareTo(getRoleWeight(a.role));
+        });
+
         emit(state.copyWith(
           isLoading: false,
-          users: uniqueUsersMap.values.toList(),
+          users: uniqueUsersList,
           hasReachedMax: reachedMax,
         ));
       } catch (e) {

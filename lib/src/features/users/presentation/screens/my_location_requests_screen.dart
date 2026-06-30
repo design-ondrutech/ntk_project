@@ -60,6 +60,29 @@ class _MyLocationRequestsScreenState extends State<MyLocationRequestsScreen> {
     }
   }
 
+  String _formatDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'Unknown';
+    DateTime? date;
+    final ms = int.tryParse(dateStr);
+    if (ms != null) {
+      // Backend timestamp might be in milliseconds
+      date = DateTime.fromMillisecondsSinceEpoch(ms);
+    } else {
+      date = DateTime.tryParse(dateStr)?.toLocal();
+    }
+    
+    if (date != null) {
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+      final year = date.year;
+      final hour = date.hour > 12 ? date.hour - 12 : (date.hour == 0 ? 12 : date.hour);
+      final minute = date.minute.toString().padLeft(2, '0');
+      final ampm = date.hour >= 12 ? 'PM' : 'AM';
+      return '$day/$month/$year $hour:$minute $ampm';
+    }
+    return dateStr;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,12 +112,15 @@ class _MyLocationRequestsScreenState extends State<MyLocationRequestsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Requested Role: ${request.requestedRole}',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      Expanded(
+                                        child: Text(
+                                          'Requested Role: ${request.requestedRole}',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                        ),
                                       ),
+                                      const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
@@ -147,7 +173,7 @@ class _MyLocationRequestsScreenState extends State<MyLocationRequestsScreen> {
                                   ],
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Date: ${request.createdAt ?? 'Unknown'}',
+                                    'Date: ${_formatDate(request.createdAt)}',
                                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                                   ),
                                 ],
