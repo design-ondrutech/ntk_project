@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_posts_bloc.dart';
@@ -47,6 +48,22 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
       }
     }
   }
+
+  Future<void> _pickFromCamera() async {
+    try {
+      final XFile? file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      if (file == null) return;
+      setState(() {
+        _pickedImages.add(File(file.path));
+      });
+    } catch (e) {
+      if (mounted) {
+        NTKSnackbar.showError(context, message: 'Could not open camera. Please try again.');
+      }
+    }
+  }
+
+
 
   void _removeImage(int index) {
     setState(() {
@@ -177,39 +194,38 @@ class _CreateCommunityPostScreenState extends State<CreateCommunityPostScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Attachments Section
-              const Text(
-                'Attachments',
-                style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
+              // Add Photos Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Add Photos',
+                    style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    onPressed: _pickFromCamera,
+                    icon: const Icon(CupertinoIcons.camera_fill, color: Color(0xFF004D2A)),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'You can upload images or documents',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              // Image button only (Document hidden)
+              // Image button only (Gallery)
               InkWell(
                 onTap: _pickImage,
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  width: 100,
+                  height: 100,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
                   ),
-                  child: const Column(
-                    children: [
-                      Icon(Icons.image, color: Color(0xFF008955), size: 32),
-                      SizedBox(height: 8),
-                      Text(
-                        'Image',
-                        style: TextStyle(color: Color(0xFF008955), fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                  child: const Center(
+                    child: Icon(Icons.add, color: Color(0xFF004D2A), size: 32),
                   ),
                 ),
               ),

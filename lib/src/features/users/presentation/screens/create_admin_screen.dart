@@ -123,33 +123,45 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
 
     if (role == 'DISTRICT_INCHARGE' && authLocId != null) {
       int distId = authLocId;
-      String distName = authLocName;
       int? preSelectedTalukId;
 
       if (globalLoc != null) {
         if (globalLoc.type?.toUpperCase() == 'DISTRICT') {
           distId = globalLoc.id;
-          distName = globalLoc.name;
-        } else if (globalLoc.type?.toUpperCase() == 'TALUK') {
+        } else if (globalLoc.type?.toUpperCase() == 'TALUK' || globalLoc.type?.toUpperCase() == 'CONSTITUENCY') {
           preSelectedTalukId = globalLoc.id;
           if (globalLoc.parentId != null) distId = globalLoc.parentId!;
         }
+      } else {
+        final assignedDistricts = dashState.assignedLocations
+            .where((l) => l.location?.type?.toUpperCase() == 'DISTRICT')
+            .map((l) => l.location!)
+            .toList();
+        if (assignedDistricts.isNotEmpty) {
+           distId = assignedDistricts.firstWhere((d) => d.id == authLocId, orElse: () => assignedDistricts.first).id;
+        }
       }
 
-      final district = LocationModel(id: distId, name: distName);
-      setState(() {
-        _selectedDistrict = district;
-        _districts = [district];
-      });
-      await _onDistrictChanged(district);
-
-      if (preSelectedTalukId != null && mounted) {
-        final match = _taluks.where((t) => t.id == preSelectedTalukId).firstOrNull;
-        if (match != null) {
-          setState(() {
-            _selectedTaluks.add(match);
-          });
+      try {
+        final allDistricts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        final match = allDistricts.where((d) => d.id == distId).firstOrNull;
+        if (match != null && mounted) {
+           setState(() {
+             _selectedDistrict = match;
+             _districts = [match];
+           });
+           await _onDistrictChanged(match);
+           if (preSelectedTalukId != null && mounted) {
+             final tMatch = _taluks.where((t) => t.id == preSelectedTalukId).firstOrNull;
+             if (tMatch != null) {
+               setState(() {
+                 _selectedTaluks.add(tMatch);
+               });
+             }
+           }
         }
+      } catch (e) {
+        debugPrint('_initLocationForRole: error resolving district: $e');
       }
     } else {
       await _loadDistricts();
@@ -322,7 +334,7 @@ class _CreateAdminScreenState extends State<CreateAdminScreen> {
         backgroundColor: const Color(0xFFF0F4F8),
         appBar: NTKAppBar(
           title: 'Create Admin',
-          subtitle: context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
+          subtitle: _selectedDistrict?.name ?? context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
           showNotification: false,
         ),
         body: SingleChildScrollView(

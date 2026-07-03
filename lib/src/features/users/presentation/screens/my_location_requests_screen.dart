@@ -4,6 +4,11 @@ import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/features/users/data/models/location_access_request.dart';
 import 'package:ntk_project/src/features/users/domain/repositories/user_repository.dart';
 import 'package:ntk_project/src/injection_container.dart' as di;
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_event.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:ntk_project/src/features/dashboard/presentation/bloc/dashboard_event.dart';
 
 class MyLocationRequestsScreen extends StatefulWidget {
   const MyLocationRequestsScreen({super.key});
@@ -37,6 +42,26 @@ class _MyLocationRequestsScreenState extends State<MyLocationRequestsScreen> {
           _requests = requests;
           _isLoading = false;
         });
+
+        // Background refresh profile and dashboard stats
+        // so that if a request was approved, the app state is instantly updated
+        final authState = context.read<AuthBloc>().state;
+        context.read<AuthBloc>().add(LoadMeRequested());
+        
+        final authLocId = authState.loginData?.locationId;
+        final userId = authState.loginData?.id;
+        final dashboardBloc = context.read<DashboardBloc>();
+        final globalLocId = dashboardBloc.state.globalLocation?.id;
+        
+        if (authLocId != null) {
+          context.read<DashboardBloc>().add(
+            LoadDashboardStats(
+              authLocId,
+              filterLocationId: globalLocId != authLocId ? globalLocId : null,
+              userId: userId,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

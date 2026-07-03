@@ -9,6 +9,7 @@ import 'package:ntk_project/src/features/dashboard/domain/repositories/dashboard
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
 import 'package:ntk_project/src/features/location/domain/repositories/location_repository.dart';
 import 'package:ntk_project/src/injection_container.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class ActivityLogScreen extends StatefulWidget {
   const ActivityLogScreen({super.key});
@@ -47,17 +48,20 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
 
   LocationModel? _appliedLocationFilter;
 
-  final List<String> _chips = [
-    'All',
-    'Members',
-    'Admins',
-    'Sub Admins',
-    'Events',
-    'Broadcast',
-    'Emergency',
-    'Approvals',
-    'Role Changes'
-  ];
+  List<String> _getChips(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+    return [
+      loc.filterAll,
+      loc.roleMembers,
+      loc.admins,
+      loc.subAdmins,
+      loc.events,
+      loc.broadcast,
+      loc.emergency,
+      loc.approvals,
+      loc.roleChanges
+    ];
+  }
 
   @override
   void initState() {
@@ -654,8 +658,8 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: NTKAppBar(
-        title: 'Activity Log',
-        subtitle: 'Dashboard › Activity Log',
+        title: AppLocalizations.of(context)!.activityLog,
+        subtitle: AppLocalizations.of(context)!.dashboardActivityLog,
         showNotification: false,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.white),
@@ -674,12 +678,12 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
-                children: List.generate(_chips.length, (index) {
+                children: List.generate(_getChips(context).length, (index) {
                   final isSelected = _currentIndex == index;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),
                     child: ChoiceChip(
-                      label: Text(_chips[index]),
+                      label: Text(_getChips(context)[index]),
                       selected: isSelected,
                       onSelected: (selected) {
                         if (selected) {
@@ -801,7 +805,7 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Filter',
+                          AppLocalizations.of(context)!.filter,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,

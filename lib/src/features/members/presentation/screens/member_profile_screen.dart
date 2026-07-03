@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
@@ -33,18 +34,13 @@ class MemberProfileScreen extends StatefulWidget {
 class _MemberProfileScreenState extends State<MemberProfileScreen> {
   int? _memberId;
   bool _hasFetched = false;
-  String? _resolvedDistrict;
-  String? _resolvedConstituency;
-  String? _resolvedArea;
-  String? _resolvedStreet;
-  int? _resolvedForMemberId;
-  bool _isResolvingLocation = false;
+
 
   // Local profile image picked by user
   File? _pickedImage;
   final ImagePicker _imagePicker = ImagePicker();
 
-  static const List<String> _roles = ['MEMBER', 'ADMIN', 'SUB_ADMIN'];
+  static const List<String> _roles = ['MEMBER', 'SUB_ADMIN', 'ADMIN', 'DISTRICT_INCHARGE'];
   static const List<String> _bloodGroups = [
     'A+',
     'A-',
@@ -67,163 +63,6 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     'Student',
     'Other',
   ];
-
-  void _resolveParentLocations(MemberModel member) async {
-    if (_resolvedForMemberId == member.id || _isResolvingLocation) return;
-    _resolvedForMemberId = member.id;
-
-    final loc = member.location;
-    if (loc == null) return;
-
-    // Set immediate street name first and placeholders for parent fields
-    setState(() {
-      _resolvedStreet = loc.name;
-      _resolvedArea = '—';
-      _resolvedConstituency = '—';
-      _resolvedDistrict = '—';
-      _isResolvingLocation = true;
-    });
-
-    try {
-      final graphQLService = sl<GraphQLService>();
-
-      // We will resolve sequentially upwards based on type
-      int? currentParentId = loc.parentId;
-      String currentType = loc.type ?? 'STREET';
-
-      if (currentType == 'STREET') {
-        if (currentParentId != null) {
-          // 1. Fetch Area details
-          final areaData = await _fetchSingleLocationDetails(
-            graphQLService,
-            currentParentId,
-          );
-          if (areaData != null && mounted) {
-            setState(() {
-              _resolvedArea = areaData['name'];
-            });
-            currentParentId = areaData['parentId'] != null
-                ? int.tryParse(areaData['parentId'].toString())
-                : null;
-
-            if (currentParentId != null) {
-              // 2. Fetch Taluk details
-              final talukData = await _fetchSingleLocationDetails(
-                graphQLService,
-                currentParentId,
-              );
-              if (talukData != null && mounted) {
-                setState(() {
-                  _resolvedConstituency = talukData['name'];
-                });
-                currentParentId = talukData['parentId'] != null
-                    ? int.tryParse(talukData['parentId'].toString())
-                    : null;
-
-                if (currentParentId != null) {
-                  // 3. Fetch District details
-                  final districtData = await _fetchSingleLocationDetails(
-                    graphQLService,
-                    currentParentId,
-                  );
-                  if (districtData != null && mounted) {
-                    setState(() {
-                      _resolvedDistrict = districtData['name'];
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
-      } else if (currentType == 'AREA') {
-        setState(() {
-          _resolvedArea = loc.name;
-          _resolvedStreet = '—';
-        });
-        if (currentParentId != null) {
-          // Fetch Taluk details
-          final talukData = await _fetchSingleLocationDetails(
-            graphQLService,
-            currentParentId,
-          );
-          if (talukData != null && mounted) {
-            setState(() {
-              _resolvedConstituency = talukData['name'];
-            });
-            currentParentId = talukData['parentId'] != null
-                ? int.tryParse(talukData['parentId'].toString())
-                : null;
-
-            if (currentParentId != null) {
-              // Fetch District details
-              final districtData = await _fetchSingleLocationDetails(
-                graphQLService,
-                currentParentId,
-              );
-              if (districtData != null && mounted) {
-                setState(() {
-                  _resolvedDistrict = districtData['name'];
-                });
-              }
-            }
-          }
-        }
-      } else if (currentType == 'TALUK' || currentType == 'CONSTITUENCY') {
-        setState(() {
-          _resolvedConstituency = loc.name;
-          _resolvedArea = '—';
-          _resolvedStreet = '—';
-        });
-        if (currentParentId != null) {
-          // Fetch District details
-          final districtData = await _fetchSingleLocationDetails(
-            graphQLService,
-            currentParentId,
-          );
-          if (districtData != null && mounted) {
-            setState(() {
-              _resolvedDistrict = districtData['name'];
-            });
-          }
-        }
-      } else if (currentType == 'DISTRICT') {
-        setState(() {
-          _resolvedDistrict = loc.name;
-          _resolvedConstituency = '—';
-          _resolvedArea = '—';
-          _resolvedStreet = '—';
-        });
-      }
-    } catch (e) {
-      debugPrint('Error resolving parent locations: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isResolvingLocation = false;
-        });
-      }
-    }
-  }
-
-  Future<Map<String, dynamic>?> _fetchSingleLocationDetails(
-    GraphQLService service,
-    int id,
-  ) async {
-    const String query = r'''
-      query GetLocationDetails($id: Int!) {
-        getLocationDetails(id: $id) {
-          id
-          name
-          type
-          parentId
-        }
-      }
-    ''';
-    final result = await service.performQuery(query, variables: {'id': id});
-    if (result.hasException) return null;
-    return result.data?['getLocationDetails'] as Map<String, dynamic>?;
-  }
 
   // ── Image picker ──────────────────────────────────────────────────────────
   Future<void> _pickImage(MemberModel member) async {
@@ -422,6 +261,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         ?.role
         .toUpperCase();
     if (currentRole == 'SUB_ADMIN') return const ['MEMBER', 'SUB_ADMIN'];
+    if (currentRole == 'DISTRICT_INCHARGE') return const ['MEMBER', 'SUB_ADMIN', 'ADMIN', 'DISTRICT_INCHARGE'];
     if (currentRole == 'ADMIN' || currentRole == 'SUPER_ADMIN') return _roles;
     return const ['MEMBER'];
   }
@@ -686,7 +526,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                     lastLoadedRole != selectedRole) {
                                   lastLoadedRole = selectedRole;
                                   String targetType = 'STREET';
-                                  if (selectedRole == 'ADMIN') {
+                                  if (selectedRole == 'DISTRICT_INCHARGE') {
+                                    targetType = 'DISTRICT';
+                                  } else if (selectedRole == 'ADMIN') {
                                     targetType = 'TALUK';
                                   } else if (selectedRole == 'SUB_ADMIN') {
                                     targetType = 'AREA';
@@ -695,11 +537,13 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                       .getLocationList(type: targetType);
                                 }
                                 return _buildSheetField(
-                                  label: selectedRole == 'ADMIN'
-                                      ? 'Constituency'
-                                      : (selectedRole == 'SUB_ADMIN'
-                                            ? 'Area'
-                                            : 'Street'),
+                                  label: selectedRole == 'DISTRICT_INCHARGE'
+                                      ? 'District'
+                                      : (selectedRole == 'ADMIN'
+                                          ? 'Constituency'
+                                          : (selectedRole == 'SUB_ADMIN'
+                                                ? 'Area'
+                                                : 'Street')),
                                   child: FutureBuilder<List<LocationModel>>(
                                     future: locationsFuture,
                                     builder: (context, snapshot) {
@@ -716,12 +560,13 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                                           snapshot.connectionState ==
                                                   ConnectionState.waiting
                                               ? 'Loading...'
-                                              : (selectedRole == 'ADMIN'
-                                                    ? 'Select constituency'
-                                                    : (selectedRole ==
-                                                              'SUB_ADMIN'
-                                                          ? 'Select area'
-                                                          : 'Select street')),
+                                              : (selectedRole == 'DISTRICT_INCHARGE'
+                                                    ? 'Select district'
+                                                    : (selectedRole == 'ADMIN'
+                                                          ? 'Select constituency'
+                                                          : (selectedRole == 'SUB_ADMIN'
+                                                                ? 'Select area'
+                                                                : 'Select street'))),
                                         ),
                                         items: locations
                                             .map(
@@ -754,7 +599,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                             ),
                             const SizedBox(height: 16),
                             _buildSheetField(
-                              label: 'Profession',
+                              label: AppLocalizations.of(context)!.profession,
                               child: DropdownButtonFormField<String>(
                                 value: selectedProfession,
                                 isExpanded: true,
@@ -776,7 +621,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                             ),
                             const SizedBox(height: 16),
                             _buildSheetField(
-                              label: 'Date of Birth',
+                              label: AppLocalizations.of(context)!.dateOfBirth,
                               child: TextField(
                                 controller: dobController,
                                 readOnly: true,
@@ -792,7 +637,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                             ),
                             const SizedBox(height: 16),
                             _buildSheetField(
-                              label: 'Gender',
+                              label: AppLocalizations.of(context)!.gender,
                               child: DropdownButtonFormField<String>(
                                 value: selectedGender,
                                 isExpanded: true,
@@ -986,7 +831,6 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     return BlocConsumer<MemberBloc, MemberState>(
       listener: (context, state) {
         if (state.selectedMember != null) {
-          _resolveParentLocations(state.selectedMember!);
           final authBloc = context.read<AuthBloc>();
           final currentUserId = authBloc.state.loginData?.id;
           if (currentUserId == state.selectedMember!.id) {
@@ -995,7 +839,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         }
       },
       builder: (context, state) {
-        if (state.isLoadingDetails || _isResolvingLocation) {
+        if (state.isLoadingDetails) {
           return Scaffold(
             backgroundColor: Colors.white,
             appBar: const NTKAppBar(
@@ -1278,19 +1122,19 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                           title: 'Basic Information',
                           children: [
                             _buildInfoRow(
-                              'Blood Group',
+                              AppLocalizations.of(context)!.bloodGroup,
                               member.bloodGroup ?? '—',
                             ),
                             _buildInfoRow(
-                              'Profession',
+                              AppLocalizations.of(context)!.profession,
                               member.professionName ?? '—',
                             ),
                             _buildInfoRow(
-                              'Date of Birth',
+                              AppLocalizations.of(context)!.dateOfBirth,
                               member.dateOfBirth ?? '—',
                             ),
                             _buildInfoRow(
-                              'Gender',
+                              AppLocalizations.of(context)!.gender,
                               member.gender ?? '—',
                               isLast: true,
                             ),
@@ -1301,34 +1145,60 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                         // ── Location Details ─────────────────────────────
                         Builder(
                           builder: (context) {
-                            final street =
-                                _resolvedStreet ?? member.location?.name ?? '—';
-                            final area = _resolvedArea ?? '—';
-                            final constituency = _resolvedConstituency ?? '—';
-                            final district = _resolvedDistrict ?? '—';
+                            final street = (member.street != null && member.street!.isNotEmpty) ? member.street! : (member.location?.name ?? '—');
+                            final area = (member.area != null && member.area!.isNotEmpty) ? member.area! : '—';
+                            final constituency = (member.constituency != null && member.constituency!.isNotEmpty) ? member.constituency! : '—';
+                            final district = (member.district != null && member.district!.isNotEmpty) ? member.district! : '—';
 
                             final role = member.role?.toUpperCase();
-                            final showArea = role != 'ADMIN';
-                            final showStreet =
-                                role != 'ADMIN' && role != 'SUB_ADMIN';
+                            final isSuperAdmin = role == 'SUPER_ADMIN';
+                            final isDistrictIncharge = role == 'DISTRICT_INCHARGE';
+                            final isAdmin = role == 'ADMIN';
+                            final isSubAdmin = role == 'SUB_ADMIN';
+
+                            final showDistrict = !isSuperAdmin;
+                            final showConstituency = !isSuperAdmin && !isDistrictIncharge;
+                            final showArea = !isSuperAdmin && !isDistrictIncharge && !isAdmin;
+                            final showStreet = !isSuperAdmin && !isDistrictIncharge && !isAdmin && !isSubAdmin;
+
+                            if (!showDistrict) {
+                              return const SizedBox.shrink();
+                            }
 
                             return _buildInfoCard(
                               title: 'Location Details',
                               children: [
-                                _buildInfoRow('District', district),
-                                _buildInfoRow(
-                                  'Constituency',
-                                  constituency,
-                                  isLast: !showArea && !showStreet,
-                                ),
-                                if (showArea)
+                                if (isDistrictIncharge && member.userLocations.isNotEmpty) ...[
+                                  // Show all assigned districts for District Incharge
+                                  ...member.userLocations.asMap().entries.map((entry) {
+                                    final idx = entry.key;
+                                    final ul = entry.value;
+                                    final locName = ul.location?.name ?? '—';
+                                    final label = ul.isPrimary ? 'Primary District' : 'Assigned District';
+                                    final isLast = idx == member.userLocations.length - 1;
+                                    return _buildInfoRow(label, locName, isLast: isLast);
+                                  }),
+                                ] else ...[
                                   _buildInfoRow(
-                                    'Area',
-                                    area,
-                                    isLast: showArea && !showStreet,
+                                    'District',
+                                    district,
+                                    isLast: !showConstituency && !showArea && !showStreet,
                                   ),
-                                if (showStreet)
-                                  _buildInfoRow('Street', street, isLast: true),
+                                  if (showConstituency)
+                                    _buildInfoRow(
+                                      'Constituency',
+                                      constituency,
+                                      isLast: !showArea && !showStreet,
+                                    ),
+                                  if (showArea)
+                                    _buildInfoRow(
+                                      'Area',
+                                      area,
+                                      isLast: !showStreet,
+                                    ),
+                                  if (showStreet)
+                                    _buildInfoRow('Street', street, isLast: true),
+                                ],
                               ],
                             );
                           },
@@ -1481,17 +1351,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   }
 
   String _roleLabel(String? role) {
-    switch (role?.toUpperCase()) {
-      case 'ADMIN':
-        return 'ADMIN';
-      case 'SUB_ADMIN':
-        return 'SUB ADM';
-      case 'SUPER_ADMIN':
-      case 'SUPER':
-        return 'SUPER';
-      default:
-        return 'MEMBER';
-    }
+    if (role == null || role.isEmpty) return 'MEMBER';
+    if (role.toUpperCase() == 'SUPER') return 'SUPER ADMIN';
+    return role.toUpperCase().replaceAll('_', ' ');
   }
 
   String _monthName(int month) {

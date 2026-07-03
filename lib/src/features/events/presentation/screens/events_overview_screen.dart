@@ -446,6 +446,7 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
   Widget _buildRequestsTab(EventState state, ThemeData theme) {
     final userRole = context.read<AuthBloc>().state.loginData?.role ?? 'MEMBER';
     final canCreate = userRole != 'MEMBER';
+    final currentUserId = context.read<AuthBloc>().state.loginData?.id;
 
     return BlocBuilder<RequestBloc, RequestState>(
       builder: (context, reqState) {
@@ -624,12 +625,15 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(
-                                            AppLocalizations.of(context)!.emergencyAlerts,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFFEF4444),
+                                          Expanded(
+                                            child: Text(
+                                              AppLocalizations.of(context)!.emergencyAlerts,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFFEF4444),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           TextButton(
@@ -688,12 +692,15 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                       child: Row(
                                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(
-                                            AppLocalizations.of(context)!.recentBroadcasts,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF004D2A),
+                                          Expanded(
+                                            child: Text(
+                                              AppLocalizations.of(context)!.recentBroadcasts,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF004D2A),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           TextButton(
@@ -709,9 +716,9 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                               minimumSize: Size.zero,
                                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                             ),
-                                            child: const Text(
-                                              'View All',
-                                              style: TextStyle(
+                                            child: Text(
+                                              AppLocalizations.of(context)!.viewAll,
+                                              style: const TextStyle(
                                                 color: Color(0xFF004D2A),
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -726,12 +733,13 @@ class _EventsOverviewScreenState extends State<EventsOverviewScreen> with Single
                                     return _buildDateHeader(item);
                                   }
                                   final broadcast = item as BroadcastModel;
+                                  final isCreator = broadcast.createdById != null && broadcast.createdById == currentUserId;
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 12.0),
                                     child: _buildBroadcastItem(
                                       context,
                                       broadcast,
-                                      onDelete: canCreate
+                                      onDelete: isCreator
                                           ? () {
                                               showCupertinoDialog(
                                                 context: context,

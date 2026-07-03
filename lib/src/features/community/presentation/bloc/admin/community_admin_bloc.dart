@@ -22,6 +22,8 @@ class CommunityAdminBloc extends Bloc<CommunityAdminEvent, CommunityAdminState> 
     on<ReviewJoinRequestEvent>(_onReviewJoinRequest);
     on<BulkApproveJoinRequestsEvent>(_onBulkApproveJoinRequests);
     on<ReportCommunityMemberEvent>(_onReportCommunityMember);
+    on<ArchiveCommunityEvent>(_onArchiveCommunity);
+    on<DeleteCommunityGroupEvent>(_onDeleteCommunityGroup);
   }
 
   Future<void> _onFetchCommunityAnalytics(
@@ -126,6 +128,59 @@ class CommunityAdminBloc extends Bloc<CommunityAdminEvent, CommunityAdminState> 
       emit(state.copyWith(isReporting: false));
     } catch (e) {
       emit(state.copyWith(isReporting: false, error: 'Failed to report member: $e'));
+    }
+  }
+
+  Future<void> _onArchiveCommunity(
+    ArchiveCommunityEvent event,
+    Emitter<CommunityAdminState> emit,
+  ) async {
+    emit(state.copyWith(isArchiving: true, clearError: true));
+    try {
+      final success = await _repository.archiveCommunity(
+        communityId: event.communityId,
+        isArchived: event.isArchived,
+      );
+      if (success) {
+        emit(state.copyWith(
+          isArchiving: false,
+          isArchivedSuccessfully: true,
+          successMessage: event.isArchived ? 'Community deleted successfully' : 'Community restored successfully',
+        ));
+      } else {
+        emit(state.copyWith(
+          isArchiving: false,
+          error: 'Failed to archive community',
+        ));
+      }
+    } catch (e) {
+      emit(state.copyWith(isArchiving: false, error: 'Failed to archive community: $e'));
+    }
+  }
+
+  Future<void> _onDeleteCommunityGroup(
+    DeleteCommunityGroupEvent event,
+    Emitter<CommunityAdminState> emit,
+  ) async {
+    emit(state.copyWith(isDeleting: true, clearError: true));
+    try {
+      final success = await _repository.deleteCommunity(
+        communityId: event.communityId,
+      );
+      if (success) {
+        emit(state.copyWith(
+          isDeleting: false,
+          isDeletedSuccessfully: true,
+          successMessage: 'Community deleted successfully',
+        ));
+      } else {
+        emit(state.copyWith(
+          isDeleting: false,
+          error: 'Failed to delete community',
+        ));
+      }
+    } catch (e) {
+      emit(state.copyWith(isDeleting: false, error: 'Failed to delete community: $e'));
     }
   }
 }

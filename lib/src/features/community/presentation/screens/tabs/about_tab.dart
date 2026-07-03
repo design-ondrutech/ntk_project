@@ -258,30 +258,7 @@ class AboutTab extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CommunityLinksScreen(
-                      communityId: community.id,
-                      isAdmin: false, // TODO: Fetch role properly
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.link_rounded, color: Color(0xFF0F8A4B)),
-              label: const Text('Links & Documents', style: TextStyle(color: Color(0xFF0F8A4B), fontWeight: FontWeight.w800, fontSize: 15)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFF0F8A4B)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ),
+
           const SizedBox(height: 32),
         ],
       ),

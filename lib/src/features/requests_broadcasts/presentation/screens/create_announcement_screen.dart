@@ -149,19 +149,47 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
         await _loadConstituencies(globalLocation.id);
       }
     } else if (role == 'DISTRICT_INCHARGE' && authLocationId != null) {
-      final assignedDistrict = LocationModel(
-        id: authLocationId,
-        name: authState.loginData?.locationName ?? 'Assigned District',
-        type: 'DISTRICT',
-      );
-      setState(() {
-        _selectedDistrict = assignedDistrict;
-        _districts = [assignedDistrict];
-      });
-      await _loadConstituencies(authLocationId);
+      int distId = authLocationId;
+      LocationModel? preSelectedTaluk;
+
       if (globalLocation != null) {
-        setState(() => _selectedConstituency = globalLocation);
-        await _loadAreas(globalLocation.id);
+        if (globalLocation.type?.toUpperCase() == 'TALUK' || globalLocation.type?.toUpperCase() == 'CONSTITUENCY') {
+          preSelectedTaluk = globalLocation;
+          if (globalLocation.parentId != null) distId = globalLocation.parentId!;
+        } else if (globalLocation.type?.toUpperCase() == 'DISTRICT') {
+          distId = globalLocation.id;
+        }
+      } else {
+        final assignedDistricts = context.read<DashboardBloc>().state.assignedLocations
+            .where((l) => l.location?.type?.toUpperCase() == 'DISTRICT')
+            .map((l) => l.location!)
+            .toList();
+        if (assignedDistricts.isNotEmpty) {
+           distId = assignedDistricts.firstWhere((d) => d.id == authLocationId, orElse: () => assignedDistricts.first).id;
+        }
+      }
+
+      try {
+        final allDistricts = await sl<LocationRepository>().getLocationList(type: 'DISTRICT');
+        final match = allDistricts.where((d) => d.id == distId).firstOrNull;
+        if (match != null && mounted) {
+          setState(() {
+            _selectedDistrict = match;
+            _districts = [match];
+          });
+        }
+      } catch (e) {
+        debugPrint('_initLocationSelectors: error resolving district: $e');
+      }
+      
+      await _loadConstituencies(distId);
+      
+      if (preSelectedTaluk != null && mounted) {
+        final match = _constituencies.where((c) => c.id == preSelectedTaluk!.id).firstOrNull;
+        if (match != null) {
+          setState(() => _selectedConstituency = match);
+          await _loadAreas(match.id);
+        }
       }
     } else if ((role == 'ADMIN' || role == 'CONSTITUENCY_INCHARGE') && authLocationId != null) {
       final assignedConstituency = LocationModel(
@@ -2168,7 +2196,7 @@ class _CreateAnnouncementScreenState extends State<CreateAnnouncementScreen> {
       backgroundColor: const Color(0xFFF8FAF8),
       appBar: NTKAppBar(
         title: 'Create Announcement',
-        subtitle: authState.loginData?.locationName ?? 'Tamil Nadu',
+        subtitle: _selectedDistrict?.name ?? authState.loginData?.locationName ?? 'Tamil Nadu',
         leading: IconButton(
           icon: const Icon(CupertinoIcons.xmark, color: Colors.white),
           onPressed: () => Navigator.pop(context),

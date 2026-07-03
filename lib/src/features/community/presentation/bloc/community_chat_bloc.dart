@@ -16,6 +16,7 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
   StreamSubscription? _messageReactionSub;
   StreamSubscription? _messagesReadSub;
   StreamSubscription? _settingsSub;
+  StreamSubscription? _typingSub;
 
   CommunityChatBloc(this._repository, this._socketService)
     : super(const CommunityChatState()) {
@@ -27,6 +28,7 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
     on<DeleteMessageEvent>(_onDeleteMessage);
     on<StarMessageEvent>(_onStarMessage);
     on<UnstarMessageEvent>(_onUnstarMessage);
+    on<SendTypingEvent>(_onSendTyping);
 
     on<ConnectChatSocket>(_onConnectChatSocket);
     on<DisconnectChatSocket>(_onDisconnectChatSocket);
@@ -38,6 +40,7 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
     on<LiveMessageDeleted>(_onLiveMessageDeleted);
     on<LiveMessagesRead>(_onLiveMessagesRead);
     on<LiveSettingsUpdated>(_onLiveSettingsUpdated);
+    on<LiveTypingEvent>(_onLiveTyping);
   }
 
   void _onConnectChatSocket(
@@ -53,6 +56,7 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
     _messageReactionSub?.cancel();
     _messagesReadSub?.cancel();
     _settingsSub?.cancel();
+    _typingSub?.cancel();
 
     _messageSub = _socketService.onMessageReceived.listen((msg) {
       if (!isClosed) add(LiveMessageReceived(msg));
@@ -79,6 +83,15 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
     _settingsSub = _socketService.onSettingsUpdated.listen((community) {
       if (!isClosed) add(LiveSettingsUpdated(community));
     });
+
+    _typingSub = _socketService.onTyping.listen((data) {
+      if (!isClosed) {
+        final userId = data['userId'] as int? ?? 0;
+        final userName = data['userName'] as String? ?? '';
+        final isTyping = data['isTyping'] as bool? ?? true;
+        add(LiveTypingEvent(userId, userName, isTyping: isTyping));
+      }
+    });
   }
 
   void _onDisconnectChatSocket(
@@ -91,6 +104,7 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
     _messageReactionSub?.cancel();
     _messagesReadSub?.cancel();
     _settingsSub?.cancel();
+    _typingSub?.cancel();
     // Assuming leaving community handles the leave on socket level.
     // _socketService.leaveCommunity(...) should be called before disconnecting
   }
@@ -111,16 +125,16 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
       );
 
       if (event.beforeMessageId != null) {
-        // Prepend old messages
+        // Append older messages to the end
         emit(
           state.copyWith(
             isLoading: false,
-            messages: [...messages, ...state.messages],
+            messages: [...state.messages, ...messages.reversed],
           ),
         );
       } else {
-        // Initial load
-        emit(state.copyWith(isLoading: false, messages: messages));
+        // Initial load, newest should be first
+        emit(state.copyWith(isLoading: false, messages: messages.reversed.toList()));
       }
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
@@ -351,6 +365,28 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
     emit(state.copyWith(currentCommunitySettings: event.community));
   }
 
+  void _onSendTyping(
+    SendTypingEvent event,
+    Emitter<CommunityChatState> emit,
+  ) {
+    _socketService.emitTyping(event.communityId, event.userId, event.userName);
+  }
+
+  void _onLiveTyping(
+    LiveTypingEvent event,
+    Emitter<CommunityChatState> emit,
+  ) {
+    final currentUsers = List<String>.from(state.typingUsers);
+    
+    if (event.isTyping && !currentUsers.contains(event.userName)) {
+      currentUsers.add(event.userName);
+      emit(state.copyWith(typingUsers: currentUsers));
+    } else if (!event.isTyping && currentUsers.contains(event.userName)) {
+      currentUsers.remove(event.userName);
+      emit(state.copyWith(typingUsers: currentUsers));
+    }
+  }
+
   @override
   Future<void> close() {
     _messageSub?.cancel();
@@ -359,6 +395,7 @@ class CommunityChatBloc extends Bloc<CommunityChatEvent, CommunityChatState> {
     _messageReactionSub?.cancel();
     _messagesReadSub?.cancel();
     _settingsSub?.cancel();
+    _typingSub?.cancel();
     return super.close();
   }
 }

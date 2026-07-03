@@ -14,6 +14,7 @@ class BroadcastModel extends Equatable {
   final String? type;
   final String? updatedAt;
   final bool isActive;
+  final int? createdById;
 
   const BroadcastModel({
     required this.id,
@@ -29,6 +30,7 @@ class BroadcastModel extends Equatable {
     this.type,
     this.updatedAt,
     this.isActive = true,
+    this.createdById,
   });
 
   factory BroadcastModel.fromJson(Map<String, dynamic> json) {
@@ -42,6 +44,13 @@ class BroadcastModel extends Equatable {
 
     final contentText = (json['content'] ?? json['message']) as String? ?? '';
     final typeText = (json['type'] ?? json['scope']) as String? ?? 'AREA';
+
+    int? parsedCreatedById;
+    if (createdByJson != null && createdByJson['id'] != null) {
+      parsedCreatedById = createdByJson['id'] is int
+          ? createdByJson['id'] as int
+          : int.tryParse(createdByJson['id'].toString());
+    }
 
     return BroadcastModel(
       id: idValue is int
@@ -63,6 +72,7 @@ class BroadcastModel extends Equatable {
       isActive: isActiveValue is bool
           ? isActiveValue
           : (isActiveValue?.toString().toLowerCase() != 'false'),
+      createdById: parsedCreatedById,
     );
   }
 
@@ -81,5 +91,6 @@ class BroadcastModel extends Equatable {
     type,
     updatedAt,
     isActive,
+    createdById,
   ];
 }

@@ -43,7 +43,7 @@ class UserManagementBloc
     }
 
     final effectiveLocationId = event.streetId ?? event.locationId;
-    const int pageSize = 10;
+    const int pageSize = 100;
 
     if (event.isLoadMore) {
       emit(state.copyWith(isLoadingMore: true, error: null));

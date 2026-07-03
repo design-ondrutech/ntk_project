@@ -5,6 +5,7 @@ import 'package:ntk_project/src/features/community/presentation/bloc/community_m
 import 'package:ntk_project/src/features/community/presentation/bloc/community_member_event.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/community_member_state.dart';
 import 'package:ntk_project/src/core/utils/date_helper.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 
 class MembersTab extends StatefulWidget {
   final CommunityModel community;
@@ -24,7 +25,18 @@ class _MembersTabState extends State<MembersTab> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<CommunityMemberBloc, CommunityMemberState>(
+    final authState = context.read<AuthBloc>().state;
+    final myUserId = authState.loginData?.id;
+
+    return BlocConsumer<CommunityMemberBloc, CommunityMemberState>(
+      listener: (context, state) {
+        if (state.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.error!)));
+        }
+        if (state.successMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.successMessage!)));
+        }
+      },
       builder: (context, state) {
         if (state.isLoading && state.members.isEmpty) {
           return const Center(child: CircularProgressIndicator());
@@ -40,6 +52,9 @@ class _MembersTabState extends State<MembersTab> {
           itemCount: state.members.length,
           itemBuilder: (context, index) {
             final member = state.members[index];
+            final iAmAdmin = state.members.any((m) => m.id == myUserId && (m.role == 'ADMIN' || m.isGroupAdmin));
+            final canBan = iAmAdmin && member.id != myUserId;
+
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(12),
@@ -92,6 +107,21 @@ class _MembersTabState extends State<MembersTab> {
                     ),
                   ),
                   _buildRoleBadge(member.role ?? (member.isGroupAdmin ? 'ADMIN' : 'MEMBER')),
+                  if (canBan)
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert, color: Colors.grey),
+                      onSelected: (value) {
+                        if (value == 'ban') {
+                          _showBanDialog(member.id, member.name);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'ban',
+                          child: Text('Ban Member', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             );
@@ -128,6 +158,50 @@ class _MembersTabState extends State<MembersTab> {
       child: Text(
         role.toUpperCase(),
         style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  void _showBanDialog(int userId, String userName) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Ban $userName?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Are you sure you want to ban this member?'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Reason (Optional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              context.read<CommunityMemberBloc>().add(
+                    BanCommunityMemberEvent(
+                      communityId: widget.community.id,
+                      userId: userId,
+                      reason: reasonController.text.trim().isEmpty ? null : reasonController.text.trim(),
+                    ),
+                  );
+              Navigator.pop(ctx);
+            },
+            child: const Text('Ban', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

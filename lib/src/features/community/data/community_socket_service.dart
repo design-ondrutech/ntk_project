@@ -22,6 +22,8 @@ class CommunitySocketService {
       StreamController<Map<String, dynamic>>.broadcast();
   final _memberRemovedController =
       StreamController<Map<String, dynamic>>.broadcast();
+  final _typingController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   // Moderation & Post Sync Events
   final _reportResolvedController =
@@ -47,6 +49,8 @@ class CommunitySocketService {
       _memberMutedController.stream;
   Stream<Map<String, dynamic>> get onMemberRemoved =>
       _memberRemovedController.stream;
+  Stream<Map<String, dynamic>> get onTyping =>
+      _typingController.stream;
 
   // Moderation & Post Sync Streams
   Stream<Map<String, dynamic>> get onReportResolved =>
@@ -126,6 +130,12 @@ class CommunitySocketService {
       }
     });
 
+    _socket?.on('communityTyping', (data) {
+      if (data != null) {
+        _typingController.add(data as Map<String, dynamic>);
+      }
+    });
+
     _socket?.on('reportResolved', (data) {
       if (data != null) {
         _reportResolvedController.add(data as Map<String, dynamic>);
@@ -148,11 +158,19 @@ class CommunitySocketService {
   }
 
   void joinCommunity(int communityId) {
-    _socket?.emit('joinCommunity', {'communityId': communityId});
+    _socket?.emit('joinCommunityChat', communityId);
   }
 
   void leaveCommunity(int communityId) {
-    _socket?.emit('leaveCommunity', {'communityId': communityId});
+    _socket?.emit('leaveCommunityChat', communityId);
+  }
+
+  void emitTyping(int communityId, int userId, String userName) {
+    _socket?.emit('communityTyping', {
+      'communityId': communityId,
+      'userId': userId,
+      'userName': userName,
+    });
   }
 
   void disconnect() {
@@ -173,5 +191,6 @@ class CommunitySocketService {
     _reportResolvedController.close();
     _postDeletedController.close();
     _pollDeletedController.close();
+    _typingController.close();
   }
 }

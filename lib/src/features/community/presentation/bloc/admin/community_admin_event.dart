@@ -82,3 +82,26 @@ class ReportCommunityMemberEvent extends CommunityAdminEvent {
   @override
   List<Object?> get props => [communityId, reportedUserId, reason];
 }
+
+class ArchiveCommunityEvent extends CommunityAdminEvent {
+  final int communityId;
+  final bool isArchived;
+
+  const ArchiveCommunityEvent({
+    required this.communityId,
+    this.isArchived = true,
+  });
+
+  @override
+  List<Object?> get props => [communityId, isArchived];
+}
+
+class DeleteCommunityGroupEvent extends CommunityAdminEvent {
+  final int communityId;
+
+  const DeleteCommunityGroupEvent(this.communityId);
+
+  @override
+  List<Object?> get props => [communityId];
+}
+

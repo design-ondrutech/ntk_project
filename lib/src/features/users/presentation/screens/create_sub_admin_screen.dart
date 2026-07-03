@@ -175,7 +175,13 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
             parentId: district.id,
           );
           if (taluks.any((t) => t.id == talukId)) {
-            if (mounted) setState(() => _selectedDistrict = district);
+            if (mounted) {
+              setState(() {
+                _selectedDistrict = district;
+                _districts = [district];
+                _taluks = [adminTaluk];
+              });
+            }
             break;
           }
         }
@@ -194,43 +200,45 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
       }
     } else if (role == 'DISTRICT_INCHARGE' && authLocId != null) {
       _isTalukLocked = false;
+      _isDistrictLocked = false;
       int distId = authLocId;
-      String distName = authLocName;
       int? preSelectedTalukId;
 
       if (globalLoc != null) {
         if (globalLoc.type?.toUpperCase() == 'DISTRICT') {
           distId = globalLoc.id;
-          distName = globalLoc.name;
-        } else if (globalLoc.type?.toUpperCase() == 'TALUK') {
+        } else if (globalLoc.type?.toUpperCase() == 'TALUK' || globalLoc.type?.toUpperCase() == 'CONSTITUENCY') {
           preSelectedTalukId = globalLoc.id;
           if (globalLoc.parentId != null) distId = globalLoc.parentId!;
         }
+      } else {
+        final assignedDistricts = dashState.assignedLocations
+            .where((l) => l.location?.type?.toUpperCase() == 'DISTRICT')
+            .map((l) => l.location!)
+            .toList();
+        if (assignedDistricts.isNotEmpty) {
+          distId = assignedDistricts.firstWhere((d) => d.id == authLocId, orElse: () => assignedDistricts.first).id;
+        }
       }
 
-      final district = LocationModel(id: distId, name: distName);
-      setState(() {
-        _selectedDistrict = district;
-      });
-      
-      setState(() => _loadingTaluks = true);
       try {
-        final list = await _locationRepo.getLocationList(
-          type: 'TALUK',
-          parentId: distId,
-        );
-        setState(() {
-          _taluks = list;
-          _loadingTaluks = false;
-        });
-        if (preSelectedTalukId != null) {
-          final match = _taluks.where((t) => t.id == preSelectedTalukId).firstOrNull;
-          if (match != null) {
-            await _onTalukChanged(match);
+        final allDistricts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        final match = allDistricts.where((d) => d.id == distId).firstOrNull;
+        if (match != null && mounted) {
+          setState(() {
+            _selectedDistrict = match;
+            _districts = [match];
+          });
+          await _onDistrictChanged(match);
+          if (preSelectedTalukId != null && mounted) {
+            final tMatch = _taluks.where((t) => t.id == preSelectedTalukId).firstOrNull;
+            if (tMatch != null) {
+              await _onTalukChanged(tMatch);
+            }
           }
         }
-      } catch (_) {
-        setState(() => _loadingTaluks = false);
+      } catch (e) {
+        debugPrint('_initLocationForAdmin: error resolving district: $e');
       }
     }
   }
@@ -401,9 +409,7 @@ class _CreateSubAdminScreenState extends State<CreateSubAdminScreen> {
         backgroundColor: const Color(0xFFF0F4F8),
         appBar: NTKAppBar(
           title: 'Create Sub Admin',
-          subtitle:
-              context.read<AuthBloc>().state.loginData?.locationName ??
-              'Admin Portal',
+          subtitle: _selectedDistrict?.name ?? context.read<AuthBloc>().state.loginData?.locationName ?? 'Admin Portal',
           showNotification: false,
         ),
         body: SingleChildScrollView(

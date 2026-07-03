@@ -221,7 +221,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get activeAlerts => 'செயலில் உள்ள அறிவிப்புகள்';
 
   @override
-  String get broadcasts => 'ஒளிபரப்புகள்';
+  String get broadcasts => 'அறிவிப்பு';
 
   @override
   String get events => 'நிகழ்வுகள்';
@@ -598,4 +598,298 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get totalDistrictIncharges => 'மாவட்ட பொறுப்பாளர்கள்';
+
+  @override
+  String get createPost => 'பதிவை உருவாக்கு';
+
+  @override
+  String get selectCategory => 'வகையைத் தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get general => 'பொது';
+
+  @override
+  String get discussion => 'விவாதம்';
+
+  @override
+  String get suggestion => 'பரிந்துரை';
+
+  @override
+  String get complaint => 'புகார்';
+
+  @override
+  String get information => 'தகவல்';
+
+  @override
+  String get writeYourPost => 'உங்கள் பதிவை எழுதவும்...';
+
+  @override
+  String get addPhotos => 'புகைப்படங்களைச் சேர்';
+
+  @override
+  String get communityPost => 'சமூகப் பதிவு';
+
+  @override
+  String get generalUpdate => 'பொது அறிவிப்பு';
+
+  @override
+  String get askYourCommunity => 'உங்கள் சமூகத்திடம் கேளுங்கள்';
+
+  @override
+  String get createPollDescription =>
+      'உள்ளூர் முடிவுகளுக்கு வாக்கெடுப்பை உருவாக்கவும்';
+
+  @override
+  String get reviewLocationRequests => 'இருப்பிட கோரிக்கைகளை மதிப்பாய்வு செய்';
+
+  @override
+  String get approveRejectLocationChanges =>
+      'பங்கு மற்றும் இருப்பிட மாற்றங்களை அங்கீகரிக்கவும் அல்லது நிராகரிக்கவும்';
+
+  @override
+  String get recentActivities => 'சமீபத்திய செயல்பாடுகள்';
+
+  @override
+  String get createCommunityGroup => 'சமூக குழுவை உருவாக்கு';
+
+  @override
+  String get createNewGroupDesc =>
+      'உங்கள் இடத்திற்கான புதிய குழுவை உருவாக்கவும்';
+
+  @override
+  String get groupDetails => 'குழு விவரங்கள்';
+
+  @override
+  String get groupName => 'குழுவின் பெயர்';
+
+  @override
+  String get privacyType => 'தனியுரிமை வகை';
+
+  @override
+  String get publicAnyoneJoin => 'பொது (யார் வேண்டுமானாலும் சேரலாம்)';
+
+  @override
+  String get privateInviteOnly => 'தனிப்பட்ட (அழைப்பு மட்டும்)';
+
+  @override
+  String get membersListTitle => 'உறுப்பினர்கள்';
+
+  @override
+  String get searchMembersHint => 'பெயர் அல்லது தெரு மூலம் தேடுங்கள்...';
+
+  @override
+  String get filterDistrict => 'மாவட்டம்';
+
+  @override
+  String get filterAllDistricts => 'அனைத்து மாவட்டங்கள்';
+
+  @override
+  String get filterThoguthi => 'தொகுதி';
+
+  @override
+  String get filterAllThoguthis => 'அனைத்து தொகுதிகள்';
+
+  @override
+  String get filterArea => 'பகுதி';
+
+  @override
+  String get filterAllAreas => 'அனைத்து பகுதிகள்';
+
+  @override
+  String get filterStreet => 'தெரு';
+
+  @override
+  String get filterAllStreets => 'அனைத்து தெருக்கள்';
+
+  @override
+  String get filterRole => 'பங்கு (Role)';
+
+  @override
+  String get filterAll => 'அனைத்தும்';
+
+  @override
+  String get filterMore => 'மேலும் வடிகட்டிகள்';
+
+  @override
+  String get roleAdmin => 'நிர்வாகி';
+
+  @override
+  String get roleSubAdmin => 'துணை நிர்வாகி';
+
+  @override
+  String get roleDistInch => 'மாவட்ட பொறுப்பாளர்';
+
+  @override
+  String get roleMembers => 'உறுப்பினர்கள்';
+
+  @override
+  String get roleTotal => 'மொத்தம்';
+
+  @override
+  String get memberList => 'உறுப்பினர் பட்டியல்';
+
+  @override
+  String get allowMemberMessages => 'உறுப்பினர் செய்திகளை அனுமதி';
+
+  @override
+  String get allowMemberMessagesDesc =>
+      'உறுப்பினர்கள் குழுவில் செய்திகளை அனுப்பலாம்';
+
+  @override
+  String get notificationCenter => 'அறிவிப்பு மையம்';
+
+  @override
+  String get all => 'அனைத்தும்';
+
+  @override
+  String get unread => 'படிக்காதவை';
+
+  @override
+  String get approvals => 'ஒப்புதல்கள்';
+
+  @override
+  String get markAllAsRead => 'அனைத்தையும் படித்ததாகக் குறி';
+
+  @override
+  String get createPollTitle => 'வாக்கெடுப்பை உருவாக்கு';
+
+  @override
+  String get pollQuestion => 'வாக்கெடுப்பு கேள்வி';
+
+  @override
+  String get enterYourQuestion => 'உங்கள் கேள்வியை உள்ளிடவும்...';
+
+  @override
+  String get options => 'விருப்பங்கள்';
+
+  @override
+  String optionIndex(int index) {
+    return 'விருப்பம் $index';
+  }
+
+  @override
+  String get addOption => 'விருப்பத்தை சேர்';
+
+  @override
+  String get pollDuration => 'வாக்கெடுப்பு காலம்';
+
+  @override
+  String get targetLocation => 'இலக்கு இடம்';
+
+  @override
+  String get street => 'தெரு';
+
+  @override
+  String get state => 'மாநிலம்';
+
+  @override
+  String get districtAsterisk => 'மாவட்டம் *';
+
+  @override
+  String get constituencyTaluk => 'தொகுதி (தாலுகா)';
+
+  @override
+  String get areaTown => 'பகுதி (நகரம்)';
+
+  @override
+  String get selectStreetOptional =>
+      'தெருவை தேர்ந்தெடுக்கவும் (விருப்பத்திற்குரியது)';
+
+  @override
+  String get selectState => 'மாநிலத்தை தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get selectDistrict => 'மாவட்டத்தை தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get selectDistrictFirst => 'முதலில் மாவட்டத்தை தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get selectConstituency => 'தொகுதியை தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get selectConstituencyFirst => 'முதலில் தொகுதியை தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get selectArea => 'பகுதியை தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get joinedFilter => 'இணைந்தவை';
+
+  @override
+  String get featuredFilter => 'சிறப்பானவை';
+
+  @override
+  String get nearbyFilter => 'அருகிலுள்ளவை';
+
+  @override
+  String get communitiesCountText => 'குழுக்கள்';
+
+  @override
+  String get communitySingleText => 'குழு';
+
+  @override
+  String get openAction => 'திற';
+
+  @override
+  String get inviteOnly => 'அழைப்பு மட்டும்';
+
+  @override
+  String get requestToJoin => 'சேர கோரிக்கை';
+
+  @override
+  String get joinedStatus => 'இணைக்கப்பட்டது';
+
+  @override
+  String get privacyPrivate => 'தனியார்';
+
+  @override
+  String get privacySecret => 'ரகசியம்';
+
+  @override
+  String get privacyPublic => 'பொது';
+
+  @override
+  String get activityLog => 'செயல்பாட்டுப் பதிவு';
+
+  @override
+  String get dashboardActivityLog => 'முகப்பு › செயல்பாட்டுப் பதிவு';
+
+  @override
+  String get admins => 'நிர்வாகிகள்';
+
+  @override
+  String get roleChanges => 'பதவி மாற்றங்கள்';
+
+  @override
+  String get filter => 'வடிகட்டி';
+
+  @override
+  String get dateOfBirth => 'பிறந்த தேதி';
+
+  @override
+  String get bloodGroup => 'இரத்த வகை';
+
+  @override
+  String get profession => 'தொழில்';
+
+  @override
+  String get gender => 'பாலினம்';
+
+  @override
+  String get selectAreaFirst => 'முதலில் பகுதியை தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get selectDistrictOptional =>
+      'மாவட்டத்தை தேர்ந்தெடுக்கவும் (விருப்பத்திற்குரியது)';
+
+  @override
+  String get defaultText => 'இயல்புநிலை';
+
+  @override
+  String get orSelectSpecificLocation =>
+      'அல்லது குறிப்பிட்ட இருப்பிடத்தை தேர்ந்தெடுக்கவும்:';
+
+  @override
+  String get selectStreet => 'தெருவை தேர்ந்தெடுக்கவும்';
 }

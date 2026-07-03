@@ -41,7 +41,7 @@ class DashboardLocationFilter extends StatelessWidget {
             if (displayType == 'DISTRICT') displayType = 'District';
             if (displayType == 'STATE') displayType = 'State';
             
-            final displayText = displayType.isNotEmpty 
+            final displayText = displayType.isNotEmpty && !loc.name.toLowerCase().startsWith('all taluks')
                 ? "${loc.name} ($displayType)" 
                 : loc.name;
 

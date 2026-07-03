@@ -17,6 +17,7 @@ import 'package:ntk_project/src/features/location/domain/repositories/location_r
 import 'package:ntk_project/src/features/dashboard/domain/repositories/dashboard_repository.dart';
 import 'package:ntk_project/src/injection_container.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 
 class UserManagementScreen extends StatefulWidget {
   final int? locationId;
@@ -696,7 +697,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F4F8),
       appBar: NTKAppBar(
-        title: 'Members',
+        title: AppLocalizations.of(context)!.membersListTitle,
         subtitle: _getLocationSubtitle(context),
         actions: [
           IconButton(
@@ -714,6 +715,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
             Expanded(
               child: BlocBuilder<UserManagementBloc, UserManagementState>(
                 builder: (context, state) {
+                  final filteredList = _filteredUsers(state.users);
                   return RefreshIndicator(
                     onRefresh: () async {
                       _loadUsers();
@@ -749,7 +751,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
                                       setState(() => _searchQuery = v),
                                   decoration: InputDecoration(
                                     hintText:
-                                        'Search members by name or street...',
+                                        AppLocalizations.of(context)!.searchMembersHint,
                                     hintStyle: TextStyle(
                                       color: Colors.grey[400],
                                       fontSize: 14,
@@ -828,7 +830,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
                       else
                         SliverPadding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                          sliver: _filteredUsers(state.users).isEmpty
+                          sliver: filteredList.isEmpty
                               ? SliverFillRemaining(
                                   child: Center(
                                     child: Column(
@@ -855,9 +857,6 @@ class UserManagementScreenState extends State<UserManagementScreen> {
                               : SliverList(
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
-                                      final filteredList = _filteredUsers(
-                                        state.users,
-                                      );
                                       if (index >= filteredList.length) {
                                         return const Padding(
                                           padding: EdgeInsets.symmetric(
@@ -869,11 +868,14 @@ class UserManagementScreenState extends State<UserManagementScreen> {
                                         );
                                       }
                                       final user = filteredList[index];
-                                      return _buildMemberCard(user);
+                                      return KeyedSubtree(
+                                        key: ValueKey(user.id),
+                                        child: _buildMemberCard(user),
+                                      );
                                     },
-                                    childCount:
-                                        _filteredUsers(state.users).length +
-                                        (state.isLoadingMore ? 1 : 0),
+                                      childCount:
+                                          filteredList.length +
+                                          (state.isLoadingMore ? 1 : 0),
                                   ),
                                 ),
                         ),
@@ -1553,8 +1555,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     if (role != 'ADMIN' && role != 'SUB_ADMIN') {
       filters.add(
         _buildGridDropdown(
-          'District',
-          'All Districts',
+          AppLocalizations.of(context)!.filterDistrict,
+          AppLocalizations.of(context)!.filterAllDistricts,
           _districts,
           _selectedDistrict,
           (val) {
@@ -1581,8 +1583,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     if (role != 'SUB_ADMIN') {
       filters.add(
         _buildGridDropdown(
-          'Thoguthi',
-          'All Thoguthis',
+          AppLocalizations.of(context)!.filterThoguthi,
+          AppLocalizations.of(context)!.filterAllThoguthis,
           _constituencies,
           _selectedConstituency,
           (val) {
@@ -1607,8 +1609,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     if (role != 'SUB_ADMIN') {
       filters.add(
         _buildGridDropdown(
-          'Area',
-          'All Areas',
+          AppLocalizations.of(context)!.filterArea,
+          AppLocalizations.of(context)!.filterAllAreas,
           _areas,
           _selectedArea,
           (val) {
@@ -1630,8 +1632,8 @@ class UserManagementScreenState extends State<UserManagementScreen> {
 
     filters.add(
       _buildGridDropdown(
-        'Street',
-        'All Streets',
+        AppLocalizations.of(context)!.filterStreet,
+        AppLocalizations.of(context)!.filterAllStreets,
         _streets,
         _selectedStreet,
         (val) {
@@ -1659,9 +1661,9 @@ class UserManagementScreenState extends State<UserManagementScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'More Filters',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.filterMore,
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF111827),
@@ -1832,6 +1834,19 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
+  String _translateTab(String tab) {
+    final loc = AppLocalizations.of(context);
+    if (loc == null) return tab;
+    switch (tab) {
+      case 'All': return loc.filterAll;
+      case 'Admin': return loc.roleAdmin;
+      case 'Sub Admin': return loc.roleSubAdmin;
+      case 'District Incharge': return loc.roleDistInch;
+      case 'Member': return loc.roleMembers;
+      default: return tab;
+    }
+  }
+
   Widget _buildRoleDropdown() {
     final currentTab = _tabs[_selectedTab];
     return Container(
@@ -1846,9 +1861,9 @@ class UserManagementScreenState extends State<UserManagementScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 4),
-          const Text(
-            'Role',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.filterRole,
+            style: const TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.bold,
               color: Color(0xFF6B7280),
@@ -1862,7 +1877,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
               icon: const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.black54),
               selectedItemBuilder: (_) => _visibleTabs.map(
                 (tab) => Text(
-                  tab,
+                  _translateTab(tab),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1874,7 +1889,7 @@ class UserManagementScreenState extends State<UserManagementScreen> {
               items: _visibleTabs.map(
                 (tab) => DropdownMenuItem<String>(
                   value: tab,
-                  child: Text(tab, style: const TextStyle(fontSize: 12)),
+                  child: Text(_translateTab(tab), style: const TextStyle(fontSize: 12)),
                 ),
               ).toList(),
               onChanged: (val) {
@@ -1920,15 +1935,15 @@ class UserManagementScreenState extends State<UserManagementScreen> {
     final total = (_localTotalAdmins ?? 0) + (_localTotalSubAdmins ?? 0) + (_localTotalMembers ?? 0) + (_localTotalDistrictIncharges ?? 0);
     return Row(
       children: [
-        Expanded(child: _buildSmallStatCard('Admins', _localTotalAdmins ?? 0, const Color(0xFF166534))),
+        Expanded(child: _buildSmallStatCard(AppLocalizations.of(context)!.roleAdmin, _localTotalAdmins ?? 0, const Color(0xFF166534))),
         const SizedBox(width: 8),
-        Expanded(child: _buildSmallStatCard('Sub Admins', _localTotalSubAdmins ?? 0, const Color(0xFF1E40AF))),
+        Expanded(child: _buildSmallStatCard(AppLocalizations.of(context)!.roleSubAdmin, _localTotalSubAdmins ?? 0, const Color(0xFF1E40AF))),
         const SizedBox(width: 8),
-        Expanded(child: _buildSmallStatCard('Dist. Inch', _localTotalDistrictIncharges ?? 0, const Color(0xFF9333EA))),
+        Expanded(child: _buildSmallStatCard(AppLocalizations.of(context)!.roleDistInch, _localTotalDistrictIncharges ?? 0, const Color(0xFF9333EA))),
         const SizedBox(width: 8),
-        Expanded(child: _buildSmallStatCard('Members', _localTotalMembers ?? 0, const Color(0xFF065F46))),
+        Expanded(child: _buildSmallStatCard(AppLocalizations.of(context)!.roleMembers, _localTotalMembers ?? 0, const Color(0xFF065F46))),
         const SizedBox(width: 8),
-        Expanded(child: _buildSmallStatCard('Total', total, const Color(0xFFB45309))),
+        Expanded(child: _buildSmallStatCard(AppLocalizations.of(context)!.roleTotal, total, const Color(0xFFB45309))),
       ],
     );
   }
@@ -1971,10 +1986,10 @@ class UserManagementScreenState extends State<UserManagementScreen> {
   Widget _buildListHeader(UserManagementState state) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: const [
+      children: [
         Text(
-          'Member List',
-          style: TextStyle(
+          AppLocalizations.of(context)!.memberList,
+          style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
             color: Color(0xFF111827),
@@ -2009,9 +2024,9 @@ class UserManagementScreenState extends State<UserManagementScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'More Filters',
-                        style: TextStyle(
+                      Text(
+                        AppLocalizations.of(context)!.filterMore,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),

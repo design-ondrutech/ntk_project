@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/image_crop_dialog.dart';
@@ -173,9 +174,9 @@ class _CreateCommunityGroupScreenState extends State<CreateCommunityGroupScreen>
       },
       child: Scaffold(
         backgroundColor: _bg,
-        appBar: const NTKAppBar(
-          title: 'Create Community Group',
-          subtitle: 'Create a new group for your location',
+        appBar: NTKAppBar(
+          title: AppLocalizations.of(context)!.createCommunityGroup,
+          subtitle: AppLocalizations.of(context)!.createNewGroupDesc,
         ),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -184,7 +185,7 @@ class _CreateCommunityGroupScreenState extends State<CreateCommunityGroupScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildSectionTitle('Group Details'),
+                _buildSectionTitle(AppLocalizations.of(context)!.groupDetails),
                 const SizedBox(height: 24),
                 Center(
                   child: GestureDetector(
@@ -220,7 +221,7 @@ class _CreateCommunityGroupScreenState extends State<CreateCommunityGroupScreen>
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: 'Group Name',
+                    labelText: AppLocalizations.of(context)!.groupName,
                     hintText: 'e.g. Environmental Activists',
                     filled: true,
                     fillColor: Colors.white,
@@ -245,7 +246,7 @@ class _CreateCommunityGroupScreenState extends State<CreateCommunityGroupScreen>
                   controller: _descriptionController,
                   maxLines: 4,
                   decoration: InputDecoration(
-                    labelText: 'Description',
+                    labelText: AppLocalizations.of(context)!.description,
                     hintText: 'What is this group about?',
                     filled: true,
                     fillColor: Colors.white,
@@ -260,7 +261,7 @@ class _CreateCommunityGroupScreenState extends State<CreateCommunityGroupScreen>
                   ),
                 ),
                 const SizedBox(height: 32),
-                _buildSectionTitle('Settings'),
+                _buildSectionTitle(AppLocalizations.of(context)!.settings),
                 const SizedBox(height: 16),
                 Container(
                   decoration: BoxDecoration(
@@ -274,18 +275,19 @@ class _CreateCommunityGroupScreenState extends State<CreateCommunityGroupScreen>
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: DropdownButtonFormField<String>(
                           value: _privacyType,
-                          decoration: const InputDecoration(
-                            labelText: 'Privacy Type',
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context)!.privacyType,
                             border: InputBorder.none,
                           ),
-                          items: const [
+                          items: [
                             DropdownMenuItem(
                               value: 'PUBLIC',
-                              child: Text('Public (Anyone can join)'),
+                              child: Text(AppLocalizations.of(context)!.publicAnyoneJoin),
                             ),
                             DropdownMenuItem(
                               value: 'PRIVATE',
-                              child: Text('Private (Invite Only)'),
+                              child: Text(AppLocalizations.of(context)!.privateInviteOnly),
                             ),
                           ],
                           onChanged: (value) {
@@ -300,8 +302,8 @@ class _CreateCommunityGroupScreenState extends State<CreateCommunityGroupScreen>
                       const Divider(height: 1, color: NTKColors.slate200),
                       SwitchListTile(
                         activeColor: _primary,
-                        title: const Text('Allow Member Messages'),
-                        subtitle: const Text('Members can send messages in the group'),
+                        title: Text(AppLocalizations.of(context)!.allowMemberMessages),
+                        subtitle: Text(AppLocalizations.of(context)!.allowMemberMessagesDesc),
                         value: _allowMemberMessages,
                         onChanged: (value) {
                           setState(() {

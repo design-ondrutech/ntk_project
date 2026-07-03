@@ -89,8 +89,11 @@ class CommunityAdminScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => BlocProvider(
-                    create: (_) => sl<CommunitySettingsBloc>(),
+                  builder: (_) => MultiBlocProvider(
+                    providers: [
+                      BlocProvider(create: (_) => sl<CommunitySettingsBloc>()),
+                      BlocProvider(create: (_) => sl<CommunityAdminBloc>()),
+                    ],
                     child: CommunitySettingsScreen(communityId: community.id),
                   ),
                 ),

@@ -579,44 +579,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Target Profession Multi Select
-                _buildFormLabel('Target Profession (Optional)'),
-                Wrap(
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  children: _professions.map((profession) {
-                    final isSelected = _selectedProfessions.contains(profession);
-                    return FilterChip(
-                      label: Text(
-                        profession,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : const Color(0xFF374151),
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      selected: isSelected,
-                      selectedColor: const Color(0xFF004D2A),
-                      checkmarkColor: Colors.white,
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: isSelected ? const Color(0xFF004D2A) : const Color(0xFFE5E7EB),
-                        ),
-                      ),
-                      onSelected: (bool selected) {
-                        setState(() {
-                          if (selected) {
-                            _selectedProfessions.add(profession);
-                          } else {
-                            _selectedProfessions.remove(profession);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-
                 const SizedBox(height: 48),
 
                 // Submit Button

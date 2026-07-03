@@ -8,6 +8,7 @@ import 'package:ntk_project/src/features/community/data/models/pending_join_requ
 import 'package:ntk_project/src/features/community/data/models/complaint_model.dart';
 import 'package:ntk_project/src/features/community/data/models/announcement_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_settings_model.dart';
+import 'package:ntk_project/src/features/community/data/models/community_media_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_link_doc_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_analytics_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_ban_model.dart';
@@ -96,7 +97,7 @@ abstract class CommunityRepository {
     String? status,
   });
 
-  Future<PostModel> moderatePost({
+  Future<bool> moderatePost({
     required int postId,
     required String action,
     String? warningMessage,
@@ -127,6 +128,15 @@ abstract class CommunityRepository {
     bool allowMemberMessages,
     int? locationId,
     String? privacyType,
+  });
+
+  Future<bool> archiveCommunity({
+    required int communityId,
+    required bool isArchived,
+  });
+
+  Future<bool> deleteCommunity({
+    required int communityId,
   });
 
   Future<void> reactToCommunityMessage({
@@ -202,7 +212,10 @@ abstract class CommunityRepository {
   Future<bool> deleteCommunityAnnouncement({required int announcementId});
 
   // Links & Docs
-  Future<List<CommunityLinkDocModel>> getCommunityLinksAndDocs({required int communityId});
+  Future<List<CommunityMediaModel>> getCommunityMediaGallery({
+    required int communityId,
+    String? mediaType,
+  });
   Future<CommunityLinkDocModel> uploadCommunityLinkOrDoc({
     required int communityId,
     required String title,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:ntk_project/src/features/auth/presentation/bloc/auth_event.dart';
 import 'package:ntk_project/src/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:ntk_project/src/features/users/presentation/screens/user_management_screen.dart';
 import 'package:ntk_project/src/features/members/presentation/screens/members_list_screen.dart';
@@ -58,7 +59,25 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       final dashboardBloc = context.read<DashboardBloc>();
       final globalLocId = dashboardBloc.state.globalLocation?.id;
       final authLocId = authState.loginData?.locationId;
+      final userId = authState.loginData?.id;
       final locId = globalLocId ?? authLocId;
+
+      // Always refresh user profile to pick up approved role/location changes
+      context.read<AuthBloc>().add(LoadMeRequested());
+
+      // Always refresh dashboard stats + assignedLocations (userId triggers getUserAssignedLocations)
+      if (authLocId != null) {
+        context.read<DashboardBloc>().add(
+          LoadDashboardStats(
+            authLocId,
+            filterLocationId: globalLocId != authLocId ? globalLocId : null,
+            userId: userId,
+          ),
+        );
+        context.read<PendingRequestsBloc>().add(
+          LoadPendingRequests(locationId: locId),
+        );
+      }
 
       final userRole = authState.loginData?.role ?? 'MEMBER';
       final List<Map<String, dynamic>> allTabs = [
@@ -100,17 +119,6 @@ class MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           context.read<EventBloc>().add(FetchEvents(locationId: locId));
           context.read<EventBloc>().add(FetchEmergencies(locationId: locId));
           context.read<RequestBloc>().add(LoadRequests(locationId: locId));
-        } else if (screen is DashboardScreen && authLocId != null) {
-          context.read<DashboardBloc>().add(
-            LoadDashboardStats(
-              authLocId,
-              filterLocationId: globalLocId != authLocId ? globalLocId : null,
-              userId: authState.loginData?.id,
-            ),
-          );
-          context.read<PendingRequestsBloc>().add(
-            LoadPendingRequests(locationId: locId),
-          );
         }
       }
     } catch (e) {

@@ -178,7 +178,7 @@ class _UserLocationsManagementScreenState
     }
   }
 
-  void _showAddLocationDialog() {
+  Future<void> _showAddLocationDialog() async {
     _selectedRoleForLocation = 'ADMIN';
     _availableLocations.clear();
     _fetchAvailableLocations(_selectedRoleForLocation);

@@ -4,6 +4,9 @@ import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/settings/community_settings_bloc.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/settings/community_settings_event.dart';
 import 'package:ntk_project/src/features/community/presentation/bloc/settings/community_settings_state.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/admin/community_admin_bloc.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/admin/community_admin_event.dart';
+import 'package:ntk_project/src/features/community/presentation/bloc/admin/community_admin_state.dart';
 
 class CommunitySettingsScreen extends StatefulWidget {
   final int communityId;
@@ -29,7 +32,17 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
         title: 'Community Settings',
         subtitle: 'Manage group preferences',
       ),
-      body: BlocConsumer<CommunitySettingsBloc, CommunitySettingsState>(
+      body: BlocListener<CommunityAdminBloc, CommunityAdminState>(
+        listener: (context, adminState) {
+          if (adminState.error != null) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(adminState.error!)));
+          }
+          if (adminState.isArchivedSuccessfully || adminState.isDeletedSuccessfully) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Community deleted successfully')));
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        },
+        child: BlocConsumer<CommunitySettingsBloc, CommunitySettingsState>(
         listener: (context, state) {
           if (state.error != null) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -110,9 +123,12 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
                   ));
                 },
               ),
+              const SizedBox(height: 24),
+              _buildDeleteButton(context),
             ],
           );
         },
+      ),
       ),
     );
   }
@@ -132,6 +148,53 @@ class _CommunitySettingsScreenState extends State<CommunitySettingsScreen> {
         subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         value: value,
         onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton(BuildContext context) {
+    return BlocBuilder<CommunityAdminBloc, CommunityAdminState>(
+      builder: (context, adminState) {
+        return ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red.shade50,
+            foregroundColor: Colors.red,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: Colors.red),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          onPressed: adminState.isDeleting ? null : () => _confirmDelete(context),
+          child: adminState.isDeleting 
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.red, strokeWidth: 2))
+              : const Text('Delete Community', style: TextStyle(fontWeight: FontWeight.bold)),
+        );
+      },
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Community', style: TextStyle(color: Colors.red)),
+        content: const Text('Are you sure you want to delete this community? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.read<CommunityAdminBloc>().add(DeleteCommunityGroupEvent(widget.communityId));
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

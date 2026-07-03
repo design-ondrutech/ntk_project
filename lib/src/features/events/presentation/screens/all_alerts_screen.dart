@@ -53,6 +53,7 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
     final isEmergency = widget.type == 'EMERGENCY';
     final userRole = context.read<AuthBloc>().state.loginData?.role ?? 'MEMBER';
     final canCreate = userRole != 'MEMBER';
+    final currentUserId = context.read<AuthBloc>().state.loginData?.id;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -125,11 +126,12 @@ class _AllAlertsScreenState extends State<AllAlertsScreen> {
                         return _buildDateHeader(item);
                       }
                       final broadcast = item as BroadcastModel;
+                      final isCreator = broadcast.createdById != null && broadcast.createdById == currentUserId;
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: _buildBroadcastItem(
                           broadcast,
-                          onDelete: canCreate
+                          onDelete: isCreator
                               ? () {
                                   showCupertinoDialog(
                                     context: context,

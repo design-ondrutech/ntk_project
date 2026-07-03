@@ -453,10 +453,11 @@ class CommunityPostsBloc
         ),
       );
     } catch (e) {
+      final msg = e.toString().replaceAll('Exception: ', '');
       emit(
         state.copyWith(
           isLoading: false,
-          error: 'Failed to delete post: $e',
+          error: msg,
           clearSuccess: true,
         ),
       );

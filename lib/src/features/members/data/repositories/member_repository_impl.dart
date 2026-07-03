@@ -209,6 +209,19 @@ class MemberRepositoryImpl implements MemberRepository {
             type
             parentId
           }
+          district
+          constituency
+          area
+          street
+          userLocations {
+            isPrimary
+            location {
+              id
+              name
+              type
+              parentId
+            }
+          }
         }
       }
     ''';

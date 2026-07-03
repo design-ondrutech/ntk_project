@@ -113,6 +113,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         token: state.loginData?.token,
         bloodGroup: me.bloodGroup,
         professionName: me.professionName,
+        dateOfBirth: me.dateOfBirth,
       );
       await _authRepository.persistSession(updatedModel);
       emit(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -520,19 +522,22 @@ Widget buildRecentActivitiesHeader(BuildContext context) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      const Text(
-        'Recent Activities',
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF111827),
+      Flexible(
+        child: Text(
+          AppLocalizations.of(context)!.recentActivities,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF111827),
+          ),
+          overflow: TextOverflow.ellipsis,
         ),
       ),
       TextButton(
         onPressed: () => Navigator.pushNamed(context, '/activity_log'),
-        child: const Text(
-          'View All',
-          style: TextStyle(
+        child: Text(
+          AppLocalizations.of(context)!.viewAll,
+          style: const TextStyle(
             color: Color(0xFF059669),
             fontWeight: FontWeight.bold,
           ),

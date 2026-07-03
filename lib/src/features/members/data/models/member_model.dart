@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:ntk_project/src/features/location/data/models/location_model.dart';
+import 'package:ntk_project/src/features/users/data/models/user_location_assignment.dart';
 
 class MemberModel extends Equatable {
   final int id;
@@ -18,6 +19,12 @@ class MemberModel extends Equatable {
   final String? gender;
   final String? image;
 
+  final String? district;
+  final String? constituency;
+  final String? area;
+  final String? street;
+  final List<UserLocationAssignment> userLocations;
+
   const MemberModel({
     required this.id,
     required this.name,
@@ -34,6 +41,11 @@ class MemberModel extends Equatable {
     this.dateOfBirth,
     this.gender,
     this.image,
+    this.district,
+    this.constituency,
+    this.area,
+    this.street,
+    this.userLocations = const [],
   });
 
   factory MemberModel.fromJson(Map<String, dynamic> json) {
@@ -62,6 +74,24 @@ class MemberModel extends Equatable {
       dateOfBirth: json['dateOfBirth'] as String?,
       gender: json['gender'] as String?,
       image: json['image'] as String?,
+      district: json['district'] as String?,
+      constituency: json['constituency'] as String?,
+      area: json['area'] as String?,
+      street: json['street'] as String?,
+      userLocations: (json['userLocations'] as List<dynamic>? ?? [])
+          .map((ul) {
+            final loc = ul['location'];
+            final isPrimary = (ul['isPrimary'] == 1 || ul['isPrimary'] == true);
+            final locationId = loc != null ? (loc['id'] as int? ?? 0) : 0;
+            return UserLocationAssignment(
+              id: 0,
+              userId: json['id'] as int? ?? 0,
+              locationId: locationId,
+              isPrimary: isPrimary,
+              location: loc != null ? LocationModel.fromJson(loc as Map<String, dynamic>) : null,
+            );
+          })
+          .toList(),
     );
   }
 
@@ -112,5 +142,6 @@ class MemberModel extends Equatable {
     dateOfBirth,
     gender,
     image,
+    userLocations,
   ];
 }

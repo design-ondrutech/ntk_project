@@ -1249,6 +1249,576 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dist. Incharges'**
   String get totalDistrictIncharges;
+
+  /// No description provided for @createPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Post'**
+  String get createPost;
+
+  /// No description provided for @selectCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Category'**
+  String get selectCategory;
+
+  /// No description provided for @general.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get general;
+
+  /// No description provided for @discussion.
+  ///
+  /// In en, this message translates to:
+  /// **'Discussion'**
+  String get discussion;
+
+  /// No description provided for @suggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestion'**
+  String get suggestion;
+
+  /// No description provided for @complaint.
+  ///
+  /// In en, this message translates to:
+  /// **'Complaint'**
+  String get complaint;
+
+  /// No description provided for @information.
+  ///
+  /// In en, this message translates to:
+  /// **'Information'**
+  String get information;
+
+  /// No description provided for @writeYourPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Write your post...'**
+  String get writeYourPost;
+
+  /// No description provided for @addPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Photos'**
+  String get addPhotos;
+
+  /// No description provided for @communityPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Community Post'**
+  String get communityPost;
+
+  /// No description provided for @generalUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'General Update'**
+  String get generalUpdate;
+
+  /// No description provided for @askYourCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask your community'**
+  String get askYourCommunity;
+
+  /// No description provided for @createPollDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a poll for local decisions'**
+  String get createPollDescription;
+
+  /// No description provided for @reviewLocationRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Review Location Requests'**
+  String get reviewLocationRequests;
+
+  /// No description provided for @approveRejectLocationChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve or reject role and location changes'**
+  String get approveRejectLocationChanges;
+
+  /// No description provided for @recentActivities.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Activities'**
+  String get recentActivities;
+
+  /// No description provided for @createCommunityGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Community Group'**
+  String get createCommunityGroup;
+
+  /// No description provided for @createNewGroupDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a new group for your location'**
+  String get createNewGroupDesc;
+
+  /// No description provided for @groupDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Details'**
+  String get groupDetails;
+
+  /// No description provided for @groupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Name'**
+  String get groupName;
+
+  /// No description provided for @privacyType.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy Type'**
+  String get privacyType;
+
+  /// No description provided for @publicAnyoneJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Public (Anyone can join)'**
+  String get publicAnyoneJoin;
+
+  /// No description provided for @privateInviteOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Private (Invite Only)'**
+  String get privateInviteOnly;
+
+  /// No description provided for @membersListTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get membersListTitle;
+
+  /// No description provided for @searchMembersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search members by name or street...'**
+  String get searchMembersHint;
+
+  /// No description provided for @filterDistrict.
+  ///
+  /// In en, this message translates to:
+  /// **'District'**
+  String get filterDistrict;
+
+  /// No description provided for @filterAllDistricts.
+  ///
+  /// In en, this message translates to:
+  /// **'All Districts'**
+  String get filterAllDistricts;
+
+  /// No description provided for @filterThoguthi.
+  ///
+  /// In en, this message translates to:
+  /// **'Thoguthi'**
+  String get filterThoguthi;
+
+  /// No description provided for @filterAllThoguthis.
+  ///
+  /// In en, this message translates to:
+  /// **'All Thoguthis'**
+  String get filterAllThoguthis;
+
+  /// No description provided for @filterArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Area'**
+  String get filterArea;
+
+  /// No description provided for @filterAllAreas.
+  ///
+  /// In en, this message translates to:
+  /// **'All Areas'**
+  String get filterAllAreas;
+
+  /// No description provided for @filterStreet.
+  ///
+  /// In en, this message translates to:
+  /// **'Street'**
+  String get filterStreet;
+
+  /// No description provided for @filterAllStreets.
+  ///
+  /// In en, this message translates to:
+  /// **'All Streets'**
+  String get filterAllStreets;
+
+  /// No description provided for @filterRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Role'**
+  String get filterRole;
+
+  /// No description provided for @filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get filterAll;
+
+  /// No description provided for @filterMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More Filters'**
+  String get filterMore;
+
+  /// No description provided for @roleAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get roleAdmin;
+
+  /// No description provided for @roleSubAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Sub Admin'**
+  String get roleSubAdmin;
+
+  /// No description provided for @roleDistInch.
+  ///
+  /// In en, this message translates to:
+  /// **'Dist. Inch'**
+  String get roleDistInch;
+
+  /// No description provided for @roleMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get roleMembers;
+
+  /// No description provided for @roleTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get roleTotal;
+
+  /// No description provided for @memberList.
+  ///
+  /// In en, this message translates to:
+  /// **'Member List'**
+  String get memberList;
+
+  /// No description provided for @allowMemberMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow Member Messages'**
+  String get allowMemberMessages;
+
+  /// No description provided for @allowMemberMessagesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Members can send messages in the group'**
+  String get allowMemberMessagesDesc;
+
+  /// No description provided for @notificationCenter.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Center'**
+  String get notificationCenter;
+
+  /// No description provided for @all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get all;
+
+  /// No description provided for @unread.
+  ///
+  /// In en, this message translates to:
+  /// **'Unread'**
+  String get unread;
+
+  /// No description provided for @approvals.
+  ///
+  /// In en, this message translates to:
+  /// **'Approvals'**
+  String get approvals;
+
+  /// No description provided for @markAllAsRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all as read'**
+  String get markAllAsRead;
+
+  /// No description provided for @createPollTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Poll'**
+  String get createPollTitle;
+
+  /// No description provided for @pollQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Poll Question'**
+  String get pollQuestion;
+
+  /// No description provided for @enterYourQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your question...'**
+  String get enterYourQuestion;
+
+  /// No description provided for @options.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get options;
+
+  /// No description provided for @optionIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'Option {index}'**
+  String optionIndex(int index);
+
+  /// No description provided for @addOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Option'**
+  String get addOption;
+
+  /// No description provided for @pollDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Poll Duration'**
+  String get pollDuration;
+
+  /// No description provided for @targetLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Target Location'**
+  String get targetLocation;
+
+  /// No description provided for @street.
+  ///
+  /// In en, this message translates to:
+  /// **'Street'**
+  String get street;
+
+  /// No description provided for @state.
+  ///
+  /// In en, this message translates to:
+  /// **'State'**
+  String get state;
+
+  /// No description provided for @districtAsterisk.
+  ///
+  /// In en, this message translates to:
+  /// **'District *'**
+  String get districtAsterisk;
+
+  /// No description provided for @constituencyTaluk.
+  ///
+  /// In en, this message translates to:
+  /// **'Constituency (Taluk)'**
+  String get constituencyTaluk;
+
+  /// No description provided for @areaTown.
+  ///
+  /// In en, this message translates to:
+  /// **'Area (Town)'**
+  String get areaTown;
+
+  /// No description provided for @selectStreetOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Street (Optional)'**
+  String get selectStreetOptional;
+
+  /// No description provided for @selectState.
+  ///
+  /// In en, this message translates to:
+  /// **'Select State'**
+  String get selectState;
+
+  /// No description provided for @selectDistrict.
+  ///
+  /// In en, this message translates to:
+  /// **'Select District'**
+  String get selectDistrict;
+
+  /// No description provided for @selectDistrictFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Select District first'**
+  String get selectDistrictFirst;
+
+  /// No description provided for @selectConstituency.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Constituency'**
+  String get selectConstituency;
+
+  /// No description provided for @selectConstituencyFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Constituency first'**
+  String get selectConstituencyFirst;
+
+  /// No description provided for @selectArea.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Area'**
+  String get selectArea;
+
+  /// No description provided for @joinedFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Joined'**
+  String get joinedFilter;
+
+  /// No description provided for @featuredFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured'**
+  String get featuredFilter;
+
+  /// No description provided for @nearbyFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearby'**
+  String get nearbyFilter;
+
+  /// No description provided for @communitiesCountText.
+  ///
+  /// In en, this message translates to:
+  /// **'Communities'**
+  String get communitiesCountText;
+
+  /// No description provided for @communitySingleText.
+  ///
+  /// In en, this message translates to:
+  /// **'Community'**
+  String get communitySingleText;
+
+  /// No description provided for @openAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get openAction;
+
+  /// No description provided for @inviteOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Invite Only'**
+  String get inviteOnly;
+
+  /// No description provided for @requestToJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Request to Join'**
+  String get requestToJoin;
+
+  /// No description provided for @joinedStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Joined'**
+  String get joinedStatus;
+
+  /// No description provided for @privacyPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'PRIVATE'**
+  String get privacyPrivate;
+
+  /// No description provided for @privacySecret.
+  ///
+  /// In en, this message translates to:
+  /// **'SECRET'**
+  String get privacySecret;
+
+  /// No description provided for @privacyPublic.
+  ///
+  /// In en, this message translates to:
+  /// **'PUBLIC'**
+  String get privacyPublic;
+
+  /// No description provided for @activityLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity Log'**
+  String get activityLog;
+
+  /// No description provided for @dashboardActivityLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashboard › Activity Log'**
+  String get dashboardActivityLog;
+
+  /// No description provided for @admins.
+  ///
+  /// In en, this message translates to:
+  /// **'Admins'**
+  String get admins;
+
+  /// No description provided for @roleChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Role Changes'**
+  String get roleChanges;
+
+  /// No description provided for @filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get filter;
+
+  /// No description provided for @dateOfBirth.
+  ///
+  /// In en, this message translates to:
+  /// **'Date of Birth'**
+  String get dateOfBirth;
+
+  /// No description provided for @bloodGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Blood Group'**
+  String get bloodGroup;
+
+  /// No description provided for @profession.
+  ///
+  /// In en, this message translates to:
+  /// **'Profession'**
+  String get profession;
+
+  /// No description provided for @gender.
+  ///
+  /// In en, this message translates to:
+  /// **'Gender'**
+  String get gender;
+
+  /// No description provided for @selectAreaFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Area first'**
+  String get selectAreaFirst;
+
+  /// No description provided for @selectDistrictOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Select District (Optional)'**
+  String get selectDistrictOptional;
+
+  /// No description provided for @defaultText.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultText;
+
+  /// No description provided for @orSelectSpecificLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Or select a specific location:'**
+  String get orSelectSpecificLocation;
+
+  /// No description provided for @selectStreet.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Street'**
+  String get selectStreet;
 }
 
 class _AppLocalizationsDelegate

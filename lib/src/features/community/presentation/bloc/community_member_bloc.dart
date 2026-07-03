@@ -8,6 +8,7 @@ class CommunityMemberBloc extends Bloc<CommunityMemberEvent, CommunityMemberStat
 
   CommunityMemberBloc(this._repository) : super(const CommunityMemberState()) {
     on<FetchCommunityMembers>(_onFetchCommunityMembers);
+    on<BanCommunityMemberEvent>(_onBanCommunityMember);
   }
 
   Future<void> _onFetchCommunityMembers(
@@ -22,6 +23,35 @@ class CommunityMemberBloc extends Bloc<CommunityMemberEvent, CommunityMemberStat
       emit(state.copyWith(isLoading: false, members: members));
     } catch (e) {
       emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onBanCommunityMember(
+    BanCommunityMemberEvent event,
+    Emitter<CommunityMemberState> emit,
+  ) async {
+    emit(state.copyWith(isBanning: true, clearError: true, clearSuccess: true));
+    try {
+      final success = await _repository.banCommunityUser(
+        communityId: event.communityId,
+        userId: event.userId,
+        reason: event.reason,
+        durationDays: event.durationDays,
+      );
+      
+      if (success) {
+        // Remove the banned member from the list
+        final updatedMembers = state.members.where((m) => m.id != event.userId).toList();
+        emit(state.copyWith(
+          isBanning: false, 
+          members: updatedMembers,
+          successMessage: 'Member banned successfully.',
+        ));
+      } else {
+        emit(state.copyWith(isBanning: false, error: 'Failed to ban member.'));
+      }
+    } catch (e) {
+      emit(state.copyWith(isBanning: false, error: e.toString()));
     }
   }
 }

@@ -594,4 +594,293 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get totalDistrictIncharges => 'Dist. Incharges';
+
+  @override
+  String get createPost => 'Create Post';
+
+  @override
+  String get selectCategory => 'Select Category';
+
+  @override
+  String get general => 'General';
+
+  @override
+  String get discussion => 'Discussion';
+
+  @override
+  String get suggestion => 'Suggestion';
+
+  @override
+  String get complaint => 'Complaint';
+
+  @override
+  String get information => 'Information';
+
+  @override
+  String get writeYourPost => 'Write your post...';
+
+  @override
+  String get addPhotos => 'Add Photos';
+
+  @override
+  String get communityPost => 'Community Post';
+
+  @override
+  String get generalUpdate => 'General Update';
+
+  @override
+  String get askYourCommunity => 'Ask your community';
+
+  @override
+  String get createPollDescription => 'Create a poll for local decisions';
+
+  @override
+  String get reviewLocationRequests => 'Review Location Requests';
+
+  @override
+  String get approveRejectLocationChanges =>
+      'Approve or reject role and location changes';
+
+  @override
+  String get recentActivities => 'Recent Activities';
+
+  @override
+  String get createCommunityGroup => 'Create Community Group';
+
+  @override
+  String get createNewGroupDesc => 'Create a new group for your location';
+
+  @override
+  String get groupDetails => 'Group Details';
+
+  @override
+  String get groupName => 'Group Name';
+
+  @override
+  String get privacyType => 'Privacy Type';
+
+  @override
+  String get publicAnyoneJoin => 'Public (Anyone can join)';
+
+  @override
+  String get privateInviteOnly => 'Private (Invite Only)';
+
+  @override
+  String get membersListTitle => 'Members';
+
+  @override
+  String get searchMembersHint => 'Search members by name or street...';
+
+  @override
+  String get filterDistrict => 'District';
+
+  @override
+  String get filterAllDistricts => 'All Districts';
+
+  @override
+  String get filterThoguthi => 'Thoguthi';
+
+  @override
+  String get filterAllThoguthis => 'All Thoguthis';
+
+  @override
+  String get filterArea => 'Area';
+
+  @override
+  String get filterAllAreas => 'All Areas';
+
+  @override
+  String get filterStreet => 'Street';
+
+  @override
+  String get filterAllStreets => 'All Streets';
+
+  @override
+  String get filterRole => 'Role';
+
+  @override
+  String get filterAll => 'All';
+
+  @override
+  String get filterMore => 'More Filters';
+
+  @override
+  String get roleAdmin => 'Admin';
+
+  @override
+  String get roleSubAdmin => 'Sub Admin';
+
+  @override
+  String get roleDistInch => 'Dist. Inch';
+
+  @override
+  String get roleMembers => 'Members';
+
+  @override
+  String get roleTotal => 'Total';
+
+  @override
+  String get memberList => 'Member List';
+
+  @override
+  String get allowMemberMessages => 'Allow Member Messages';
+
+  @override
+  String get allowMemberMessagesDesc =>
+      'Members can send messages in the group';
+
+  @override
+  String get notificationCenter => 'Notification Center';
+
+  @override
+  String get all => 'All';
+
+  @override
+  String get unread => 'Unread';
+
+  @override
+  String get approvals => 'Approvals';
+
+  @override
+  String get markAllAsRead => 'Mark all as read';
+
+  @override
+  String get createPollTitle => 'Create Poll';
+
+  @override
+  String get pollQuestion => 'Poll Question';
+
+  @override
+  String get enterYourQuestion => 'Enter your question...';
+
+  @override
+  String get options => 'Options';
+
+  @override
+  String optionIndex(int index) {
+    return 'Option $index';
+  }
+
+  @override
+  String get addOption => 'Add Option';
+
+  @override
+  String get pollDuration => 'Poll Duration';
+
+  @override
+  String get targetLocation => 'Target Location';
+
+  @override
+  String get street => 'Street';
+
+  @override
+  String get state => 'State';
+
+  @override
+  String get districtAsterisk => 'District *';
+
+  @override
+  String get constituencyTaluk => 'Constituency (Taluk)';
+
+  @override
+  String get areaTown => 'Area (Town)';
+
+  @override
+  String get selectStreetOptional => 'Select Street (Optional)';
+
+  @override
+  String get selectState => 'Select State';
+
+  @override
+  String get selectDistrict => 'Select District';
+
+  @override
+  String get selectDistrictFirst => 'Select District first';
+
+  @override
+  String get selectConstituency => 'Select Constituency';
+
+  @override
+  String get selectConstituencyFirst => 'Select Constituency first';
+
+  @override
+  String get selectArea => 'Select Area';
+
+  @override
+  String get joinedFilter => 'Joined';
+
+  @override
+  String get featuredFilter => 'Featured';
+
+  @override
+  String get nearbyFilter => 'Nearby';
+
+  @override
+  String get communitiesCountText => 'Communities';
+
+  @override
+  String get communitySingleText => 'Community';
+
+  @override
+  String get openAction => 'Open';
+
+  @override
+  String get inviteOnly => 'Invite Only';
+
+  @override
+  String get requestToJoin => 'Request to Join';
+
+  @override
+  String get joinedStatus => 'Joined';
+
+  @override
+  String get privacyPrivate => 'PRIVATE';
+
+  @override
+  String get privacySecret => 'SECRET';
+
+  @override
+  String get privacyPublic => 'PUBLIC';
+
+  @override
+  String get activityLog => 'Activity Log';
+
+  @override
+  String get dashboardActivityLog => 'Dashboard › Activity Log';
+
+  @override
+  String get admins => 'Admins';
+
+  @override
+  String get roleChanges => 'Role Changes';
+
+  @override
+  String get filter => 'Filter';
+
+  @override
+  String get dateOfBirth => 'Date of Birth';
+
+  @override
+  String get bloodGroup => 'Blood Group';
+
+  @override
+  String get profession => 'Profession';
+
+  @override
+  String get gender => 'Gender';
+
+  @override
+  String get selectAreaFirst => 'Select Area first';
+
+  @override
+  String get selectDistrictOptional => 'Select District (Optional)';
+
+  @override
+  String get defaultText => 'Default';
+
+  @override
+  String get orSelectSpecificLocation => 'Or select a specific location:';
+
+  @override
+  String get selectStreet => 'Select Street';
 }

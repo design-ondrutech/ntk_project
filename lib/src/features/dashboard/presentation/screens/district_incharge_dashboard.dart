@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
@@ -101,7 +102,7 @@ class _DistrictInchargeDashboardState extends State<DistrictInchargeDashboard> {
               location: LocationModel(
                 id: currentDistrict.id,
                 name: 'All Taluks in ${currentDistrict.name}',
-                type: '', // Empty type so it displays as 'All Taluks in Nagapattinam'
+                type: 'DISTRICT',
               ),
             ));
             
@@ -112,7 +113,12 @@ class _DistrictInchargeDashboardState extends State<DistrictInchargeDashboard> {
                 userId: userId ?? 0,
                 locationId: taluk.id,
                 isPrimary: false,
-                location: taluk,
+                location: LocationModel(
+                  id: taluk.id,
+                  name: taluk.name,
+                  type: taluk.type ?? 'TALUK',
+                  parentId: currentDistrict.id,
+                ),
               ));
             }
 
@@ -156,7 +162,7 @@ class _DistrictInchargeDashboardState extends State<DistrictInchargeDashboard> {
               body: RefreshIndicator(
                 onRefresh: () async {
                   context.read<DashboardBloc>().add(
-                    LoadDashboardStats(authLocationId, filterLocationId: selectedFilterLocationId, userId: userId),
+                    LoadDashboardStats(authLocationId, filterLocationId: state.globalLocation?.id != authLocationId ? state.globalLocation?.id : null, userId: userId),
                   );
                 },
                 child: SingleChildScrollView(
@@ -502,9 +508,9 @@ class _DistrictInchargeDashboardState extends State<DistrictInchargeDashboard> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Review Location Requests',
-                                    style: TextStyle(
+                                  Text(
+                                    AppLocalizations.of(context)!.reviewLocationRequests,
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -512,7 +518,7 @@ class _DistrictInchargeDashboardState extends State<DistrictInchargeDashboard> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Approve or reject role and location changes',
+                                    AppLocalizations.of(context)!.approveRejectLocationChanges,
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.9),
                                       fontSize: 12,

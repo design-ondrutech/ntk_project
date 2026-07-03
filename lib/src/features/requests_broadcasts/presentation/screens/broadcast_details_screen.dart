@@ -59,8 +59,7 @@ class _BroadcastDetailsScreenState extends State<BroadcastDetailsScreen> {
       );
     }
 
-    final userRole = context.read<AuthBloc>().state.loginData?.role ?? 'MEMBER';
-    final canDelete = userRole != 'MEMBER';
+    final currentUserId = context.read<AuthBloc>().state.loginData?.id;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -79,6 +78,7 @@ class _BroadcastDetailsScreenState extends State<BroadcastDetailsScreen> {
         builder: (context, state) {
           final isLoading = state.isLoading && state.currentBroadcast == null;
           final details = state.currentBroadcast ?? _initialBroadcast!;
+          final canDelete = details.createdById != null && details.createdById == currentUserId;
 
           return Column(
             children: [

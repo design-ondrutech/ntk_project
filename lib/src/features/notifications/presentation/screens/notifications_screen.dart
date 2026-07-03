@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
@@ -140,8 +141,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: NTKAppBar(
-        title: 'Notifications',
-        subtitle: 'Notification Center',
+        title: AppLocalizations.of(context)!.notifications,
+        subtitle: AppLocalizations.of(context)!.notificationCenter,
         showNotification: false,
         actions: [
           IconButton(
@@ -169,10 +170,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Recent Updates',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    AppLocalizations.of(context)!.recentUpdates,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 TextButton(
@@ -181,7 +185,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       MarkAllNotificationsAsRead(),
                     );
                   },
-                  child: const Text('Mark all as read'),
+                  child: Text(AppLocalizations.of(context)!.markAllAsRead),
                 ),
               ],
             ),
@@ -253,6 +257,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  String _getLocalizedFilter(BuildContext context, String filter) {
+    switch (filter) {
+      case 'All': return AppLocalizations.of(context)!.all;
+      case 'Unread': return AppLocalizations.of(context)!.unread;
+      case 'Events': return AppLocalizations.of(context)!.events;
+      case 'Approvals': return AppLocalizations.of(context)!.approvals;
+      case 'Broadcasts': return AppLocalizations.of(context)!.broadcasts;
+      case 'Emergency': return AppLocalizations.of(context)!.emergency;
+      case 'Polls': return AppLocalizations.of(context)!.pollsTab;
+      case 'Community': return AppLocalizations.of(context)!.communitySingleText;
+      default: return filter;
+    }
+  }
+
   Widget _buildFilterTabs() {
     return Container(
       height: 50,
@@ -267,7 +285,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           return Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ChoiceChip(
-              label: Text(filter),
+              label: Text(_getLocalizedFilter(context, filter)),
               selected: isSelected,
               onSelected: (selected) {
                 if (selected) {

@@ -137,6 +137,7 @@ class _RequestsBroadcastsScreenState extends State<RequestsBroadcastsScreen> {
 
                   final userRole = context.read<AuthBloc>().state.loginData?.role ?? 'MEMBER';
                   final canCreate = userRole != 'MEMBER';
+                  final currentUserId = context.read<AuthBloc>().state.loginData?.id;
 
                   return RefreshIndicator(
                     onRefresh: () async {
@@ -222,9 +223,11 @@ class _RequestsBroadcastsScreenState extends State<RequestsBroadcastsScreen> {
                                   child: Center(child: Text('No broadcasts found')),
                                 );
                               }
+                              final bItem = item as BroadcastModel;
+                              final isCreator = bItem.createdById != null && bItem.createdById == currentUserId;
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 12.0),
-                                child: _buildBroadcastCard(item as BroadcastModel, canDelete: canCreate),
+                                child: _buildBroadcastCard(bItem, canDelete: isCreator),
                               );
                             }
                           },

@@ -471,7 +471,7 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
   ) async {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
-      final updatedPost = await _repository.moderatePost(
+      await _repository.moderatePost(
         postId: event.postId,
         action: event.action,
         warningMessage: event.warningMessage,
@@ -489,7 +489,15 @@ class CommunityBloc extends Bloc<CommunityEvent, CommunityState> {
           ),
         );
       } else {
-        PostModel update(PostModel post) => post.id == event.postId ? updatedPost : post;
+        PostModel update(PostModel post) {
+          if (post.id == event.postId) {
+            return post.copyWith(
+              status: event.action == 'KEEP' ? 'ACTIVE' : post.status,
+              hasWarning: event.action == 'WARN' ? true : post.hasWarning,
+            );
+          }
+          return post;
+        }
         emit(
           state.copyWith(
             isLoading: false,

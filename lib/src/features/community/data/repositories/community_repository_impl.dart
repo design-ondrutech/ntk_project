@@ -11,6 +11,7 @@ import 'package:ntk_project/src/features/community/data/models/announcement_mode
 import 'package:ntk_project/src/features/community/data/models/community_settings_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_link_doc_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_analytics_model.dart';
+import 'package:ntk_project/src/features/community/data/models/community_media_model.dart';
 import 'package:ntk_project/src/features/community/data/models/community_ban_model.dart';
 import 'package:ntk_project/src/features/community/domain/repositories/community_repository.dart';
 
@@ -33,6 +34,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
           rules
           privacyType
           isArchived
+          allowMemberMessages
           locationId
           location {
             id
@@ -761,6 +763,14 @@ class CommunityRepositoryImpl implements CommunityRepository {
     );
 
     if (result.hasException) {
+      final errors = result.exception?.graphqlErrors;
+      if (errors != null && errors.isNotEmpty) {
+        final msg = errors.first.message;
+        if (msg.contains('Unauthorized')) {
+          throw Exception('You do not have permission to delete this post.');
+        }
+        throw Exception(msg);
+      }
       throw Exception('Failed to delete post: ${result.exception}');
     }
 
@@ -846,31 +856,17 @@ class CommunityRepositoryImpl implements CommunityRepository {
   }
 
   @override
-  Future<PostModel> moderatePost({
+  Future<bool> moderatePost({
     required int postId,
     required String action,
     String? warningMessage,
   }) async {
     const String mutation = r'''
-      mutation ModeratePost($postId: Int!, $action: String!, $warningMessage: String) {
+      mutation ModeratePost($postId: Int!, $action: ModerationAction!, $warningMessage: String) {
         moderatePost(postId: $postId, action: $action, warningMessage: $warningMessage) {
-          id
-          content
-          category
-          image
-          images
-          likes
-          commentCount
-          createdAt
-          authorName
-          status
-          reportCount
-          reportReasons
-          reportedUsersCount
-          isHighPriority
-          isUnderReview
-          hasWarning
-          isLiked
+          success
+          message
+          action
         }
       }
     ''';
@@ -894,7 +890,7 @@ class CommunityRepositoryImpl implements CommunityRepository {
 
     final data = result.data?['moderatePost'] as Map<String, dynamic>?;
     if (data == null) throw Exception('Moderate post failed');
-    return PostModel.fromJson(data);
+    return data['success'] as bool? ?? true;
   }
 
   @override
@@ -1071,6 +1067,56 @@ class CommunityRepositoryImpl implements CommunityRepository {
     final data = result.data?['createCommunity'] as Map<String, dynamic>?;
     if (data == null) throw Exception('Create community failed');
     return CommunityModel.fromJson(data);
+  }
+
+  @override
+  Future<bool> archiveCommunity({
+    required int communityId,
+    required bool isArchived,
+  }) async {
+    const String mutation = r'''
+      mutation ArchiveCommunity($communityId: Int!, $isArchived: Boolean!) {
+        archiveCommunity(communityId: $communityId, isArchived: $isArchived)
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'communityId': communityId,
+        'isArchived': isArchived,
+      },
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to archive community: ${result.exception}');
+    }
+
+    return result.data?['archiveCommunity'] as bool? ?? false;
+  }
+
+  @override
+  Future<bool> deleteCommunity({
+    required int communityId,
+  }) async {
+    const String mutation = r'''
+      mutation DeleteCommunity($communityId: Int!) {
+        deleteCommunity(communityId: $communityId)
+      }
+    ''';
+
+    final result = await _graphQLService.performMutation(
+      mutation,
+      variables: {
+        'communityId': communityId,
+      },
+    );
+
+    if (result.hasException) {
+      throw Exception('Failed to delete community: ${result.exception}');
+    }
+
+    return result.data?['deleteCommunity'] as bool? ?? false;
   }
 
   @override
@@ -2197,22 +2243,33 @@ class CommunityRepositoryImpl implements CommunityRepository {
   }
 
   @override
-  Future<List<CommunityLinkDocModel>> getCommunityLinksAndDocs({required int communityId}) async {
+  Future<List<CommunityMediaModel>> getCommunityMediaGallery({
+    required int communityId,
+    String? mediaType,
+  }) async {
     const String query = r'''
-      query GetLinksDocs($communityId: Int!) {
-        getCommunityLinksAndDocs(communityId: $communityId) {
-          id
-          title
-          url
-          type
-          uploadedAt
+      query GetCommunityMediaGallery($communityId: Int!, $mediaType: String) {
+        getCommunityMediaGallery(communityId: $communityId, mediaType: $mediaType) {
+          messageId
+          mediaUrl
+          mediaType
+          fileName
+          createdAt
         }
       }
     ''';
-    final result = await _graphQLService.performQuery(query, variables: {'communityId': communityId});
-    if (result.hasException) throw Exception('Failed to fetch links and docs');
-    final List data = result.data?['getCommunityLinksAndDocs'] as List? ?? [];
-    return data.map((json) => CommunityLinkDocModel.fromJson(json)).toList();
+    
+    final result = await _graphQLService.performQuery(
+      query,
+      variables: {
+        'communityId': communityId,
+        'mediaType': mediaType,
+      },
+    );
+    
+    if (result.hasException) throw Exception('Failed to fetch media gallery');
+    final List data = result.data?['getCommunityMediaGallery'] as List? ?? [];
+    return data.map((json) => CommunityMediaModel.fromJson(json)).toList();
   }
 
   @override

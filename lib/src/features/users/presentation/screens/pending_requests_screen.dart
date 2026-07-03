@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/core/widgets/ntk_app_bar.dart';
@@ -74,7 +75,7 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
     return Scaffold(
       backgroundColor: NTKColors.background,
       appBar: NTKAppBar(
-        title: 'Pending Requests',
+        title: AppLocalizations.of(context)!.pendingRequests,
         subtitle:
             context.read<AuthBloc>().state.loginData?.locationName ??
             'Admin Portal',
@@ -165,7 +166,7 @@ class _PendingRequestsScreenState extends State<PendingRequestsScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'No Pending Requests',
+                    AppLocalizations.of(context)!.noPendingRequests,
                     style: theme.textTheme.titleMedium,
                   ),
                 ],

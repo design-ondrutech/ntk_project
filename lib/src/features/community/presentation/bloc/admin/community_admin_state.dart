@@ -10,6 +10,10 @@ class CommunityAdminState extends Equatable {
   final bool isLoadingJoinRequests;
   final bool isApproving;
   final bool isReporting;
+  final bool isArchiving;
+  final bool isArchivedSuccessfully;
+  final bool isDeleting;
+  final bool isDeletedSuccessfully;
   final CommunityAnalyticsModel? analytics;
   final List<CommunityBanModel> bans;
   final List<PendingJoinRequestModel> joinRequests;
@@ -22,6 +26,10 @@ class CommunityAdminState extends Equatable {
     this.isLoadingJoinRequests = false,
     this.isApproving = false,
     this.isReporting = false,
+    this.isArchiving = false,
+    this.isArchivedSuccessfully = false,
+    this.isDeleting = false,
+    this.isDeletedSuccessfully = false,
     this.analytics,
     this.bans = const [],
     this.joinRequests = const [],
@@ -35,6 +43,10 @@ class CommunityAdminState extends Equatable {
     bool? isLoadingJoinRequests,
     bool? isApproving,
     bool? isReporting,
+    bool? isArchiving,
+    bool? isArchivedSuccessfully,
+    bool? isDeleting,
+    bool? isDeletedSuccessfully,
     CommunityAnalyticsModel? analytics,
     List<CommunityBanModel>? bans,
     List<PendingJoinRequestModel>? joinRequests,
@@ -49,6 +61,10 @@ class CommunityAdminState extends Equatable {
       isLoadingJoinRequests: isLoadingJoinRequests ?? this.isLoadingJoinRequests,
       isApproving: isApproving ?? this.isApproving,
       isReporting: isReporting ?? this.isReporting,
+      isArchiving: isArchiving ?? this.isArchiving,
+      isArchivedSuccessfully: isArchivedSuccessfully ?? this.isArchivedSuccessfully,
+      isDeleting: isDeleting ?? this.isDeleting,
+      isDeletedSuccessfully: isDeletedSuccessfully ?? this.isDeletedSuccessfully,
       analytics: analytics ?? this.analytics,
       bans: bans ?? this.bans,
       joinRequests: joinRequests ?? this.joinRequests,
@@ -64,6 +80,10 @@ class CommunityAdminState extends Equatable {
         isLoadingJoinRequests,
         isApproving,
         isReporting,
+        isArchiving,
+        isArchivedSuccessfully,
+        isDeleting,
+        isDeletedSuccessfully,
         analytics,
         bans,
         joinRequests,

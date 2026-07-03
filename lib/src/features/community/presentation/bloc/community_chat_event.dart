@@ -29,6 +29,17 @@ class FetchCommunityMessagesEvent extends CommunityChatEvent {
   List<Object?> get props => [communityId, beforeMessageId];
 }
 
+class SendTypingEvent extends CommunityChatEvent {
+  final int communityId;
+  final int userId;
+  final String userName;
+
+  const SendTypingEvent(this.communityId, this.userId, this.userName);
+
+  @override
+  List<Object?> get props => [communityId, userId, userName];
+}
+
 class SendCommunityMessageEvent extends CommunityChatEvent {
   final int communityId;
   final String message;
@@ -150,4 +161,15 @@ class LiveSettingsUpdated extends CommunityChatEvent {
   const LiveSettingsUpdated(this.community);
   @override
   List<Object?> get props => [community];
+}
+
+class LiveTypingEvent extends CommunityChatEvent {
+  final int userId;
+  final String userName;
+  final bool isTyping;
+
+  const LiveTypingEvent(this.userId, this.userName, {this.isTyping = true});
+  
+  @override
+  List<Object?> get props => [userId, userName, isTyping];
 }

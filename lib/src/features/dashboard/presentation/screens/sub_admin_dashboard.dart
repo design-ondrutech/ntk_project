@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/core/theme/app_theme.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
@@ -72,7 +73,7 @@ class SubAdminDashboard extends StatelessWidget {
               : RefreshIndicator(
                   onRefresh: () async {
                     context.read<DashboardBloc>().add(
-                      LoadDashboardStats(authLocationId, filterLocationId: selectedFilterLocationId, userId: userId),
+                      LoadDashboardStats(authLocationId, filterLocationId: state.globalLocation?.id != authLocationId ? state.globalLocation?.id : null, userId: userId),
                     );
                     context.read<DashboardBloc>().add(
                       LoadModerationStats(state.globalLocation?.id ?? authLocationId),
@@ -287,9 +288,9 @@ class SubAdminDashboard extends StatelessWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const Text(
-                                          'Review Location Requests',
-                                          style: TextStyle(
+                                        Text(
+                                          AppLocalizations.of(context)!.reviewLocationRequests,
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
@@ -297,9 +298,9 @@ class SubAdminDashboard extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Approve or reject role and location changes',
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(0.9),
+                                          AppLocalizations.of(context)!.approveRejectLocationChanges,
+                                          style: const TextStyle(
+                                            color: Colors.white,
                                             fontSize: 12,
                                           ),
                                         ),

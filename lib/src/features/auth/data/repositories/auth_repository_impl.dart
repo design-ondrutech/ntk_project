@@ -50,6 +50,9 @@ class AuthRepositoryImpl implements AuthRepository {
             approvalStatus
             addedBy
             image
+            bloodGroup
+            dateOfBirth
+            profession
             location {
               id
               name
@@ -163,6 +166,7 @@ class AuthRepositoryImpl implements AuthRepository {
             token: model.token,
             bloodGroup: meModel.bloodGroup ?? model.bloodGroup,
             professionName: meModel.professionName ?? model.professionName,
+            dateOfBirth: meModel.dateOfBirth ?? model.dateOfBirth,
           );
         }
       } catch (_) {}

@@ -200,6 +200,8 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
                 setState(() {
                   _selectedDistrict = district;
                   _selectedTaluk = taluk;
+                  _districts = [district];
+                  _taluks = [taluk];
                 });
               }
               found = true;
@@ -252,6 +254,8 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
             if (mounted) {
               setState(() {
                 _selectedDistrict = district;
+                _districts = [district];
+                _taluks = [adminTaluk];
               });
             }
             break;
@@ -273,6 +277,50 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
             }
           }
         }
+      }
+    } else if (role == 'DISTRICT_INCHARGE' && authLocId != null) {
+      _isDistrictLocked = false;
+      _isTalukLocked = false;
+      _isAreaLocked = false;
+      int distId = authLocId;
+      int? preSelectedTalukId;
+
+      if (globalLoc != null) {
+        if (globalLoc.type?.toUpperCase() == 'DISTRICT') {
+          distId = globalLoc.id;
+        } else if (globalLoc.type?.toUpperCase() == 'TALUK' || globalLoc.type?.toUpperCase() == 'CONSTITUENCY') {
+          preSelectedTalukId = globalLoc.id;
+          if (globalLoc.parentId != null) distId = globalLoc.parentId!;
+        }
+      } else {
+        final assignedDistricts = dashState.assignedLocations
+            .where((l) => l.location?.type?.toUpperCase() == 'DISTRICT')
+            .map((l) => l.location!)
+            .toList();
+        if (assignedDistricts.isNotEmpty) {
+          distId = assignedDistricts.firstWhere((d) => d.id == authLocId, orElse: () => assignedDistricts.first).id;
+        }
+      }
+
+      try {
+        final allDistricts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        final match = allDistricts.where((d) => d.id == distId).firstOrNull;
+        if (match != null && mounted) {
+          setState(() {
+            _selectedDistrict = match;
+            _districts = [match];
+          });
+          await _onDistrictChanged(match);
+          if (preSelectedTalukId != null && mounted) {
+            final tMatch = _taluks.where((t) => t.id == preSelectedTalukId).firstOrNull;
+            if (tMatch != null) {
+              setState(() => _selectedTaluk = tMatch);
+              await _onTalukChanged(tMatch);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('_initLocationForRole: error resolving district: $e');
       }
     } else {
     }
@@ -478,9 +526,7 @@ class _CreateMemberScreenState extends State<CreateMemberScreen> {
         backgroundColor: const Color(0xFFF0F4F8),
         appBar: NTKAppBar(
           title: 'Create Member',
-          subtitle:
-              context.read<AuthBloc>().state.loginData?.locationName ??
-              'Admin Portal',
+          subtitle: _selectedDistrict?.name ?? context.read<AuthBloc>().state.loginData?.locationName ?? 'Tamil Nadu',
           showNotification: false,
         ),
         body: SingleChildScrollView(

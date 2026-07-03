@@ -428,7 +428,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
               }
               final post = posts[index - 1];
               return _PostCard(
-                key: ValueKey('${post.id}_$index'),
+                key: ValueKey(post.id),
                 post: post,
                 onLike: () =>
                     context.read<CommunityBloc>().add(LikePost(post.id)),
@@ -533,20 +533,27 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                 child: Container(
                   color: Colors.white,
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                  child: Row(
-                    children: [
-                      for (final label in [
-                        'All',
-                        'Joined',
-                        'Featured',
-                        'Nearby',
-                      ])
-                        _GroupFilterChip(
-                          label: label,
-                          selected: _groupsFilter == label,
-                          onTap: () => setState(() => _groupsFilter = label),
-                        ),
-                    ],
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        for (final label in ['All', 'Joined', 'Featured', 'Nearby'])
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: _GroupFilterChip(
+                              label: label == 'All'
+                                  ? AppLocalizations.of(context)!.all
+                                  : label == 'Joined'
+                                      ? AppLocalizations.of(context)!.joinedFilter
+                                      : label == 'Featured'
+                                          ? AppLocalizations.of(context)!.featuredFilter
+                                          : AppLocalizations.of(context)!.nearbyFilter,
+                              selected: _groupsFilter == label,
+                              onTap: () => setState(() => _groupsFilter = label),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -561,7 +568,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                   child: Row(
                     children: [
                       Text(
-                        '${filtered.length} ${filtered.length == 1 ? 'Community' : 'Communities'}',
+                        '${filtered.length} ${filtered.length == 1 ? AppLocalizations.of(context)!.communitySingleText : AppLocalizations.of(context)!.communitiesCountText}',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -720,7 +727,7 @@ class _CommunityFeedScreenState extends State<CommunityFeedScreen>
                   }
                   final poll = state.polls[index - 1];
                   return _PollCard(
-                    key: ValueKey('${poll.id}_$index'),
+                    key: ValueKey(poll.id),
                     poll: poll,
                     onTap: () => _openPollDetails(poll),
                     onVote: (optionId) =>
@@ -809,12 +816,215 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
   void initState() {
     super.initState();
     _locationRepo = sl<LocationRepository>();
-    final authState = context.read<AuthBloc>().state;
-    final role = authState.loginData?.role ?? '';
-    final locationId = authState.loginData?.locationId;
+    _initLocationForRole();
+  }
 
-    if (role == 'SUB_ADMIN' && locationId != null) {
-      _loadStreetsForSubAdmin(locationId);
+  Future<void> _initLocationForRole() async {
+    final authState = context.read<AuthBloc>().state;
+    final role = authState.loginData?.role ?? 'MEMBER';
+    final locationId = authState.loginData?.locationId;
+    final globalLocation = context.read<DashboardBloc>().state.globalLocation;
+
+    if (role == 'SUPER_ADMIN') {
+      _loadDistricts();
+      return;
+    }
+
+    if (role == 'DISTRICT_INCHARGE' && locationId != null) {
+      int distId = locationId;
+      LocationModel? preSelectedTaluk;
+
+      if (globalLocation != null) {
+        if (globalLocation.type?.toUpperCase() == 'TALUK' || globalLocation.type?.toUpperCase() == 'CONSTITUENCY') {
+          preSelectedTaluk = globalLocation;
+          if (globalLocation.parentId != null) distId = globalLocation.parentId!;
+        } else if (globalLocation.type?.toUpperCase() == 'DISTRICT') {
+          distId = globalLocation.id;
+        }
+      } else {
+        final assignedDistricts = context.read<DashboardBloc>().state.assignedLocations
+            .where((l) => l.location?.type?.toUpperCase() == 'DISTRICT')
+            .map((l) => l.location!)
+            .toList();
+        if (assignedDistricts.isNotEmpty) {
+           distId = assignedDistricts.firstWhere((d) => d.id == locationId, orElse: () => assignedDistricts.first).id;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _loadingConstituencies = true;
+        });
+      }
+      
+      try {
+        final allDistricts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        final match = allDistricts.where((d) => d.id == distId).firstOrNull;
+        if (match != null && mounted) {
+          setState(() {
+            _selectedDistrict = match;
+            _districts = [match];
+          });
+        }
+      } catch (e) {
+        debugPrint('_initLocationForRole: error resolving district: $e');
+      }
+      
+      try {
+        final taluks = await _locationRepo.getLocationList(type: 'TALUK', parentId: distId);
+        if (mounted) {
+          setState(() {
+            _constituencies = taluks;
+            _loadingConstituencies = false;
+          });
+          
+          if (preSelectedTaluk != null) {
+            final match = _constituencies.where((c) => c.id == preSelectedTaluk!.id).firstOrNull;
+            if (match != null) {
+              setState(() {
+                _selectedConstituency = match;
+                _loadingAreas = true;
+              });
+              final areas = await _locationRepo.getLocationList(type: 'AREA', parentId: match.id);
+              if (mounted) {
+                setState(() {
+                  _areas = areas;
+                  _loadingAreas = false;
+                });
+              }
+            }
+          }
+        }
+      } catch (_) {
+        if (mounted) setState(() => _loadingConstituencies = false);
+      }
+      return;
+    }
+
+    if (locationId != null) {
+      setState(() {
+        _loadingDistricts = true;
+        _loadingConstituencies = true;
+        _loadingAreas = true;
+      });
+      try {
+        final districts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        bool found = false;
+
+        if (districts.any((d) => d.id == locationId)) {
+          final district = districts.firstWhere((d) => d.id == locationId);
+          if (mounted) {
+            setState(() {
+              _selectedDistrict = district;
+              _districts = [district];
+              _loadingDistricts = false;
+              _loadingConstituencies = false;
+              _loadingAreas = false;
+            });
+          }
+          found = true;
+        }
+
+        if (!found) {
+          for (final district in districts) {
+            final taluks = await _locationRepo.getLocationList(
+              parentId: district.id,
+              type: 'TALUK',
+            );
+
+            if (taluks.any((t) => t.id == locationId)) {
+              final taluk = taluks.firstWhere((t) => t.id == locationId);
+              if (mounted) {
+                setState(() {
+                  _selectedDistrict = district;
+                  _districts = [district];
+                  _selectedConstituency = taluk;
+                  _constituencies = [taluk];
+                  _loadingDistricts = false;
+                  _loadingConstituencies = false;
+                  _loadingAreas = false;
+                });
+              }
+              found = true;
+              break;
+            }
+
+            for (final taluk in taluks) {
+              final areas = await _locationRepo.getLocationList(
+                parentId: taluk.id,
+                type: 'AREA',
+              );
+              if (areas.any((a) => a.id == locationId)) {
+                final area = areas.firstWhere((a) => a.id == locationId);
+                if (mounted) {
+                  setState(() {
+                    _selectedDistrict = district;
+                    _districts = [district];
+                    _selectedConstituency = taluk;
+                    _constituencies = [taluk];
+                    _selectedArea = area;
+                    _areas = [area];
+                    _loadingDistricts = false;
+                    _loadingConstituencies = false;
+                    _loadingAreas = false;
+                  });
+                  _loadStreetsForSubAdmin(area.id);
+                }
+                found = true;
+                break;
+              }
+              // Check streets
+              for (final area in areas) {
+                final streets = await _locationRepo.getLocationList(
+                  parentId: area.id,
+                  type: 'STREET',
+                );
+                if (streets.any((s) => s.id == locationId)) {
+                  final street = streets.firstWhere((s) => s.id == locationId);
+                  if (mounted) {
+                    setState(() {
+                      _selectedDistrict = district;
+                      _districts = [district];
+                      _selectedConstituency = taluk;
+                      _constituencies = [taluk];
+                      _selectedArea = area;
+                      _areas = [area];
+                      _selectedStreet = street;
+                      _streets = [street];
+                      _loadingDistricts = false;
+                      _loadingConstituencies = false;
+                      _loadingAreas = false;
+                      _loadingStreets = false;
+                    });
+                  }
+                  found = true;
+                  break;
+                }
+              }
+              if (found) break;
+            }
+            if (found) break;
+          }
+        }
+        if (!found && mounted) {
+          setState(() {
+            _loadingDistricts = false;
+            _loadingConstituencies = false;
+            _loadingAreas = false;
+          });
+          _loadDistricts();
+        }
+      } catch (e) {
+        debugPrint('Error finding location hierarchy: $e');
+        if (mounted) {
+          setState(() {
+            _loadingDistricts = false;
+            _loadingConstituencies = false;
+            _loadingAreas = false;
+          });
+          _loadDistricts();
+        }
+      }
     } else {
       _loadDistricts();
     }
@@ -990,10 +1200,11 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
     required String Function(T) itemLabel,
     required String hintText,
   }) {
+    final bool isDisabled = onChanged == null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDisabled ? const Color(0xFFF9FAFB) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
@@ -1001,10 +1212,10 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
         child: DropdownButton<T>(
           value: value,
           isExpanded: true,
-          icon: const Icon(
-            CupertinoIcons.chevron_down,
-            size: 16,
-            color: Color(0xFF6B7280),
+          icon: Icon(
+            isDisabled ? CupertinoIcons.lock : CupertinoIcons.chevron_down,
+            size: isDisabled ? 14 : 16,
+            color: isDisabled ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
           ),
           hint: Text(
             hintText,
@@ -1016,9 +1227,9 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                   value: item,
                   child: Text(
                     itemLabel(item),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF1F2937),
+                      color: isDisabled ? const Color(0xFF9CA3AF) : const Color(0xFF1F2937),
                     ),
                   ),
                 ),
@@ -1086,9 +1297,10 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
     final authState = context.read<AuthBloc>().state;
     final role = authState.loginData?.role ?? 'MEMBER';
 
-    final canChangeDistrict = role == 'ADMIN' || role == 'SUPER_ADMIN';
-    final canChangeTaluk = canChangeDistrict || role == 'DISTRICT_ADMIN';
-    final canChangeArea = role != 'MEMBER';
+    final canChangeDistrict = role == 'SUPER_ADMIN';
+    final canChangeTaluk = canChangeDistrict || role == 'DISTRICT_ADMIN' || role == 'DISTRICT_INCHARGE';
+    final canChangeArea = canChangeTaluk || role == 'ADMIN' || role == 'CONSTITUENCY_INCHARGE';
+    final canChangeStreet = role != 'MEMBER' && role != 'STREET_INCHARGE';
 
     final remaining = 500 - _content.text.length;
     return Scaffold(
@@ -1097,9 +1309,9 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
         backgroundColor: const Color(0xFF004D2A), // Dark Green
         elevation: 0,
         leading: const BackButton(color: Colors.white),
-        title: const Text(
-          'Create Post',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context)!.createPost,
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 18,
@@ -1113,38 +1325,38 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(18),
                 children: [
-                  const _FormLabel('Select Category'),
+                  _FormLabel(AppLocalizations.of(context)!.selectCategory),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
                     children: [
                       _CategoryChip(
-                        label: 'General',
+                        label: AppLocalizations.of(context)!.general,
                         icon: Icons.public_rounded,
                         active: _category == 'General',
                         onTap: () => setState(() => _category = 'General'),
                       ),
                       _CategoryChip(
-                        label: 'Discussion',
+                        label: AppLocalizations.of(context)!.discussion,
                         icon: Icons.forum_outlined,
                         active: _category == 'Discussion',
                         onTap: () => setState(() => _category = 'Discussion'),
                       ),
                       _CategoryChip(
-                        label: 'Suggestion',
+                        label: AppLocalizations.of(context)!.suggestion,
                         icon: Icons.lightbulb_outline,
                         active: _category == 'Suggestion',
                         onTap: () => setState(() => _category = 'Suggestion'),
                       ),
                       _CategoryChip(
-                        label: 'Complaint',
+                        label: AppLocalizations.of(context)!.complaint,
                         icon: Icons.warning_amber_rounded,
                         active: _category == 'Complaint',
                         onTap: () => setState(() => _category = 'Complaint'),
                       ),
                       _CategoryChip(
-                        label: 'Information',
+                        label: AppLocalizations.of(context)!.information,
                         icon: Icons.info_outline_rounded,
                         active: _category == 'Information',
                         onTap: () => setState(() => _category = 'Information'),
@@ -1152,7 +1364,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                     ],
                   ),
                   const SizedBox(height: 22),
-                  const _FormLabel('What is happening?'),
+                  _FormLabel(AppLocalizations.of(context)!.whatIsHappening),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _content,
@@ -1160,8 +1372,8 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                     minLines: 6,
                     maxLines: 10,
                     onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(
-                      hintText: 'Write your post...',
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!.writeYourPost,
                       counterText: '',
                     ),
                   ),
@@ -1173,7 +1385,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const _FormLabel('Add Photos'),
+                  _FormLabel(AppLocalizations.of(context)!.addPhotos),
                   const SizedBox(height: 10),
                   _ImagePreviewGrid(
                     images: _images,
@@ -1182,7 +1394,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                         setState(() => _images.removeAt(index)),
                   ),
                   const SizedBox(height: 20),
-                  const _FormLabel('Location'),
+                  _FormLabel(AppLocalizations.of(context)!.location),
                   const SizedBox(height: 8),
                   // Show user's registered location as default
                   Container(
@@ -1207,7 +1419,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Default: ${widget.locationName}',
+                            '${AppLocalizations.of(context)!.defaultText}: ${widget.locationName}',
                             style: const TextStyle(
                               color: Color(0xFF004D2A),
                               fontSize: 13,
@@ -1227,13 +1439,14 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Or select a specific location:',
-                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+                  Text(
+                    AppLocalizations.of(context)!.orSelectSpecificLocation,
+                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
                   ),
                   const SizedBox(height: 10),
                   Builder(
                     builder: (context) {
+                      final loc = AppLocalizations.of(context)!;
                       final authState = context.read<AuthBloc>().state;
                       final userRole = authState.loginData?.role ?? '';
                       final isSubAdmin = userRole == 'SUB_ADMIN';
@@ -1242,17 +1455,17 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _FormLabel('Street'),
+                            _FormLabel(loc.street),
                             const SizedBox(height: 6),
                             _loadingStreets
-                                ? _buildLoadingField('Street')
+                                ? _buildLoadingField(loc.street)
                                 : _buildDropdownField<LocationModel>(
                                     items: _streets,
                                     value: _selectedStreet,
                                     onChanged: (val) =>
                                         setState(() => _selectedStreet = val),
                                     itemLabel: (item) => item.name,
-                                    hintText: 'Select Street (Optional)',
+                                    hintText: loc.selectStreetOptional,
                                   ),
                           ],
                         );
@@ -1262,7 +1475,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // 1. State
-                          const _FormLabel('State'),
+                          _FormLabel(loc.state),
                           const SizedBox(height: 6),
                           _buildDropdownField<String>(
                             items: _states,
@@ -1270,15 +1483,15 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                             onChanged: (val) =>
                                 setState(() => _selectedState = val),
                             itemLabel: (item) => item,
-                            hintText: 'Select State',
+                            hintText: loc.selectState,
                           ),
                           const SizedBox(height: 16),
 
                           // 2. District
-                          const _FormLabel('District'),
+                          _FormLabel(loc.district),
                           const SizedBox(height: 6),
                           _loadingDistricts
-                              ? _buildLoadingField('District')
+                              ? _buildLoadingField(loc.district)
                               : _buildDropdownField<LocationModel>(
                                   items: _districts,
                                   value: _selectedDistrict,
@@ -1286,17 +1499,17 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                                       ? _onDistrictChanged
                                       : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select District (Optional)',
+                                  hintText: loc.selectDistrictOptional,
                                 ),
                           const SizedBox(height: 16),
 
                           // 3. Constituency (Taluk)
-                          const _FormLabel('Constituency (Taluk)'),
+                          _FormLabel(loc.constituencyTaluk),
                           const SizedBox(height: 6),
                           _loadingConstituencies
-                              ? _buildLoadingField('Constituency')
+                              ? _buildLoadingField(loc.constituencyTaluk)
                               : _selectedDistrict == null
-                              ? _buildDisabledField('Select District first')
+                              ? _buildDisabledField(loc.selectDistrictFirst)
                               : _buildDropdownField<LocationModel>(
                                   items: _constituencies,
                                   value: _selectedConstituency,
@@ -1304,17 +1517,17 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                                       ? _onConstituencyChanged
                                       : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select Constituency',
+                                  hintText: loc.selectConstituency,
                                 ),
                           const SizedBox(height: 16),
 
                           // 4. Area (Town)
-                          const _FormLabel('Area (Town)'),
+                          _FormLabel(loc.areaTown),
                           const SizedBox(height: 6),
                           _loadingAreas
-                              ? _buildLoadingField('Area')
+                              ? _buildLoadingField(loc.areaTown)
                               : _selectedConstituency == null
-                              ? _buildDisabledField('Select Constituency first')
+                              ? _buildDisabledField(loc.selectConstituencyFirst)
                               : _buildDropdownField<LocationModel>(
                                   items: _areas,
                                   value: _selectedArea,
@@ -1322,27 +1535,27 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                                       ? _onAreaChanged
                                       : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select Area',
+                                  hintText: loc.selectArea,
                                 ),
                           const SizedBox(height: 16),
 
                           // 5. Street
-                          const _FormLabel('Street'),
+                          _FormLabel(loc.street),
                           const SizedBox(height: 6),
                           _loadingStreets
-                              ? _buildLoadingField('Street')
+                              ? _buildLoadingField(loc.street)
                               : _selectedArea == null
-                              ? _buildDisabledField('Select Area first')
+                              ? _buildDisabledField(loc.selectAreaFirst)
                               : _buildDropdownField<LocationModel>(
                                   items: _streets,
                                   value: _selectedStreet,
-                                  onChanged: canChangeArea
+                                  onChanged: canChangeStreet
                                       ? (val) => setState(
                                           () => _selectedStreet = val,
                                         )
                                       : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select Street',
+                                  hintText: loc.selectStreet,
                                 ),
                         ],
                       );
@@ -1351,7 +1564,7 @@ class _CreatePostScreenState extends State<_CreatePostScreen> {
                 ],
               ),
             ),
-            _BottomAction(label: 'Post', onTap: _publish),
+            _BottomAction(label: AppLocalizations.of(context)!.post, onTap: _publish),
           ],
         ),
       ),
@@ -1414,9 +1627,81 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
     final authState = context.read<AuthBloc>().state;
     final role = authState.loginData?.role ?? 'MEMBER';
     final locationId = authState.loginData?.locationId;
+    final globalLocation = context.read<DashboardBloc>().state.globalLocation;
 
-    if (role == 'ADMIN' || role == 'SUPER_ADMIN') {
+    if (role == 'SUPER_ADMIN') {
       _loadDistricts();
+      return;
+    }
+
+    if (role == 'DISTRICT_INCHARGE' && locationId != null) {
+      int distId = locationId;
+      LocationModel? preSelectedTaluk;
+
+      if (globalLocation != null) {
+        if (globalLocation.type?.toUpperCase() == 'TALUK' || globalLocation.type?.toUpperCase() == 'CONSTITUENCY') {
+          preSelectedTaluk = globalLocation;
+          if (globalLocation.parentId != null) distId = globalLocation.parentId!;
+        } else if (globalLocation.type?.toUpperCase() == 'DISTRICT') {
+          distId = globalLocation.id;
+        }
+      } else {
+        final assignedDistricts = context.read<DashboardBloc>().state.assignedLocations
+            .where((l) => l.location?.type?.toUpperCase() == 'DISTRICT')
+            .map((l) => l.location!)
+            .toList();
+        if (assignedDistricts.isNotEmpty) {
+           distId = assignedDistricts.firstWhere((d) => d.id == locationId, orElse: () => assignedDistricts.first).id;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _loadingConstituencies = true;
+        });
+      }
+      
+      try {
+        final allDistricts = await _locationRepo.getLocationList(type: 'DISTRICT');
+        final match = allDistricts.where((d) => d.id == distId).firstOrNull;
+        if (match != null && mounted) {
+          setState(() {
+            _selectedDistrict = match;
+            _districts = [match];
+          });
+        }
+      } catch (e) {
+        debugPrint('_initLocationForRole: error resolving district: $e');
+      }
+      
+      try {
+        final taluks = await _locationRepo.getLocationList(type: 'TALUK', parentId: distId);
+        if (mounted) {
+          setState(() {
+            _constituencies = taluks;
+            _loadingConstituencies = false;
+          });
+          
+          if (preSelectedTaluk != null) {
+            final match = _constituencies.where((c) => c.id == preSelectedTaluk!.id).firstOrNull;
+            if (match != null) {
+              setState(() {
+                _selectedConstituency = match;
+                _loadingAreas = true;
+              });
+              final areas = await _locationRepo.getLocationList(type: 'AREA', parentId: match.id);
+              if (mounted) {
+                setState(() {
+                  _areas = areas;
+                  _loadingAreas = false;
+                });
+              }
+            }
+          }
+        }
+      } catch (_) {
+        if (mounted) setState(() => _loadingConstituencies = false);
+      }
       return;
     }
 
@@ -1723,10 +2008,11 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
     required String Function(T) itemLabel,
     required String hintText,
   }) {
+    final bool isDisabled = onChanged == null;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDisabled ? const Color(0xFFF9FAFB) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
@@ -1734,10 +2020,10 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
         child: DropdownButton<T>(
           value: value,
           isExpanded: true,
-          icon: const Icon(
-            CupertinoIcons.chevron_down,
-            size: 16,
-            color: Color(0xFF6B7280),
+          icon: Icon(
+            isDisabled ? CupertinoIcons.lock : CupertinoIcons.chevron_down,
+            size: isDisabled ? 14 : 16,
+            color: isDisabled ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
           ),
           hint: Text(
             hintText,
@@ -1749,9 +2035,9 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                   value: item,
                   child: Text(
                     itemLabel(item),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF1F2937),
+                      color: isDisabled ? const Color(0xFF9CA3AF) : const Color(0xFF1F2937),
                     ),
                   ),
                 ),
@@ -1819,9 +2105,10 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
     final authState = context.read<AuthBloc>().state;
     final role = authState.loginData?.role ?? 'MEMBER';
 
-    final canChangeDistrict = role == 'ADMIN' || role == 'SUPER_ADMIN';
-    final canChangeTaluk = canChangeDistrict || role == 'DISTRICT_ADMIN';
-    final canChangeArea = role != 'MEMBER';
+    final canChangeDistrict = role == 'SUPER_ADMIN';
+    final canChangeTaluk = canChangeDistrict || role == 'DISTRICT_ADMIN' || role == 'DISTRICT_INCHARGE';
+    final canChangeArea = canChangeTaluk || role == 'ADMIN' || role == 'CONSTITUENCY_INCHARGE';
+    final canChangeStreet = role != 'MEMBER' && role != 'STREET_INCHARGE';
 
     return Scaffold(
       backgroundColor: _bg,
@@ -1829,9 +2116,9 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
         backgroundColor: const Color(0xFF004D2A), // Dark Green
         elevation: 0,
         leading: const BackButton(color: Colors.white),
-        title: const Text(
-          'Create Poll',
-          style: TextStyle(
+        title: Text(
+          AppLocalizations.of(context)!.createPollTitle,
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
             fontSize: 18,
@@ -1845,20 +2132,20 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(18),
                 children: [
-                  const _FormLabel('Poll Question'),
+                  _FormLabel(AppLocalizations.of(context)!.pollQuestion),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _question,
                     maxLength: 100,
                     minLines: 3,
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter your question...',
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!.enterYourQuestion,
                       counterText: '0/100',
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const _FormLabel('Options'),
+                  _FormLabel(AppLocalizations.of(context)!.options),
                   const SizedBox(height: 10),
                   ...List.generate(_options.length, (index) {
                     return Padding(
@@ -1869,7 +2156,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                             child: TextField(
                               controller: _options[index],
                               decoration: InputDecoration(
-                                hintText: 'Option ${index + 1}',
+                                hintText: AppLocalizations.of(context)!.optionIndex(index + 1),
                               ),
                             ),
                           ),
@@ -1890,17 +2177,17 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                             () => _options.add(TextEditingController()),
                           ),
                     icon: const Icon(Icons.add_rounded),
-                    label: const Text('Add Option'),
+                    label: Text(AppLocalizations.of(context)!.addOption),
                   ),
                   const SizedBox(height: 18),
-                  const _FormLabel('Poll Duration'),
+                  _FormLabel(AppLocalizations.of(context)!.pollDuration),
                   const SizedBox(height: 8),
                   _DurationRadios(
                     value: _duration,
                     onChanged: (value) => setState(() => _duration = value),
                   ),
                   const SizedBox(height: 18),
-                  const _FormLabel('Target Location'),
+                  _FormLabel(AppLocalizations.of(context)!.targetLocation),
                   const SizedBox(height: 10),
                   Builder(
                     builder: (context) {
@@ -1912,17 +2199,17 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _FormLabel('Street'),
+                            _FormLabel(AppLocalizations.of(context)!.street),
                             const SizedBox(height: 6),
                             _loadingStreets
-                                ? _buildLoadingField('Street')
+                                ? _buildLoadingField(AppLocalizations.of(context)!.street)
                                 : _buildDropdownField<LocationModel>(
                                     items: _streets,
                                     value: _selectedStreet,
                                     onChanged: (val) =>
                                         setState(() => _selectedStreet = val),
                                     itemLabel: (item) => item.name,
-                                    hintText: 'Select Street (Optional)',
+                                    hintText: AppLocalizations.of(context)!.selectStreetOptional,
                                   ),
                           ],
                         );
@@ -1932,7 +2219,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // 1. State
-                          const _FormLabel('State'),
+                          _FormLabel(AppLocalizations.of(context)!.state),
                           const SizedBox(height: 6),
                           _buildDropdownField<String>(
                             items: _states,
@@ -1940,15 +2227,15 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                             onChanged: (val) =>
                                 setState(() => _selectedState = val),
                             itemLabel: (item) => item,
-                            hintText: 'Select State',
+                            hintText: AppLocalizations.of(context)!.selectState,
                           ),
                           const SizedBox(height: 16),
 
                           // 2. District
-                          const _FormLabel('District *'),
+                          _FormLabel(AppLocalizations.of(context)!.districtAsterisk),
                           const SizedBox(height: 6),
                           _loadingDistricts
-                              ? _buildLoadingField('District')
+                              ? _buildLoadingField(AppLocalizations.of(context)!.district)
                               : _buildDropdownField<LocationModel>(
                                   items: _districts,
                                   value: _selectedDistrict,
@@ -1956,17 +2243,17 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                                       ? _onDistrictChanged
                                       : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select District',
+                                  hintText: AppLocalizations.of(context)!.selectDistrict,
                                 ),
                           const SizedBox(height: 16),
 
                           // 3. Constituency (Taluk)
-                          const _FormLabel('Constituency (Taluk)'),
+                          _FormLabel(AppLocalizations.of(context)!.constituencyTaluk),
                           const SizedBox(height: 6),
                           _loadingConstituencies
-                              ? _buildLoadingField('Constituency')
+                              ? _buildLoadingField(AppLocalizations.of(context)!.constituencyTaluk)
                               : _selectedDistrict == null
-                              ? _buildDisabledField('Select District first')
+                              ? _buildDisabledField(AppLocalizations.of(context)!.selectDistrictFirst)
                               : _buildDropdownField<LocationModel>(
                                   items: _constituencies,
                                   value: _selectedConstituency,
@@ -1974,17 +2261,17 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                                       ? _onConstituencyChanged
                                       : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select Constituency',
+                                  hintText: AppLocalizations.of(context)!.selectConstituency,
                                 ),
                           const SizedBox(height: 16),
 
                           // 4. Area (Town)
-                          const _FormLabel('Area (Town)'),
+                          _FormLabel(AppLocalizations.of(context)!.areaTown),
                           const SizedBox(height: 6),
                           _loadingAreas
-                              ? _buildLoadingField('Area')
+                              ? _buildLoadingField(AppLocalizations.of(context)!.areaTown)
                               : _selectedConstituency == null
-                              ? _buildDisabledField('Select Constituency first')
+                              ? _buildDisabledField(AppLocalizations.of(context)!.selectConstituencyFirst)
                               : _buildDropdownField<LocationModel>(
                                   items: _areas,
                                   value: _selectedArea,
@@ -1992,27 +2279,27 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                                       ? _onAreaChanged
                                       : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select Area',
+                                  hintText: AppLocalizations.of(context)!.selectArea,
                                 ),
                           const SizedBox(height: 16),
 
                           // 5. Street
-                          const _FormLabel('Street'),
+                          _FormLabel(AppLocalizations.of(context)!.street),
                           const SizedBox(height: 6),
                           _loadingStreets
-                              ? _buildLoadingField('Street')
+                              ? _buildLoadingField(AppLocalizations.of(context)!.street)
                               : _selectedArea == null
                               ? _buildDisabledField('Select Area first')
                               : _buildDropdownField<LocationModel>(
                                   items: _streets,
                                   value: _selectedStreet,
-                                  onChanged: canChangeArea
+                                  onChanged: canChangeStreet
                                       ? (val) => setState(
                                           () => _selectedStreet = val,
                                         )
                                       : null,
                                   itemLabel: (item) => item.name,
-                                  hintText: 'Select Street',
+                                  hintText: AppLocalizations.of(context)!.selectStreetOptional,
                                 ),
                         ],
                       );
@@ -2021,7 +2308,7 @@ class _CreatePollScreenState extends State<_CreatePollScreen> {
                 ],
               ),
             ),
-            _BottomAction(label: 'Create Poll', onTap: _createPoll),
+            _BottomAction(label: AppLocalizations.of(context)!.createPollTitle, onTap: _createPoll),
           ],
         ),
       ),
@@ -2153,6 +2440,7 @@ class _PollDetailsScreenState extends State<_PollDetailsScreen> {
                         location: livePoll.location?['name']?.toString() ?? '',
                         time: _timeAgo(livePoll.createdAt),
                         image: livePoll.createdBy?['image']?.toString(),
+                        role: livePoll.createdBy?['role']?.toString(),
                         category: isExpired
                             ? 'Expired'
                             : (liveHasVoted ? 'Voted' : 'Active'),
@@ -3077,6 +3365,7 @@ class _PostCard extends StatelessWidget {
                     name: post.authorName,
                     location: _postLocation(post),
                     time: _timeAgo(post.createdAt),
+                    role: post.authorRole,
                     image: post.createdBy?['image']?.toString(),
                   ),
                 ),
@@ -3259,6 +3548,7 @@ class _PollCard extends StatelessWidget {
               name: poll.createdBy?['name']?.toString() ?? 'Community Poll',
               location: poll.location?['name']?.toString() ?? '',
               time: _timeAgo(poll.createdAt),
+              role: poll.createdBy?['role']?.toString(),
               category: isExpired ? 'Expired' : (hasVoted ? 'Voted' : 'Active'),
               image: poll.createdBy?['image']?.toString(),
             ),
@@ -3374,6 +3664,7 @@ class _AuthorLine extends StatelessWidget {
     required this.location,
     required this.time,
     this.category,
+    this.role,
     this.image,
   });
 
@@ -3381,6 +3672,7 @@ class _AuthorLine extends StatelessWidget {
   final String location;
   final String time;
   final String? category;
+  final String? role;
   final String? image;
 
   @override
@@ -3461,15 +3753,40 @@ class _AuthorLine extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: _text,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                ),
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _text,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  if (role != null && role!.trim().isNotEmpty && role != 'MEMBER' && role != 'USER') ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: const Color(0xFFE5E7EB)),
+                      ),
+                      child: Text(
+                        role!.replaceAll('_', ' '),
+                        style: const TextStyle(
+                          color: Color(0xFF374151),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               Row(
                 children: [
@@ -3720,12 +4037,15 @@ class _InlineAction extends StatelessWidget {
           children: [
             Icon(icon, color: effectiveColor, size: 18),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: effectiveColor,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: effectiveColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -3862,7 +4182,7 @@ class _CommunityCard extends StatelessWidget {
   void _handleJoin(BuildContext context) {
     if (community.privacyType == 'SECRET') {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This community is invite only.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.inviteOnly)),
       );
       return;
     }
@@ -3874,21 +4194,21 @@ class _CommunityCard extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: const Text(
-            'Request to Join',
-            style: TextStyle(color: _primary, fontWeight: FontWeight.bold),
+          title: Text(
+            AppLocalizations.of(context)!.requestToJoin,
+            style: const TextStyle(color: _primary, fontWeight: FontWeight.bold),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Please provide a reason for joining this community.'),
+              Text(AppLocalizations.of(context)!.provideReason),
               const SizedBox(height: 12),
               TextField(
                 controller: inputController,
-                decoration: const InputDecoration(
-                  hintText: 'Your reason...',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: AppLocalizations.of(context)!.yourReason,
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 3,
               ),
@@ -3897,7 +4217,7 @@ class _CommunityCard extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text(AppLocalizations.of(context)!.cancel, style: const TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _primary),
@@ -3908,9 +4228,9 @@ class _CommunityCard extends StatelessWidget {
                   JoinCommunity(communityId: community.id, reason: text),
                 );
               },
-              child: const Text(
-                'Send Request',
-                style: TextStyle(color: Colors.white),
+              child: Text(
+                AppLocalizations.of(context)!.sendRequest,
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ],
@@ -3936,14 +4256,7 @@ class _CommunityCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         elevation: 0,
         child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => CommunityDetailsScreen(community: community),
-              ),
-            );
-          },
+          onTap: null,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
@@ -4028,7 +4341,7 @@ class _CommunityCard extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      '${community.memberCount} Members',
+                                      '${community.memberCount} ${AppLocalizations.of(context)!.members}',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: _muted,
@@ -4072,6 +4385,35 @@ class _CommunityCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (isJoined) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0FDF4),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFBBF7D0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: Color(0xFF004D2A), size: 12),
+                              const SizedBox(width: 4),
+                              Text(
+                                AppLocalizations.of(context)!.joinedStatus,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF004D2A),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       // Description
                       if (community.description != null &&
                           community.description!.isNotEmpty) ...[
@@ -4094,7 +4436,7 @@ class _CommunityCard extends StatelessWidget {
                           if (isJoined) ...[
                             Expanded(
                               child: _CardActionButton(
-                                label: 'Open',
+                                label: AppLocalizations.of(context)!.openAction,
                                 icon: Icons.arrow_forward_rounded,
                                 filled: true,
                                 onTap: () => Navigator.push(
@@ -4111,10 +4453,10 @@ class _CommunityCard extends StatelessWidget {
                             Expanded(
                               child: _CardActionButton(
                                 label: privacy == 'SECRET'
-                                    ? 'Invite Only'
+                                    ? AppLocalizations.of(context)!.inviteOnly
                                     : privacy == 'PRIVATE'
-                                    ? 'Request to Join'
-                                    : 'Join',
+                                    ? AppLocalizations.of(context)!.requestToJoin
+                                    : AppLocalizations.of(context)!.joinGroup,
                                 icon: privacy == 'SECRET'
                                     ? Icons.lock_rounded
                                     : Icons.add_rounded,
@@ -4128,42 +4470,11 @@ class _CommunityCard extends StatelessWidget {
                     ],
                   ),
                   // Privacy badge positioned top-right
-                  Positioned(
+                      Positioned(
                         top: 0,
                         right: 0,
                         child: _PrivacyBadge(privacy: privacy),
                       ),
-                      if (isJoined)
-                        Positioned(
-                          top: 30,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF0FDF4),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFBBF7D0)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.check_circle_rounded, color: _secondary, size: 12),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'Joined',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: _primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -4260,6 +4571,12 @@ class _PrivacyBadge extends StatelessWidget {
         fg = const Color(0xFF1A7F45);
         icon = Icons.public_rounded;
     }
+    String privacyText = privacy == 'PRIVATE'
+        ? AppLocalizations.of(context)!.privacyPrivate
+        : privacy == 'SECRET'
+            ? AppLocalizations.of(context)!.privacySecret
+            : AppLocalizations.of(context)!.privacyPublic;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
@@ -4272,7 +4589,7 @@ class _PrivacyBadge extends StatelessWidget {
           Icon(icon, size: 11, color: fg),
           const SizedBox(width: 4),
           Text(
-            privacy,
+            privacyText,
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w800,
@@ -4583,17 +4900,17 @@ class _CreatePollPrompt extends StatelessWidget {
             child: Icon(Icons.poll_outlined, color: _primary),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Ask your community',
-                  style: TextStyle(color: _text, fontWeight: FontWeight.w900),
+                  AppLocalizations.of(context)!.askYourCommunity,
+                  style: const TextStyle(color: _text, fontWeight: FontWeight.w900),
                 ),
                 Text(
-                  'Create a poll for local decisions',
-                  style: TextStyle(color: _muted, fontSize: 12),
+                  AppLocalizations.of(context)!.createPollDescription,
+                  style: const TextStyle(color: _muted, fontSize: 12),
                 ),
               ],
             ),
@@ -5022,8 +5339,7 @@ class _CommentTile extends StatelessWidget {
                       name: comment.authorName,
                       location: '',
                       time: _timeAgo(comment.createdAt),
-                      category: comment
-                          .authorRole, // Shows Role as a Badge instead of Location
+                      role: comment.authorRole,
                       image: comment.createdBy?['image']?.toString(),
                     ),
                     const SizedBox(height: 8),
@@ -5375,19 +5691,28 @@ String _postLocation(PostModel post) {
 }
 
 String _cleanContent(String content) {
-  final parts = content.split('\n\n');
-  if (parts.length > 1 &&
-      [
-        'Discussion',
-        'Suggestion',
-        'Complaint',
-        'Information',
-        'General Update',
-        'Community Post',
-      ].contains(parts.first.trim())) {
-    return parts.skip(1).join('\n\n').trim();
+  String clean = content.trim();
+  final categories = [
+    'Discussion',
+    'Suggestion',
+    'Complaint',
+    'Information',
+    'General Update',
+    'Community Post',
+  ];
+  
+  for (final category in categories) {
+    if (clean.startsWith('**$category**')) {
+      clean = clean.substring(category.length + 4).trim();
+      break;
+    } else if (clean.startsWith(category)) {
+      clean = clean.substring(category.length).trim();
+      break;
+    }
   }
-  return content.trim();
+  
+  // Additional safety to remove leading empty lines if any
+  return clean.trim();
 }
 
 String _categoryFromContent(String content) {

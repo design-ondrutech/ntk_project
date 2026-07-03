@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ntk_project/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:ntk_project/src/features/auth/presentation/bloc/auth_state.dart';
@@ -73,7 +74,7 @@ class SuperAdminDashboard extends StatelessWidget {
                     context.read<DashboardBloc>().add(
                       LoadDashboardStats(
                         authLocationId,
-                        filterLocationId: selectedFilterLocationId,
+                        filterLocationId: state.globalLocation?.id != authLocationId ? state.globalLocation?.id : null,
                         userId: userId,
                       ),
                     );
@@ -239,18 +240,6 @@ class SuperAdminDashboard extends StatelessWidget {
                                         .toList(),
                                   ],
                                   onChanged: (val) {
-                                    final name = val == null
-                                        ? 'Tamil Nadu'
-                                        : locationState.districts
-                                              .firstWhere((d) => d.id == val)
-                                              .name;
-                                    context.read<AuthBloc>().add(
-                                      ChangeLocationRequested(
-                                        locationId: val ?? 1,
-                                        locationName: name,
-                                      ),
-                                    );
-
                                     // Reload Dashboard data and update global location
                                     final location = val == null
                                         ? null
@@ -261,13 +250,20 @@ class SuperAdminDashboard extends StatelessWidget {
                                       UpdateGlobalLocation(location),
                                     );
                                     context.read<DashboardBloc>().add(
-                                      LoadDashboardStats(val ?? 1),
+                                      LoadDashboardStats(
+                                        authLocationId,
+                                        filterLocationId: val,
+                                        userId: userId,
+                                      ),
                                     );
                                     context.read<DashboardBloc>().add(
-                                      LoadModerationStats(val ?? 1),
+                                      LoadModerationStats(val ?? authLocationId),
                                     );
                                     context.read<PendingRequestsBloc>().add(
-                                      LoadPendingRequests(locationId: val ?? 1),
+                                      LoadPendingRequests(
+                                        locationId: val ?? authLocationId,
+                                        role: 'All',
+                                      ),
                                     );
                                   },
                                 ),
@@ -277,7 +273,15 @@ class SuperAdminDashboard extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
 
-                        // Today's Activity Section
+                        if (state.isLoading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 60),
+                            child: Center(
+                              child: CircularProgressIndicator(color: Color(0xFF004D2A)),
+                            ),
+                          )
+                        else ...[
+                          // Today's Activity Section
                         Text(
                           AppLocalizations.of(context)!.todaysActivity,
                           style: const TextStyle(
@@ -457,9 +461,9 @@ class SuperAdminDashboard extends StatelessWidget {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      const Text(
-                                        'Review Location Requests',
-                                        style: TextStyle(
+                                      Text(
+                                        AppLocalizations.of(context)!.reviewLocationRequests,
+                                        style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
@@ -467,9 +471,9 @@ class SuperAdminDashboard extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Approve or reject role and location changes',
-                                        style: TextStyle(
-                                          color: Colors.white.withOpacity(0.9),
+                                        AppLocalizations.of(context)!.approveRejectLocationChanges,
+                                        style: const TextStyle(
+                                          color: Colors.white,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -772,6 +776,7 @@ class SuperAdminDashboard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 32),
+                        ],
                       ],
                     ),
                   ),
